@@ -18,7 +18,7 @@ func logout(ctx context.C) error {
 		return herrors.New(err, "can't remove session")
 	}
 
-	ctx.RedirectTemp(getWebRoot())
+	ctx.RedirectTemp(getWebRoot() + "?after=logout")
 	return nil
 }
 

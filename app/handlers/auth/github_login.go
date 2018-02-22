@@ -14,10 +14,14 @@ func getWebRoot() string {
 	return os.Getenv("WEB_ROOT")
 }
 
+func getAfterLoginURL() string {
+	return getWebRoot() + "?after=login"
+}
+
 func githubLogin(ctx context.C) error {
 	if u, err := user.GetCurrent(&ctx); err == nil {
 		ctx.L.Warnf("User is already authorized: %v", u)
-		ctx.RedirectTemp(getWebRoot())
+		ctx.RedirectTemp(getAfterLoginURL())
 		return nil
 	}
 
@@ -36,7 +40,7 @@ func githubOAuthCallback(ctx context.C) error {
 		return err
 	}
 
-	ctx.RedirectTemp(getWebRoot())
+	ctx.RedirectTemp(getAfterLoginURL())
 	return nil
 }
 
