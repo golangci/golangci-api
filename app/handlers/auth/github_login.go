@@ -15,7 +15,7 @@ func getWebRoot() string {
 }
 
 func getAfterLoginURL() string {
-	return getWebRoot() + "?after=login"
+	return getWebRoot() + "/repos/github?after=login"
 }
 
 func githubLogin(ctx context.C) error {
