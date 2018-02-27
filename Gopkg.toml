@@ -99,11 +99,6 @@
   branch = "master"
   name = "gopkg.in/boj/redistore.v1"
 
-[[override]]
-  branch = "master"
-  name = "github.com/RichardKnop/machinery"
-  source = "https://github.com/golangci/machinery.git"
-
 [prune]
   go-tests = true
   unused-packages = true

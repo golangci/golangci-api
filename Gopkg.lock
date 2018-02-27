@@ -20,8 +20,7 @@
     "v1/retry",
     "v1/tasks"
   ]
-  revision = "629e857ba80d2b6fc7bfefc149d790987bf370ca"
-  source = "https://github.com/apostov/machinery.git"
+  revision = "c5e057032f00db21ac4deb39bb3bc5eaa2112cff"
 
 [[projects]]
   branch = "master"
