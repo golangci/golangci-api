@@ -7,7 +7,8 @@ type RepoInfo struct {
 }
 
 type AuthorizedUser struct {
-	ID        uint   `json:"id"`
-	Name      string `json:"name"`
-	AvatarURL string `json:"avatarUrl"`
+	ID          uint   `json:"id"`
+	Name        string `json:"name"`
+	AvatarURL   string `json:"avatarUrl"`
+	GithubLogin string `json:"githubLogin"`
 }

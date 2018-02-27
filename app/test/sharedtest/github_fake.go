@@ -17,8 +17,57 @@ import (
 	"github.com/markbates/goth/providers/github"
 )
 
+type FakeGithubServerConfig struct {
+	AuthHandler http.HandlerFunc
+	TokenHandler http.HandlerFunc
+	ProfileHandler http.HandlerFunc
+	EmailHandler http.HandlerFunc
+	ListReposHandler http.HandlerFunc
+	AddHookHandler http.HandlerFunc
+	DeleteHookHandler http.HandlerFunc
+}
+
+var FakeGithubCfg = FakeGithubServerConfig{
+	AuthHandler: authHandler,
+	TokenHandler: tokenHandler,
+	ProfileHandler: profileHandler,
+	EmailHandler: emailHandler,
+	ListReposHandler: listReposHandler,
+	AddHookHandler: addHookHandler,
+	DeleteHookHandler: deleteHookHandler,
+}
 var fakeGithubServer *httptest.Server
 var fakeGithubServerOnce sync.Once
+
+func wrapF(f *http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		curF := *f
+		curF(w, r)
+	}
+}
+
+func initFakeGithubServer() {
+	r := mux.NewRouter()
+	r.HandleFunc(authURL, FakeGithubCfg.AuthHandler)
+	r.HandleFunc(tokenURL, FakeGithubCfg.TokenHandler)
+	r.HandleFunc(profileURL, wrapF(&FakeGithubCfg.ProfileHandler))
+	r.HandleFunc(emailURL, FakeGithubCfg.EmailHandler)
+	r.HandleFunc("/user/repos", FakeGithubCfg.ListReposHandler)
+	r.HandleFunc("/repos/{owner}/{repo}/hooks", FakeGithubCfg.AddHookHandler)
+	r.HandleFunc("/repos/{owner}/{repo}/hooks/{hookID}", FakeGithubCfg.DeleteHookHandler)
+
+	fakeGithubServer = httptest.NewServer(r)
+
+	github.AuthURL = fakeGithubServer.URL + authURL
+	github.TokenURL = fakeGithubServer.URL + tokenURL
+	github.ProfileURL = fakeGithubServer.URL + profileURL
+	github.EmailURL = fakeGithubServer.URL + emailURL
+
+	os.Setenv("GITHUB_CALLBACK_HOST", server.URL)
+	os.Setenv("WEB_ROOT", server.URL)
+
+	oauth.InitGithub()
+}
 
 const (
 	authURL    = "/login/oauth/authorize"
@@ -44,7 +93,7 @@ func sendFakeGithubJSON(name string, w http.ResponseWriter) {
 	}
 }
 
-func sendJSON(w http.ResponseWriter, obj interface{}) {
+func SendJSON(w http.ResponseWriter, obj interface{}) {
 	w.Header().Add("Content-Type", "application/json")
 	if err := json.NewEncoder(w).Encode(obj); err != nil {
 		log.Fatalf("Can't JSON encode result: %s", err)
@@ -55,7 +104,7 @@ func tokenHandler(w http.ResponseWriter, r *http.Request) {
 	ret := map[string]string{
 		"access_token": "valid_access_token",
 	}
-	sendJSON(w, ret)
+	SendJSON(w, ret)
 }
 
 func profileHandler(w http.ResponseWriter, r *http.Request) {
@@ -106,27 +155,4 @@ func deleteHookHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.WriteHeader(http.StatusNoContent)
-}
-
-func initFakeGithubServer() {
-	r := mux.NewRouter()
-	r.HandleFunc(authURL, authHandler)
-	r.HandleFunc(tokenURL, tokenHandler)
-	r.HandleFunc(profileURL, profileHandler)
-	r.HandleFunc(emailURL, emailHandler)
-	r.HandleFunc("/user/repos", listReposHandler)
-	r.HandleFunc("/repos/{owner}/{repo}/hooks", addHookHandler)
-	r.HandleFunc("/repos/{owner}/{repo}/hooks/{hookID}", deleteHookHandler)
-
-	fakeGithubServer = httptest.NewServer(r)
-
-	github.AuthURL = fakeGithubServer.URL + authURL
-	github.TokenURL = fakeGithubServer.URL + tokenURL
-	github.ProfileURL = fakeGithubServer.URL + profileURL
-	github.EmailURL = fakeGithubServer.URL + emailURL
-
-	os.Setenv("GITHUB_CALLBACK_HOST", server.URL)
-	os.Setenv("WEB_ROOT", server.URL)
-
-	oauth.InitGithub()
 }

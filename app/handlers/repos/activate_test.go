@@ -2,6 +2,7 @@ package repos
 
 import (
 	"net/http"
+	"strings"
 	"testing"
 
 	_ "github.com/golangci/golangci-api/app/handlers/auth"
@@ -47,4 +48,25 @@ func TestDoubleActivate(t *testing.T) {
 	r, _ := getDeactivatedRepo(t)
 	r.Activate()
 	//r.ActivateFail()
+}
+
+func TestActivateWithUpperCase(t *testing.T) {
+	r, u := getDeactivatedRepo(t)
+
+	srcName := r.Name
+	upperName := strings.ToUpper(srcName)
+	u.A.NotEqual(strings.ToLower(srcName), srcName) // to check mapping to activated repos in list of repos
+	u.A.NotEqual(upperName, srcName)
+	r.Name = upperName
+
+	r.Activate()
+	u.A.Equal(upperName, r.Name) // check case was saved
+	u.A.True(r.IsActivated)
+	u.A.True(u.Repos()[0].IsActivated) // important to check because of mapping
+
+	r.Name = upperName
+	r.Deactivate()
+	u.A.Equal(upperName, r.Name)
+	u.A.False(r.IsActivated)
+	u.A.False(u.Repos()[0].IsActivated)
 }

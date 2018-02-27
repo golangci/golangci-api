@@ -2,6 +2,7 @@ package repos
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/golangci/golangci-api/app/internal/auth/user"
 	"github.com/golangci/golangci-api/app/internal/db"
@@ -63,7 +64,7 @@ func getActivatedUserRepos(ctx *context.C) (map[string]*models.GithubRepo, error
 
 	ret := map[string]*models.GithubRepo{}
 	for _, r := range repos {
-		ret[r.Name] = &r
+		ret[strings.ToLower(r.Name)] = &r
 	}
 
 	ctx.L.Infof("user %d repos: %v, map: %v", ga.UserID, repos, ret)
@@ -89,7 +90,7 @@ func getReposList(ctx context.C) error {
 
 	ret := []returntypes.RepoInfo{}
 	for _, r := range repos {
-		ar := activatedRepos[r.GetFullName()]
+		ar := activatedRepos[strings.ToLower(r.GetFullName())]
 		hookID := ""
 		if ar != nil {
 			hookID = ar.HookID

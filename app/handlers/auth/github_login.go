@@ -3,6 +3,7 @@ package auth
 import (
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/golangci/golangci-api/app/internal/auth/oauth"
 	"github.com/golangci/golangci-api/app/internal/auth/user"
@@ -34,6 +35,10 @@ func githubOAuthCallback(ctx context.C) error {
 	if err != nil {
 		return fmt.Errorf("can't complete github oauth: %s", err)
 	}
+
+	// Normalize data: it's important for user with github login in different case
+	gu.NickName = strings.ToLower(gu.NickName)
+	gu.Email = strings.ToLower(gu.Email)
 
 	ctx.L.Infof("Github oauth completed: %+v", gu)
 	if err = user.LoginGithub(&ctx, gu); err != nil {

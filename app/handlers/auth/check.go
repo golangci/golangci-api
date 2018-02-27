@@ -13,10 +13,16 @@ func checkAuth(ctx context.C) error {
 		return err
 	}
 
+	ga, err := user.GetGithubAuth(&ctx)
+	if err != nil {
+		return err
+	}
+
 	au := returntypes.AuthorizedUser{
-		ID:        u.ID,
-		Name:      u.Name,
-		AvatarURL: u.AvatarURL,
+		ID:          u.ID,
+		Name:        u.Name,
+		AvatarURL:   u.AvatarURL,
+		GithubLogin: ga.Login,
 	}
 	ctx.ReturnJSON(map[string]interface{}{
 		"user": au,
