@@ -79,13 +79,13 @@
   revision = "ebf56d35bba727c68ac77f56f2fcf90b181851aa"
 
 [[projects]]
-  branch = "master"
   name = "github.com/garyburd/redigo"
   packages = [
     "internal",
     "redis"
   ]
   revision = "d1ed5c67e5794de818ea85e6b522fda02623a484"
+  version = "1.3.0"
 
 [[projects]]
   branch = "master"
@@ -126,7 +126,7 @@
     "app/utils/github",
     "app/utils/queue"
   ]
-  revision = "e1bbb64eb6a64b1a7de0bb42771fd22d771c2bb7"
+  revision = "b06ed05fbd915b178d18eff6a240891f1bd2bd3f"
   source = "git@github.com:golangci/golangci-worker.git"
 
 [[projects]]
@@ -476,6 +476,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "bc820581d4f63c733dfc35288942f153650dde632a3859c0a88867f117c8e721"
+  inputs-digest = "827a9edded797929d857992ce158dce125aa6db1a530563004f948b801c89c69"
   solver-name = "gps-cdcl"
   solver-version = 1
