@@ -14,11 +14,11 @@ func TestActivateNotPut(t *testing.T) {
 	u.E.GET("/v1/repos/golangci/repo").Expect().Status(http.StatusNotFound)
 }
 
-func TestActivateNotOwnedRepo(t *testing.T) {
+func TestActivateTeamRepo(t *testing.T) {
 	u := sharedtest.StubLogin(t)
-	u.E.PUT("/v1/repos/anotherowner/somerepo").
+	u.E.PUT("/v1/repos/team/somerepo").
 		Expect().
-		Status(http.StatusForbidden)
+		Status(http.StatusInternalServerError) // TODO
 }
 
 func getDeactivatedRepo(t *testing.T) (*sharedtest.Repo, *sharedtest.User) {

@@ -1,8 +1,6 @@
 package repos
 
 import (
-	"strings"
-
 	"github.com/golangci/golangci-api/app/internal/auth/user"
 	"github.com/golangci/golangci-api/app/internal/repos"
 	"github.com/golangci/golangci-api/app/models"
@@ -19,10 +17,6 @@ func changeRepo(ctx context.C) error {
 	}
 
 	repoOwner := ctx.URLVar("repoOwner")
-	if !strings.EqualFold(ga.Login, repoOwner) {
-		return herrors.New403Errorf("invalid repo owner: %q != %q", ga.Login, repoOwner)
-	}
-
 	repoName := ctx.URLVar("repoName")
 
 	var gr *models.GithubRepo
