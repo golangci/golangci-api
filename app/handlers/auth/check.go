@@ -21,8 +21,10 @@ func checkAuth(ctx context.C) error {
 	au := returntypes.AuthorizedUser{
 		ID:          u.ID,
 		Name:        u.Name,
+		Email:       u.Email,
 		AvatarURL:   u.AvatarURL,
 		GithubLogin: ga.Login,
+		CreatedAt:   u.CreatedAt,
 	}
 	ctx.ReturnJSON(map[string]interface{}{
 		"user": au,
