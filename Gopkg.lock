@@ -318,6 +318,12 @@
   revision = "18a02ba4a312f95da08ff4cfc0055750ce50ae9e"
 
 [[projects]]
+  name = "github.com/stvp/rollbar"
+  packages = ["."]
+  revision = "b20261800d8cda3be14dcef0d1a8320779bba61a"
+  version = "v0.5.1"
+
+[[projects]]
   branch = "master"
   name = "github.com/urfave/negroni"
   packages = ["."]
@@ -476,6 +482,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "827a9edded797929d857992ce158dce125aa6db1a530563004f948b801c89c69"
+  inputs-digest = "c0e2b7cd82e3594e6e3a369e0bf196d6ee6a4bd29a3794ecde963346f6802891"
   solver-name = "gps-cdcl"
   solver-version = 1

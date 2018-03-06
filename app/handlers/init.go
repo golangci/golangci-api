@@ -2,9 +2,13 @@ package handlers
 
 import (
 	"net/http"
+	"os"
 
+	"github.com/golangci/golangci-api/app/internal/auth/user"
+	"github.com/golangci/golib/server/context"
 	"github.com/golangci/golib/server/handlers/manager"
 	"github.com/rs/cors"
+	"github.com/stvp/rollbar"
 	"github.com/urfave/negroni"
 )
 
@@ -21,4 +25,36 @@ func GetRoot() http.Handler {
 	n.Use(c)
 	n.UseHandler(h)
 	return n
+}
+
+func trackError(ctx *context.C, err error) {
+	fields := []*rollbar.Field{}
+	u, userErr := user.GetCurrent(ctx)
+	if userErr != nil {
+		fields = append(fields, &rollbar.Field{
+			Name: "user",
+			Data: u,
+		})
+	}
+
+	rollbar.RequestError("ERROR", ctx.R, err, fields...)
+}
+
+func Register(match string, handler manager.Handler) {
+	wrappedHandler := func(ctx context.C) error {
+		err := handler(ctx)
+		if err != nil {
+			go trackError(&ctx, err)
+		}
+		return err
+	}
+	manager.Register(match, wrappedHandler)
+}
+
+func init() {
+	rollbar.Token = os.Getenv("ROLLBAR_API_TOKEN")
+	goEnv := os.Getenv("GO_ENV")
+	if goEnv == "prod" {
+		rollbar.Environment = "production" // defaults to "development"
+	}
 }
