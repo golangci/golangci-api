@@ -12,6 +12,7 @@ import (
 	"github.com/golangci/golib/server/context"
 	"github.com/golangci/golib/server/handlers/herrors"
 	gh "github.com/google/go-github/github"
+	"github.com/jinzhu/gorm"
 )
 
 func DeactivateRepo(ctx *context.C, owner, repo string) (*models.GithubRepo, error) {
@@ -25,6 +26,10 @@ func DeactivateRepo(ctx *context.C, owner, repo string) (*models.GithubRepo, err
 		NameEq(fmt.Sprintf("%s/%s", owner, repo)).
 		One(&gr)
 	if err != nil {
+		if err == gorm.ErrRecordNotFound { // Race condition: double deactivation request
+			return &models.GithubRepo{}, nil
+		}
+
 		return nil, fmt.Errorf("can't get repo %s/%s: %s", owner, repo, err)
 	}
 
@@ -46,6 +51,15 @@ func GetWebhookURLPathForRepo(name, hookID string) string {
 }
 
 func ActivateRepo(ctx *context.C, ga *models.GithubAuth, owner, repo string) (*models.GithubRepo, error) {
+	repoName := fmt.Sprintf("%s/%s", owner, repo)
+
+	var gr models.GithubRepo
+	err := models.NewGithubRepoQuerySet(db.Get(ctx)).UserIDEq(ga.UserID).NameEq(repoName).One(&gr)
+	if err == nil {
+		ctx.L.Infof("user attempts to activate repo twice")
+		return &gr, nil
+	}
+
 	gc, err := github.GetClient(ctx)
 	if err != nil {
 		return nil, herrors.New(err, "can't get github client")
@@ -56,9 +70,9 @@ func ActivateRepo(ctx *context.C, ga *models.GithubAuth, owner, repo string) (*m
 		return nil, fmt.Errorf("can't generate hook id: %s", err)
 	}
 
-	gr := models.GithubRepo{
+	gr = models.GithubRepo{
 		UserID: ga.UserID,
-		Name:   fmt.Sprintf("%s/%s", owner, repo),
+		Name:   repoName,
 		HookID: hookID,
 	}
 

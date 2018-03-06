@@ -47,7 +47,14 @@ func TestDeactivate(t *testing.T) {
 func TestDoubleActivate(t *testing.T) {
 	r, _ := getDeactivatedRepo(t)
 	r.Activate()
-	//r.ActivateFail()
+	r.Activate()
+}
+
+func TestDoubleDeactivate(t *testing.T) {
+	r, _ := getDeactivatedRepo(t)
+	r.Activate()
+	r.Deactivate()
+	r.Deactivate()
 }
 
 func TestActivateWithUpperCase(t *testing.T) {
