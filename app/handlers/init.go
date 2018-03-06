@@ -46,7 +46,7 @@ func Register(match string, handler manager.Handler) {
 	wrappedHandler := func(ctx context.C) error {
 		err := handler(ctx)
 		if err != nil {
-			if herr, ok := err.(herrors.HTTPError); ok && herr.Code() == http.StatusForbidden {
+			if herr, ok := err.(herrors.HTTPError); ok && herr.Code() == http.StatusForbidden && ctx.R.URL.Path == "/v1/auth/check" {
 				// it's not an error
 				return err
 			}
