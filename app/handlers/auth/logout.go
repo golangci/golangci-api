@@ -3,6 +3,7 @@ package auth
 import (
 	"fmt"
 
+	"github.com/golangci/golangci-api/app/handlers"
 	"github.com/golangci/golangci-api/app/internal/auth/sess"
 	"github.com/golangci/golangci-api/app/internal/auth/user"
 	"github.com/golangci/golangci-api/app/internal/db"
@@ -10,7 +11,6 @@ import (
 	"github.com/golangci/golib/server/context"
 	"github.com/golangci/golib/server/handlers/helpers"
 	"github.com/golangci/golib/server/handlers/herrors"
-	"github.com/golangci/golib/server/handlers/manager"
 )
 
 func logout(ctx context.C) error {
@@ -41,6 +41,6 @@ func unlinkGithub(ctx context.C) error {
 }
 
 func init() {
-	manager.Register("/v1/auth/logout", logout)
-	manager.Register("/v1/auth/github/unlink", helpers.OnlyPUT(unlinkGithub))
+	handlers.Register("/v1/auth/logout", logout)
+	handlers.Register("/v1/auth/github/unlink", helpers.OnlyPUT(unlinkGithub))
 }

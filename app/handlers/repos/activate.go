@@ -1,13 +1,13 @@
 package repos
 
 import (
+	"github.com/golangci/golangci-api/app/handlers"
 	"github.com/golangci/golangci-api/app/internal/auth/user"
 	"github.com/golangci/golangci-api/app/internal/repos"
 	"github.com/golangci/golangci-api/app/models"
 	"github.com/golangci/golangci-api/app/returntypes"
 	"github.com/golangci/golib/server/context"
 	"github.com/golangci/golib/server/handlers/herrors"
-	"github.com/golangci/golib/server/handlers/manager"
 )
 
 func changeRepo(ctx context.C) error {
@@ -48,5 +48,5 @@ func changeRepo(ctx context.C) error {
 }
 
 func init() {
-	manager.Register("/v1/repos/{repoOwner}/{repoName}", changeRepo)
+	handlers.Register("/v1/repos/{repoOwner}/{repoName}", changeRepo)
 }

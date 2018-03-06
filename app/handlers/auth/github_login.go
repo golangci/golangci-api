@@ -5,10 +5,10 @@ import (
 	"os"
 	"strings"
 
+	"github.com/golangci/golangci-api/app/handlers"
 	"github.com/golangci/golangci-api/app/internal/auth/oauth"
 	"github.com/golangci/golangci-api/app/internal/auth/user"
 	"github.com/golangci/golib/server/context"
-	"github.com/golangci/golib/server/handlers/manager"
 )
 
 func getWebRoot() string {
@@ -50,6 +50,6 @@ func githubOAuthCallback(ctx context.C) error {
 }
 
 func init() {
-	manager.Register("/v1/auth/github", githubLogin)
-	manager.Register("/v1/auth/github/callback", githubOAuthCallback)
+	handlers.Register("/v1/auth/github", githubLogin)
+	handlers.Register("/v1/auth/github/callback", githubOAuthCallback)
 }

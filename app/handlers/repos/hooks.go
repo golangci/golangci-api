@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 
+	"github.com/golangci/golangci-api/app/handlers"
 	"github.com/golangci/golangci-api/app/internal/db"
 	"github.com/golangci/golangci-api/app/models"
 	"github.com/golangci/golangci-worker/app/analyze/analyzerqueue"
@@ -11,7 +12,6 @@ import (
 	"github.com/golangci/golangci-worker/app/utils/github"
 	"github.com/golangci/golib/server/context"
 	"github.com/golangci/golib/server/handlers/herrors"
-	"github.com/golangci/golib/server/handlers/manager"
 	gh "github.com/google/go-github/github"
 )
 
@@ -78,5 +78,5 @@ func receiveGithubWebhook(ctx context.C) error {
 }
 
 func init() {
-	manager.Register("/v1/repos/{owner}/{name}/hooks/{hookID}", receiveGithubWebhook)
+	handlers.Register("/v1/repos/{owner}/{name}/hooks/{hookID}", receiveGithubWebhook)
 }

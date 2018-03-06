@@ -1,10 +1,10 @@
 package auth
 
 import (
+	"github.com/golangci/golangci-api/app/handlers"
 	"github.com/golangci/golangci-api/app/internal/auth/user"
 	"github.com/golangci/golangci-api/app/returntypes"
 	"github.com/golangci/golib/server/context"
-	"github.com/golangci/golib/server/handlers/manager"
 )
 
 func checkAuth(ctx context.C) error {
@@ -33,5 +33,5 @@ func checkAuth(ctx context.C) error {
 }
 
 func init() {
-	manager.Register("/v1/auth/check", checkAuth)
+	handlers.Register("/v1/auth/check", checkAuth)
 }

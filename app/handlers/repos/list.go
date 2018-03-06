@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/golangci/golangci-api/app/handlers"
 	"github.com/golangci/golangci-api/app/internal/auth/user"
 	"github.com/golangci/golangci-api/app/internal/db"
 	"github.com/golangci/golangci-api/app/internal/github"
@@ -12,7 +13,6 @@ import (
 	"github.com/golangci/golangci-api/app/returntypes"
 	"github.com/golangci/golib/server/context"
 	"github.com/golangci/golib/server/handlers/herrors"
-	"github.com/golangci/golib/server/handlers/manager"
 	gh "github.com/google/go-github/github"
 )
 
@@ -109,5 +109,5 @@ func getReposList(ctx context.C) error {
 }
 
 func init() {
-	manager.Register("/v1/repos", getReposList)
+	handlers.Register("/v1/repos", getReposList)
 }

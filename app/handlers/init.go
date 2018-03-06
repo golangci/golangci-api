@@ -6,6 +6,7 @@ import (
 
 	"github.com/golangci/golangci-api/app/internal/auth/user"
 	"github.com/golangci/golib/server/context"
+	"github.com/golangci/golib/server/handlers/herrors"
 	"github.com/golangci/golib/server/handlers/manager"
 	"github.com/rs/cors"
 	"github.com/stvp/rollbar"
@@ -38,12 +39,18 @@ func trackError(ctx *context.C, err error) {
 	}
 
 	rollbar.RequestError("ERROR", ctx.R, err, fields...)
+	ctx.L.Warnf("Tracked error to rollbar: %+v", u)
 }
 
 func Register(match string, handler manager.Handler) {
 	wrappedHandler := func(ctx context.C) error {
 		err := handler(ctx)
 		if err != nil {
+			if herr, ok := err.(herrors.HTTPError); ok && herr.Code() == http.StatusForbidden {
+				// it's not an error
+				return err
+			}
+
 			go trackError(&ctx, err)
 		}
 		return err
