@@ -74,6 +74,12 @@
 
 [[projects]]
   branch = "master"
+  name = "github.com/dukex/mixpanel"
+  packages = ["."]
+  revision = "53bfdf679eecb9731ac23f01a89d8a6904f09037"
+
+[[projects]]
+  branch = "master"
   name = "github.com/fatih/structs"
   packages = ["."]
   revision = "ebf56d35bba727c68ac77f56f2fcf90b181851aa"
@@ -292,6 +298,12 @@
 
 [[projects]]
   branch = "master"
+  name = "github.com/savaki/amplitude-go"
+  packages = ["."]
+  revision = "f62e3b57c0e4d24da1fad27aa5181c59b0f7868b"
+
+[[projects]]
+  branch = "master"
   name = "github.com/sergi/go-diff"
   packages = ["diffmatchpatch"]
   revision = "1744e2970ca51c86172c8190fadad617561ed6e7"
@@ -482,6 +494,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "c0e2b7cd82e3594e6e3a369e0bf196d6ee6a4bd29a3794ecde963346f6802891"
+  inputs-digest = "bf112405649f03b86189e958c1c8fc33d56afa0833e0045368ff59dac501404e"
   solver-name = "gps-cdcl"
   solver-version = 1

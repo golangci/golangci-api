@@ -3,6 +3,7 @@ package user
 import (
 	"fmt"
 
+	"github.com/golangci/golangci-api/app/internal/analytics"
 	"github.com/golangci/golangci-api/app/internal/auth/sess"
 	"github.com/golangci/golangci-api/app/internal/db"
 	"github.com/golangci/golangci-api/app/models"
@@ -27,7 +28,7 @@ func getOrStoreUserInDB(ctx *context.C, gu goth.User) (*models.User, uint, error
 			name = gu.NickName
 		}
 
-		u := models.User{
+		u := &models.User{
 			Email:     gu.Email,
 			Name:      name,
 			AvatarURL: gu.AvatarURL,
@@ -35,7 +36,11 @@ func getOrStoreUserInDB(ctx *context.C, gu goth.User) (*models.User, uint, error
 		if err = u.Create(DB); err != nil {
 			return nil, 0, fmt.Errorf("can't create user %v: %s", u, err)
 		}
-		return &u, 0, nil
+
+		tracker := analytics.GetTracker(ctx.Ctx)
+		go tracker.UserRegistered(u)
+
+		return u, 0, nil
 	}
 
 	var u models.User
