@@ -7,6 +7,7 @@ import (
 	"github.com/golangci/golangci-api/app/handlers"
 	"github.com/golangci/golangci-api/app/internal/auth/user"
 	"github.com/golangci/golangci-api/app/internal/db"
+	"github.com/golangci/golangci-api/app/internal/errors"
 	"github.com/golangci/golangci-api/app/internal/github"
 	"github.com/golangci/golangci-api/app/internal/repos"
 	"github.com/golangci/golangci-api/app/models"
@@ -40,7 +41,8 @@ func fetchGithubRepos(ctx *context.C, client *gh.Client, maxPageNumber int) ([]*
 			break
 		}
 
-		if opts.Page == maxPageNumber { // TODO: fetch all, now we limit it to 30*3
+		if opts.Page == maxPageNumber { // TODO: fetch all, now we limit it to maxPageNumber pages
+			errors.Warnf(ctx, "Limited repo list to %d entries", len(allRepos))
 			break
 		}
 

@@ -18,22 +18,22 @@ import (
 )
 
 type FakeGithubServerConfig struct {
-	AuthHandler http.HandlerFunc
-	TokenHandler http.HandlerFunc
-	ProfileHandler http.HandlerFunc
-	EmailHandler http.HandlerFunc
-	ListReposHandler http.HandlerFunc
-	AddHookHandler http.HandlerFunc
+	AuthHandler       http.HandlerFunc
+	TokenHandler      http.HandlerFunc
+	ProfileHandler    http.HandlerFunc
+	EmailHandler      http.HandlerFunc
+	ListReposHandler  http.HandlerFunc
+	AddHookHandler    http.HandlerFunc
 	DeleteHookHandler http.HandlerFunc
 }
 
 var FakeGithubCfg = FakeGithubServerConfig{
-	AuthHandler: authHandler,
-	TokenHandler: tokenHandler,
-	ProfileHandler: profileHandler,
-	EmailHandler: emailHandler,
-	ListReposHandler: listReposHandler,
-	AddHookHandler: addHookHandler,
+	AuthHandler:       authHandler,
+	TokenHandler:      tokenHandler,
+	ProfileHandler:    profileHandler,
+	EmailHandler:      emailHandler,
+	ListReposHandler:  listReposHandler,
+	AddHookHandler:    addHookHandler,
 	DeleteHookHandler: deleteHookHandler,
 }
 var fakeGithubServer *httptest.Server

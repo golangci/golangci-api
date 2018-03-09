@@ -6,9 +6,9 @@ import (
 
 	_ "github.com/mattes/migrate/database/postgres" // must be first
 
-	"github.com/golangci/golib/server/database"
 	"github.com/golangci/golangci-api/app/utils"
 	"github.com/golangci/golangci-worker/app/utils/queue"
+	"github.com/golangci/golib/server/database"
 
 	log "github.com/sirupsen/logrus"
 
