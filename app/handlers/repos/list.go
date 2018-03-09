@@ -83,7 +83,7 @@ func getReposList(ctx context.C) error {
 		return herrors.New(err, "can't get github client")
 	}
 
-	repos, err := fetchGithubRepos(&ctx, client, 3)
+	repos, err := fetchGithubRepos(&ctx, client, 10)
 	if err != nil {
 		return herrors.New(err, "can't fetch repos from github")
 	}
