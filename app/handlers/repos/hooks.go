@@ -68,6 +68,7 @@ func receiveGithubWebhook(ctx context.C) error {
 			PullRequestNumber: prNumber,
 		},
 		APIRequestID: ctx.RequestID,
+		UserID:       gr.UserID,
 	}
 	if err = analyzerqueue.Send(t); err != nil {
 		return fmt.Errorf("can't send pull request for analysis into queue: %s", err)
