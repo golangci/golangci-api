@@ -27,6 +27,9 @@ func fetchGithubRepos(ctx *context.C, client *gh.Client, maxPageNumber int) ([]*
 	opts := gh.RepositoryListOptions{
 		Visibility: vis,
 		Sort:       "pushed",
+		ListOptions: gh.ListOptions{
+			PerPage: 100, // 100 is a max allowed value
+		},
 	}
 	var allRepos []*gh.Repository
 	for {
