@@ -12,6 +12,7 @@ services:
 
   redis:
     image: redis
+    command: redis-server --requirepass foobar
     volumes:
       - redis_data:/data
     ports:

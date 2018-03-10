@@ -16,7 +16,7 @@ var cache Cache
 
 func Get() Cache {
 	initCacheOnce.Do(func() {
-		cache = NewRedis(os.Getenv("REDIS_URL") + "/2")
+		cache = NewRedis(os.Getenv("REDIS_URL") + "/1")
 	})
 	return cache
 }
