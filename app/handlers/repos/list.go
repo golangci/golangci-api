@@ -3,9 +3,11 @@ package repos
 import (
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/golangci/golangci-api/app/handlers"
 	"github.com/golangci/golangci-api/app/internal/auth/user"
+	"github.com/golangci/golangci-api/app/internal/cache"
 	"github.com/golangci/golangci-api/app/internal/db"
 	"github.com/golangci/golangci-api/app/internal/errors"
 	"github.com/golangci/golangci-api/app/internal/github"
@@ -15,9 +17,52 @@ import (
 	"github.com/golangci/golib/server/context"
 	"github.com/golangci/golib/server/handlers/herrors"
 	gh "github.com/google/go-github/github"
+	"github.com/sirupsen/logrus"
 )
 
-func fetchGithubRepos(ctx *context.C, client *gh.Client, maxPageNumber int) ([]*gh.Repository, error) {
+type ShortRepoInfo struct {
+	FullName string
+}
+
+func fetchGithubReposCached(ctx *context.C, client *gh.Client, maxPageNumber int) ([]ShortRepoInfo, error) {
+	userID, err := user.GetCurrentID(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	key := fmt.Sprintf("repos/github/fetch?user_id=%d&maxPage=%d", userID, maxPageNumber)
+	c := cache.Get()
+
+	var repos []ShortRepoInfo
+	if ctx.R.URL.Query().Get("refresh") != "1" { // Don't refresh from github
+		if err = c.Get(key, &repos); err != nil {
+			errors.Warnf(ctx, "Can't fetch repos from cache by key %s: %s", key, err)
+			return fetchGithubReposFromGithub(ctx, client, maxPageNumber)
+		}
+
+		if repos != nil {
+			logrus.Infof("Returning %d repos from cache", len(repos))
+			return repos, nil
+		}
+
+		logrus.Infof("No repos in cache, fetching them from github...")
+	} else {
+		logrus.Infof("Don't lookup repos in cache, refreshing repos from github...")
+	}
+
+	repos, err = fetchGithubReposFromGithub(ctx, client, maxPageNumber)
+	if err != nil {
+		return nil, err
+	}
+
+	if err = c.Set(key, time.Hour*24*7, repos); err != nil {
+		errors.Warnf(ctx, "Can't save %d repos to cache by key %s: %s", len(repos), key, err)
+	}
+
+	return repos, nil
+}
+
+func fetchGithubReposFromGithub(ctx *context.C, client *gh.Client, maxPageNumber int) ([]ShortRepoInfo, error) {
 	// list all repositories for the authenticated user
 	vis := "public"
 	if repos.ArePrivateReposEnabledForUser(ctx) {
@@ -31,14 +76,18 @@ func fetchGithubRepos(ctx *context.C, client *gh.Client, maxPageNumber int) ([]*
 			PerPage: 100, // 100 is a max allowed value
 		},
 	}
-	var allRepos []*gh.Repository
+	var allRepos []ShortRepoInfo
 	for {
 		pageRepos, resp, err := client.Repositories.List(ctx.Ctx, "", &opts)
 		if err != nil {
 			return nil, fmt.Errorf("can't get repos list: %s", err)
 		}
 
-		allRepos = append(allRepos, pageRepos...)
+		for _, r := range pageRepos {
+			allRepos = append(allRepos, ShortRepoInfo{
+				FullName: r.GetFullName(),
+			})
+		}
 
 		if resp.NextPage == 0 { // it's a last page
 			break
@@ -83,7 +132,7 @@ func getReposList(ctx context.C) error {
 		return herrors.New(err, "can't get github client")
 	}
 
-	repos, err := fetchGithubRepos(&ctx, client, 10)
+	repos, err := fetchGithubReposCached(&ctx, client, 10)
 	if err != nil {
 		return herrors.New(err, "can't fetch repos from github")
 	}
@@ -95,13 +144,13 @@ func getReposList(ctx context.C) error {
 
 	ret := []returntypes.RepoInfo{}
 	for _, r := range repos {
-		ar := activatedRepos[strings.ToLower(r.GetFullName())]
+		ar := activatedRepos[strings.ToLower(r.FullName)]
 		hookID := ""
 		if ar != nil {
 			hookID = ar.HookID
 		}
 		ret = append(ret, returntypes.RepoInfo{
-			Name:        r.GetFullName(),
+			Name:        r.FullName,
 			IsActivated: ar != nil,
 			HookID:      hookID,
 		})
