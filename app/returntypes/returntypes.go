@@ -4,6 +4,7 @@ import "time"
 
 type RepoInfo struct {
 	Name        string `json:"name"`
+	IsAdmin     bool   `json:"isAdmin"`
 	IsActivated bool   `json:"isActivated,omitempty"`
 	HookID      string `json:"hookId,omitempty"`
 }

@@ -22,6 +22,7 @@ import (
 
 type ShortRepoInfo struct {
 	FullName string
+	IsAdmin  bool
 }
 
 func fetchGithubReposCached(ctx *context.C, client *gh.Client, maxPageNumber int) ([]ShortRepoInfo, error) {
@@ -30,7 +31,7 @@ func fetchGithubReposCached(ctx *context.C, client *gh.Client, maxPageNumber int
 		return nil, err
 	}
 
-	key := fmt.Sprintf("repos/github/fetch?user_id=%d&maxPage=%d", userID, maxPageNumber)
+	key := fmt.Sprintf("repos/github/fetch?user_id=%d&maxPage=%d&v=2", userID, maxPageNumber)
 	c := cache.Get()
 
 	var repos []ShortRepoInfo
@@ -86,6 +87,7 @@ func fetchGithubReposFromGithub(ctx *context.C, client *gh.Client, maxPageNumber
 		for _, r := range pageRepos {
 			allRepos = append(allRepos, ShortRepoInfo{
 				FullName: r.GetFullName(),
+				IsAdmin:  r.GetPermissions()["admin"],
 			})
 		}
 
@@ -151,6 +153,7 @@ func getReposList(ctx context.C) error {
 		}
 		ret = append(ret, returntypes.RepoInfo{
 			Name:        r.FullName,
+			IsAdmin:     r.IsAdmin,
 			IsActivated: ar != nil,
 			HookID:      hookID,
 		})
