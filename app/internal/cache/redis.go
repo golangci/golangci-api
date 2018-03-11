@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/garyburd/redigo/redis"
-	"github.com/sirupsen/logrus"
 )
 
 const keyPrefix = "cache/"
@@ -17,11 +16,17 @@ type Redis struct {
 
 func NewRedis(redisURL string) *Redis {
 	return &Redis{
-		pool: redis.NewPool(func() (redis.Conn, error) {
-			c, err := redis.DialURL(redisURL)
-			logrus.Infof("Connecting to redis cache error: %s", err)
-			return c, err
-		}, 10),
+		pool: &redis.Pool{
+			MaxIdle:     10,
+			IdleTimeout: 240 * time.Second,
+			TestOnBorrow: func(c redis.Conn, t time.Time) error {
+				_, pingErr := c.Do("PING")
+				return pingErr
+			},
+			Dial: func() (redis.Conn, error) {
+				return redis.DialURL(redisURL)
+			},
+		},
 	}
 }
 
