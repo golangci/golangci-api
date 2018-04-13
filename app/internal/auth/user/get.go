@@ -9,6 +9,8 @@ import (
 	"github.com/golangci/golangci-api/app/models"
 	"github.com/golangci/golib/server/context"
 	"github.com/golangci/golib/server/handlers/herrors"
+
+	"github.com/jinzhu/gorm"
 )
 
 type userCtxKeyType string
@@ -46,6 +48,11 @@ func GetCurrent(ctx *context.C) (*models.User, error) {
 	var u models.User
 	err = models.NewUserQuerySet(db.Get(ctx)).IDEq(userID).One(&u)
 	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			// deleted test user
+			return nil, herrors.New403Errorf("can't get current user with id %d: %s", userID, err)
+		}
+
 		return nil, fmt.Errorf("can't get current user with id %d: %s", userID, err)
 	}
 
