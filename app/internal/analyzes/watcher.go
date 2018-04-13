@@ -5,14 +5,15 @@ import (
 	"strings"
 	"time"
 
-	cntxt "context"
-
 	"github.com/golangci/golangci-api/app/internal/db"
+	"github.com/golangci/golangci-api/app/internal/errors"
 	"github.com/golangci/golangci-api/app/models"
+	"github.com/golangci/golangci-api/app/utils"
 	"github.com/golangci/golangci-worker/app/utils/github"
 	"github.com/golangci/golib/server/context"
-	"github.com/sirupsen/logrus"
 )
+
+var GithubClient github.Client = github.NewMyClient()
 
 func StartWatcher() {
 	go watch()
@@ -20,49 +21,39 @@ func StartWatcher() {
 
 func watch() {
 	const taskProcessingTimeout = time.Minute * 5
-	ctx := &context.C{
-		Ctx: cntxt.Background(),
-		L:   logrus.StandardLogger().WithField("ctx", "analyzes watcher"),
-	}
+	ctx := utils.NewBackgroundContext()
 
 	for range time.Tick(taskProcessingTimeout / 2) {
-		if err := checkStaleAnalyzes(ctx, taskProcessingTimeout); err != nil {
-			ctx.L.Warnf("Can't check stale analyzes: %s", err)
+		if _, err := CheckStaleAnalyzes(ctx, taskProcessingTimeout); err != nil {
+			errors.Warnf(ctx, "Can't check stale analyzes: %s", err)
 			continue
 		}
 	}
 }
 
-func checkStaleAnalyzes(ctx *context.C, taskProcessingTimeout time.Duration) error {
+func CheckStaleAnalyzes(ctx *context.C, taskProcessingTimeout time.Duration) (int, error) {
 	var analyzes []models.GithubAnalysis
 	err := models.NewGithubAnalysisQuerySet(db.Get(ctx)).
 		StatusIn("sent_to_queue", "processing").
+		CreatedAtLt(time.Now().Add(-taskProcessingTimeout)).
 		PreloadGithubRepo().
 		All(&analyzes)
 	if err != nil {
-		return fmt.Errorf("can't get github analyzes: %s", err)
+		return 0, fmt.Errorf("can't get github analyzes: %s", err)
 	}
 
 	if len(analyzes) == 0 {
-		ctx.L.Infof("Found no stale analyzes")
-		return nil
+		return 0, nil
 	}
-
-	ctx.L.Infof("Found %d in progress analyzes", len(analyzes))
 
 	for _, analysis := range analyzes {
-		if !analysis.CreatedAt.Before(time.Now().Add(-taskProcessingTimeout)) {
-			ctx.L.Infof("Analysis %+v is in progress, but isn't stale")
-			continue
-		}
-
-		ctx.L.Warnf("Detected stale analysis: %+v", analysis)
+		errors.Warnf(ctx, "Detected stale analysis: %+v", analysis)
 		if err = updateStaleAnalysis(ctx, analysis); err != nil {
-			return fmt.Errorf("can't update stale analysis: %s", err)
+			return 0, fmt.Errorf("can't update stale analysis: %s", err)
 		}
 	}
 
-	return nil
+	return len(analyzes), nil
 }
 
 func getGithubContextForAnalysis(ctx *context.C, analysis models.GithubAnalysis) (*github.Context, error) {
@@ -100,17 +91,16 @@ func setGithubStatus(ctx *context.C, analysis models.GithubAnalysis) error {
 		return err
 	}
 
-	gc := github.NewMyClient()
-	pr, err := gc.GetPullRequest(ctx.Ctx, githubContext)
+	pr, err := GithubClient.GetPullRequest(ctx.Ctx, githubContext)
 	if err != nil {
 		if err == github.ErrPRNotFound {
-			ctx.L.Warnf("No such pull request: %+v", githubContext)
+			errors.Warnf(ctx, "No such pull request: %+v", githubContext)
 			return nil
 		}
 		return fmt.Errorf("can't get pull request: %s", err)
 	}
 
-	err = gc.SetCommitStatus(ctx.Ctx, githubContext, pr.GetHead().GetSHA(),
+	err = GithubClient.SetCommitStatus(ctx.Ctx, githubContext, pr.GetHead().GetSHA(),
 		github.StatusSuccess, "No issues found!")
 	if err != nil {
 		return fmt.Errorf("can't set github status: %s", err)

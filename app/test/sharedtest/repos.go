@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"testing"
 
 	"github.com/gavv/httpexpect"
 	"github.com/golangci/golangci-api/app/internal/repos"
@@ -83,4 +84,25 @@ func (r Repo) ExpectWebhook(payload interface{}) *httpexpect.Response {
 		WithJSON(payload).
 		WithHeader("X-GitHub-Delivery", uuid.NewV4().String()).
 		Expect()
+}
+
+func GetDeactivatedRepo(t *testing.T) (*Repo, *User) {
+	u := StubLogin(t)
+	r := u.Repos()[0]
+	if r.IsActivated {
+		r.Deactivate()
+	}
+
+	return &r, u
+}
+
+func GetActivatedRepo(t *testing.T) (*Repo, *User) {
+	u := StubLogin(t)
+	r := u.Repos()[0]
+	if r.IsActivated {
+		return &r, u
+	}
+
+	r.Activate()
+	return &r, u
 }

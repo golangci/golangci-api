@@ -21,44 +21,34 @@ func TestActivateTeamRepo(t *testing.T) {
 		Status(http.StatusInternalServerError) // TODO
 }
 
-func getDeactivatedRepo(t *testing.T) (*sharedtest.Repo, *sharedtest.User) {
-	u := sharedtest.StubLogin(t)
-	r := u.Repos()[0]
-	if r.IsActivated {
-		r.Deactivate()
-	}
-
-	return &r, u
-}
-
 func TestActivate(t *testing.T) {
-	r, u := getDeactivatedRepo(t)
+	r, u := sharedtest.GetDeactivatedRepo(t)
 	r.Activate()
 	u.A.True(u.Repos()[0].IsActivated)
 }
 
 func TestDeactivate(t *testing.T) {
-	r, u := getDeactivatedRepo(t)
+	r, u := sharedtest.GetDeactivatedRepo(t)
 	r.Activate()
 	r.Deactivate()
 	u.A.False(u.Repos()[0].IsActivated)
 }
 
 func TestDoubleActivate(t *testing.T) {
-	r, _ := getDeactivatedRepo(t)
+	r, _ := sharedtest.GetDeactivatedRepo(t)
 	r.Activate()
 	r.Activate()
 }
 
 func TestDoubleDeactivate(t *testing.T) {
-	r, _ := getDeactivatedRepo(t)
+	r, _ := sharedtest.GetDeactivatedRepo(t)
 	r.Activate()
 	r.Deactivate()
 	r.Deactivate()
 }
 
 func TestActivateWithUpperCase(t *testing.T) {
-	r, u := getDeactivatedRepo(t)
+	r, u := sharedtest.GetDeactivatedRepo(t)
 
 	srcName := r.Name
 	upperName := strings.ToUpper(srcName)

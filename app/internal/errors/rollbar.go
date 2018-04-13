@@ -27,7 +27,11 @@ func track(ctx *context.C, err error, level string) {
 		})
 	}
 
-	go rollbar.RequestError(level, ctx.R, err, fields...)
+	if ctx.R != nil {
+		go rollbar.RequestError(level, ctx.R, err, fields...)
+	} else { // background
+		go rollbar.Error(level, err, fields...)
+	}
 	ctx.L.Warnf("%s: %+v", err, u)
 }
 

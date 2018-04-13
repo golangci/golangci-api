@@ -21,6 +21,10 @@ var githubAuthCtxKey userCtxKeyType = "githubAuth"
 var ErrNotAuthorized = herrors.New403Errorf("user isn't authorized")
 
 func GetCurrentID(ctx *context.C) (uint, error) {
+	if ctx.R == nil { // background, no request
+		return 0, fmt.Errorf("no user for background processing")
+	}
+
 	userIDi, err := sess.GetValue(ctx, userIDSessKey)
 	if err != nil {
 		return 0, err
