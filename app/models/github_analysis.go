@@ -10,6 +10,7 @@ import (
 type GithubAnalysis struct {
 	gorm.Model
 
+	GithubRepo              GithubRepo
 	GithubRepoID            uint
 	GithubPullRequestNumber int
 	GithubDeliveryGUID      string

@@ -6,6 +6,7 @@ import (
 
 	_ "github.com/mattes/migrate/database/postgres" // must be first
 
+	"github.com/golangci/golangci-api/app/internal/analyzes"
 	"github.com/golangci/golangci-api/app/utils"
 	"github.com/golangci/golangci-worker/app/utils/queue"
 	"github.com/golangci/golib/server/database"
@@ -31,6 +32,8 @@ func Init() {
 	}
 
 	queue.Init()
+
+	analyzes.StartWatcher()
 }
 
 func runMigrations() error {
