@@ -8,6 +8,7 @@ import (
 	"github.com/gavv/httpexpect"
 	"github.com/golangci/golangci-api/app/internal/repos"
 	"github.com/golangci/golangci-api/app/returntypes"
+	"github.com/satori/go.uuid"
 )
 
 type Repo struct {
@@ -80,5 +81,6 @@ func (r Repo) ExpectWebhook(payload interface{}) *httpexpect.Response {
 	return NewHTTPExpect(r.u.t).
 		POST(repos.GetWebhookURLPathForRepo(r.Name, r.HookID)).
 		WithJSON(payload).
+		WithHeader("X-GitHub-Delivery", uuid.NewV4().String()).
 		Expect()
 }

@@ -132,7 +132,7 @@
     "app/utils/github",
     "app/utils/queue"
   ]
-  revision = "1ea5fdab11e94db5caec1b0cad6a74939dc40ebe"
+  revision = "f42cbb09b6c173b8152c9badfd11a48a3260ea52"
   source = "git@github.com:golangci/golangci-worker.git"
 
 [[projects]]

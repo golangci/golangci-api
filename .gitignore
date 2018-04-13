@@ -2,3 +2,4 @@
 /.env.*
 /vendor
 /golangci-api
+/*.log

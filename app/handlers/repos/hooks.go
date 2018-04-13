@@ -57,7 +57,24 @@ func receiveGithubWebhook(ctx context.C) error {
 		return herrors.New(err, "can't get github auth for user %d", gr.UserID)
 	}
 
+	guid := ctx.R.Header.Get("X-GitHub-Delivery")
+	if guid == "" {
+		return herrors.New400Errorf("delivery without GUID")
+	}
+	analysis := models.GithubAnalysis{
+		GithubRepoID:            gr.ID,
+		GithubPullRequestNumber: prNumber,
+		GithubDeliveryGUID:      guid,
+
+		Status: "sent_to_queue",
+	}
+	if err = analysis.Create(db.Get(&ctx)); err != nil {
+		return herrors.New(err, "can't create analysis")
+	}
+
 	ctx.L.Infof("Got webhook %+v", payload)
+	ctx.L.Infof("Analysis object is %+v", analysis)
+
 	t := &task.Task{
 		Context: github.Context{
 			Repo: github.Repo{
@@ -69,6 +86,7 @@ func receiveGithubWebhook(ctx context.C) error {
 		},
 		APIRequestID: ctx.RequestID,
 		UserID:       gr.UserID,
+		AnalysisGUID: guid,
 	}
 	if err = analyzerqueue.Send(t); err != nil {
 		return fmt.Errorf("can't send pull request for analysis into queue: %s", err)
