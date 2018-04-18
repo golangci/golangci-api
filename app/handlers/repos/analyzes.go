@@ -12,22 +12,23 @@ import (
 	"github.com/golangci/golib/server/handlers/herrors"
 )
 
-type statusPayload struct {
-	Status string
+type State struct {
+	Status              string
+	ReportedIssuesCount int
 }
 
-func handleAnalysisStatus(ctx context.C) error {
+func handleAnalysisState(ctx context.C) error {
 	switch ctx.R.Method {
 	case http.MethodGet:
-		return getAnalysisStatus(ctx)
+		return getAnalysisState(ctx)
 	case http.MethodPut:
-		return updateAnalysisStatus(ctx)
+		return updateAnalysisState(ctx)
 	default:
 		return fmt.Errorf("not allowed method")
 	}
 }
 
-func getAnalysisStatus(ctx context.C) error {
+func getAnalysisState(ctx context.C) error {
 	analysisGUID := ctx.URLVar("analysisID")
 	var analysis models.GithubAnalysis
 	err := models.NewGithubAnalysisQuerySet(db.Get(&ctx)).
@@ -37,14 +38,15 @@ func getAnalysisStatus(ctx context.C) error {
 		return herrors.New(err, "can't get github analysis with guid %s", analysisGUID)
 	}
 
-	ctx.ReturnJSON(statusPayload{
-		Status: analysis.Status,
+	ctx.ReturnJSON(State{
+		Status:              analysis.Status,
+		ReportedIssuesCount: analysis.ReportedIssuesCount,
 	})
 	return nil
 }
 
-func updateAnalysisStatus(ctx context.C) error {
-	var payload statusPayload
+func updateAnalysisState(ctx context.C) error {
+	var payload State
 	if err := json.NewDecoder(ctx.R.Body).Decode(&payload); err != nil {
 		return herrors.New400Errorf("invalid payload json: %s", err)
 	}
@@ -60,7 +62,9 @@ func updateAnalysisStatus(ctx context.C) error {
 
 	prevStatus := analysis.Status
 	analysis.Status = payload.Status
-	if err = analysis.Update(db.Get(&ctx), models.GithubAnalysisDBSchema.Status); err != nil {
+	analysis.ReportedIssuesCount = payload.ReportedIssuesCount
+	err = analysis.Update(db.Get(&ctx), models.GithubAnalysisDBSchema.Status, models.GithubAnalysisDBSchema.ReportedIssuesCount)
+	if err != nil {
 		return herrors.New(err, "can't update stats")
 	}
 
@@ -69,5 +73,6 @@ func updateAnalysisStatus(ctx context.C) error {
 }
 
 func init() {
-	handlers.Register("/v1/repos/{owner}/{name}/analyzes/{analysisID}/status", handleAnalysisStatus)
+	handlers.Register("/v1/repos/{owner}/{name}/analyzes/{analysisID}/status", handleAnalysisState)
+	handlers.Register("/v1/repos/{owner}/{name}/analyzes/{analysisID}/state", handleAnalysisState)
 }
