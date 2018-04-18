@@ -39,6 +39,8 @@ func init() {
 	rollbar.Token = os.Getenv("ROLLBAR_API_TOKEN")
 	goEnv := os.Getenv("GO_ENV")
 	if goEnv == "prod" {
-		rollbar.Environment = "production" // defaults to "development"
+		rollbar.Environment = "production"
+	} else {
+		rollbar.Environment = "development"
 	}
 }
