@@ -15,7 +15,8 @@ type GithubAnalysis struct {
 	GithubPullRequestNumber int
 	GithubDeliveryGUID      string
 
-	Status string
+	Status              string
+	ReportedIssuesCount int
 }
 
 func (GithubAnalysis) TableName() string {
