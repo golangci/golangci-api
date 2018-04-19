@@ -9,5 +9,5 @@ CREATE TABLE github_repos (
 );
 
 CREATE UNIQUE INDEX github_repos_uniq_name
-ON github_repos(name)
-WHERE deleted_at IS NULL;
+  ON github_repos(name)
+  WHERE deleted_at IS NULL;

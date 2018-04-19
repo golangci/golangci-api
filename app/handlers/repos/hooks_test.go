@@ -1,6 +1,7 @@
 package repos
 
 import (
+	"fmt"
 	"net/http"
 	"testing"
 	"time"
@@ -21,16 +22,21 @@ func TestReceivePingWebhook(t *testing.T) {
 	r.ExpectWebhook(gh.PingEvent{}).Status(http.StatusOK)
 }
 
-var testPR = gh.PullRequestEvent{
-	Action: gh.String("opened"),
-	PullRequest: &gh.PullRequest{
-		Number: gh.Int(1),
-	},
+func getTestPREvent() gh.PullRequestEvent {
+	return gh.PullRequestEvent{
+		Action: gh.String("opened"),
+		PullRequest: &gh.PullRequest{
+			Number: gh.Int(1),
+			Head: &gh.PullRequestBranch{
+				SHA: gh.String(fmt.Sprintf("sha_%d", time.Now().UnixNano())),
+			},
+		},
+	}
 }
 
 func TestReceivePullRequestOpenedWebhook(t *testing.T) {
 	r, _ := sharedtest.GetActivatedRepo(t)
-	r.ExpectWebhook(testPR).Status(http.StatusOK)
+	r.ExpectWebhook(getTestPREvent()).Status(http.StatusOK)
 }
 
 func TestStaleAnalyzes(t *testing.T) {
@@ -40,7 +46,7 @@ func TestStaleAnalyzes(t *testing.T) {
 	err := models.NewGithubAnalysisQuerySet(db.Get(ctx)).Delete()
 	assert.NoError(t, err)
 
-	r.ExpectWebhook(testPR).Status(http.StatusOK)
+	r.ExpectWebhook(getTestPREvent()).Status(http.StatusOK)
 
 	timeout := time.Second
 	staleCount, err := analyzes.CheckStaleAnalyzes(ctx, timeout)

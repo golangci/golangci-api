@@ -15,6 +15,8 @@ type GithubAnalysis struct {
 	GithubPullRequestNumber int
 	GithubDeliveryGUID      string
 
+	CommitSHA string
+
 	Status              string
 	ReportedIssuesCount int
 }

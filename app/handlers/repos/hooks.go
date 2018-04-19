@@ -65,6 +65,7 @@ func receiveGithubWebhook(ctx context.C) error {
 		GithubRepoID:            gr.ID,
 		GithubPullRequestNumber: prNumber,
 		GithubDeliveryGUID:      guid,
+		CommitSHA:               payload.PullRequest.GetHead().GetSHA(),
 
 		Status: "sent_to_queue",
 	}
