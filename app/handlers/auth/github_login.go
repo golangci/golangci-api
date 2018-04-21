@@ -11,6 +11,8 @@ import (
 	"github.com/golangci/golib/server/context"
 )
 
+const callbackURL = "/v1/auth/github/callback"
+
 func getWebRoot() string {
 	return os.Getenv("WEB_ROOT")
 }
@@ -26,12 +28,13 @@ func githubLogin(ctx context.C) error {
 		return nil
 	}
 
-	oauth.BeginAuthHandler(ctx.W, ctx.R)
-	return nil
+	a := oauth.GetPublicReposGithubAuthorizer(callbackURL)
+	return a.RedirectToProvider(&ctx)
 }
 
 func githubOAuthCallback(ctx context.C) error {
-	gu, err := oauth.CompleteUserAuth(ctx.W, ctx.R)
+	a := oauth.GetPublicReposGithubAuthorizer(callbackURL)
+	gu, err := a.HandleProviderCallback(&ctx)
 	if err != nil {
 		return fmt.Errorf("can't complete github oauth: %s", err)
 	}
@@ -51,5 +54,5 @@ func githubOAuthCallback(ctx context.C) error {
 
 func init() {
 	handlers.Register("/v1/auth/github", githubLogin)
-	handlers.Register("/v1/auth/github/callback", githubOAuthCallback)
+	handlers.Register(callbackURL, githubOAuthCallback)
 }

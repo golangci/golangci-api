@@ -14,7 +14,7 @@ import (
 
 const userIDSessKey = "UserID"
 
-func getOrStoreUserInDB(ctx *context.C, gu goth.User) (*models.User, uint, error) {
+func getOrStoreUserInDB(ctx *context.C, gu *goth.User) (*models.User, uint, error) {
 	DB := db.Get(ctx)
 	var ga models.GithubAuth
 	err := models.NewGithubAuthQuerySet(DB).LoginEq(gu.NickName).One(&ga)
@@ -53,7 +53,7 @@ func getOrStoreUserInDB(ctx *context.C, gu goth.User) (*models.User, uint, error
 	return &u, ga.ID, nil
 }
 
-func LoginGithub(ctx *context.C, gu goth.User) (err error) {
+func LoginGithub(ctx *context.C, gu *goth.User) (err error) {
 	finishTx, err := db.BeginTx(ctx)
 	if err != nil {
 		return fmt.Errorf("can't start tx: %s", err)
