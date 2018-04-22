@@ -16,7 +16,7 @@ import (
 )
 
 func DeactivateRepo(ctx *context.C, owner, repo string) (*models.GithubRepo, error) {
-	gc, err := github.GetClient(ctx)
+	gc, _, err := github.GetClient(ctx)
 	if err != nil {
 		return nil, herrors.New(err, "can't get github client")
 	}
@@ -60,7 +60,7 @@ func ActivateRepo(ctx *context.C, ga *models.GithubAuth, owner, repo string) (*m
 		return &gr, nil
 	}
 
-	gc, err := github.GetClient(ctx)
+	gc, _, err := github.GetClient(ctx)
 	if err != nil {
 		return nil, herrors.New(err, "can't get github client")
 	}

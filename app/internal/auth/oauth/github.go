@@ -33,7 +33,7 @@ func GetPrivateReposGithubAuthorizer(cbURL string) *Authorizer {
 		"repo",
 	)
 
-	const providerName = "github/private"
+	const providerName = "github_private"
 	gh.SetName(providerName)
 
 	return &Authorizer{

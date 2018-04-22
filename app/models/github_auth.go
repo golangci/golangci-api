@@ -42,8 +42,10 @@ func (d GithubAuthRawData) String() string {
 type GithubAuth struct {
 	gorm.Model
 
-	AccessToken string
-	RawData     GithubAuthRawData
-	UserID      uint
-	Login       string
+	AccessToken        string
+	PrivateAccessToken string
+
+	RawData GithubAuthRawData
+	UserID  uint
+	Login   string
 }

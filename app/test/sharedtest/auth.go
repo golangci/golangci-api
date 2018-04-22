@@ -3,6 +3,8 @@ package sharedtest
 import (
 	"encoding/json"
 	"net/http"
+	"os"
+	"strings"
 	"testing"
 
 	"github.com/gavv/httpexpect"
@@ -18,7 +20,26 @@ type User struct {
 }
 
 func NewHTTPExpect(t *testing.T) *httpexpect.Expect {
-	return httpexpect.New(t, server.URL)
+	httpClient := &http.Client{
+		Jar: httpexpect.NewJar(),
+		CheckRedirect: func(req *http.Request, via []*http.Request) error {
+			isRedirectToFakeGithub := strings.HasPrefix(req.URL.String(), fakeGithubServer.URL)
+			if isRedirectToFakeGithub || strings.HasPrefix(req.URL.Path, "/v1/auth/github") {
+				return nil // follow redirect
+			}
+
+			return http.ErrUseLastResponse // don't follow redirect: it's redirect after successful login
+		},
+	}
+
+	return httpexpect.WithConfig(httpexpect.Config{
+		BaseURL:  server.URL,
+		Reporter: httpexpect.NewAssertReporter(t),
+		Printers: []httpexpect.Printer{
+			httpexpect.NewCompactPrinter(t),
+		},
+		Client: httpClient,
+	})
 }
 
 func StubLogin(t *testing.T) *User {
@@ -31,9 +52,13 @@ func StubLogin(t *testing.T) *User {
 	e.GET("/v1/auth/check").
 		Expect().
 		Status(http.StatusForbidden)
+
 	e.GET("/v1/auth/github").
 		Expect().
-		Status(http.StatusNotFound) // WEB_ROOT
+		Status(http.StatusTemporaryRedirect).
+		Header("Location").
+		Equal(os.Getenv("WEB_ROOT") + "/repos/github?after=login")
+
 	checkBody := e.GET("/v1/auth/check").
 		Expect().
 		Status(http.StatusOK).
@@ -50,4 +75,13 @@ func StubLogin(t *testing.T) *User {
 	user.E = e
 	user.t = t
 	return user
+}
+
+func (u *User) GithubPrivateLogin() *User {
+	u.E.GET("/v1/auth/github/private").
+		Expect().
+		Status(http.StatusTemporaryRedirect).
+		Header("Location").
+		Equal(os.Getenv("WEB_ROOT") + "/repos/github?refresh=1&after=private_login")
+	return u
 }

@@ -13,6 +13,7 @@ import (
 	"math/rand"
 	"net/http"
 	"net/url"
+	"strings"
 	"sync"
 	"time"
 
@@ -55,8 +56,7 @@ func (a Authorizer) getAuthURL(res http.ResponseWriter, req *http.Request) (stri
 		return "", err
 	}
 
-	err = a.storeInSession(sess.Marshal(), req, res)
-	if err != nil {
+	if err = a.storeDataInSession(sess.Marshal(), req, res); err != nil {
 		return "", err
 	}
 
@@ -64,9 +64,9 @@ func (a Authorizer) getAuthURL(res http.ResponseWriter, req *http.Request) (stri
 }
 
 func (a Authorizer) HandleProviderCallback(ctx *context.C) (*goth.User, error) {
-	value, err := a.getFromSession(ctx.R)
+	value, err := a.getDataFromSession(ctx.R)
 	if err != nil {
-		return nil, fmt.Errorf("can't get from session: %s", err)
+		return nil, fmt.Errorf("can't data get from session: %s", err)
 	}
 
 	defer a.Cleanup(ctx.W, ctx.R)
@@ -89,6 +89,10 @@ func (a Authorizer) HandleProviderCallback(ctx *context.C) (*goth.User, error) {
 	if err != nil {
 		return nil, fmt.Errorf("can't fetch user: %s", err)
 	}
+
+	// Normalize data: it's important for user with github login in different case
+	gu.NickName = strings.ToLower(gu.NickName)
+	gu.Email = strings.ToLower(gu.Email)
 
 	return &gu, err
 }
@@ -113,19 +117,25 @@ func (a Authorizer) Cleanup(res http.ResponseWriter, req *http.Request) error {
 	return nil
 }
 
-func (a Authorizer) storeInSession(value string, req *http.Request, res http.ResponseWriter) error {
-	session, _ := getStore().Get(req, a.sessionName())
+func (a Authorizer) storeDataInSession(value string, req *http.Request, res http.ResponseWriter) error {
+	session, err := getStore().Get(req, a.sessionName())
+	if err != nil {
+		return fmt.Errorf("can't store in session %s: %s", a.sessionName(), err)
+	}
 
 	session.Values[a.providerName] = value
-
 	return session.Save(req, res)
 }
 
-func (a Authorizer) getFromSession(req *http.Request) (string, error) {
-	session, _ := getStore().Get(req, a.sessionName())
+func (a Authorizer) getDataFromSession(req *http.Request) (string, error) {
+	session, err := getStore().Get(req, a.sessionName())
+	if err != nil {
+		return "", fmt.Errorf("can't get session %s: %s", a.sessionName(), err)
+	}
+
 	value := session.Values[a.providerName]
 	if value == nil {
-		return "", fmt.Errorf("could not find a matching session for this request")
+		return "", fmt.Errorf("could not find a matching session %s for this request in session %+v", a.providerName, session)
 	}
 
 	return value.(string), nil
