@@ -132,7 +132,7 @@
     "app/utils/github",
     "app/utils/queue"
   ]
-  revision = "f42cbb09b6c173b8152c9badfd11a48a3260ea52"
+  revision = "c80bb2ef8667c1f17f3ac7a055635599f597d798"
   source = "git@github.com:golangci/golangci-worker.git"
 
 [[projects]]
@@ -494,6 +494,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "bf112405649f03b86189e958c1c8fc33d56afa0833e0045368ff59dac501404e"
+  inputs-digest = "5f71b485793edb16d95b1cd46323fe694803aab3d204db80595cde412a423327"
   solver-name = "gps-cdcl"
   solver-version = 1
