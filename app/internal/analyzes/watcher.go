@@ -47,9 +47,10 @@ func CheckStaleAnalyzes(ctx *context.C, taskProcessingTimeout time.Duration) (in
 	}
 
 	for _, analysis := range analyzes {
-		errors.Warnf(ctx, "Detected stale analysis: %+v", analysis)
 		if err = updateStaleAnalysis(ctx, analysis); err != nil {
-			return 0, fmt.Errorf("can't update stale analysis: %s", err)
+			ctx.L.Errorf("Can't update stale analysis %+v: %s", analysis, err)
+		} else {
+			errors.Warnf(ctx, "Fixed stale analysis %+v", analysis)
 		}
 	}
 
@@ -93,8 +94,8 @@ func setGithubStatus(ctx *context.C, analysis models.GithubAnalysis) error {
 
 	pr, err := GithubClient.GetPullRequest(ctx.Ctx, githubContext)
 	if err != nil {
-		if err == github.ErrPRNotFound {
-			errors.Warnf(ctx, "No such pull request: %+v", githubContext)
+		if !github.IsRecoverableError(err) {
+			errors.Warnf(ctx, "%s: %+v", err, githubContext)
 			return nil
 		}
 		return fmt.Errorf("can't get pull request: %s", err)
