@@ -17,7 +17,7 @@ type Repo struct {
 	u *User
 }
 
-func (u User) Repos() []Repo {
+func (u *User) Repos() []Repo {
 	initFakeGithubClient()
 
 	respStr := u.E.GET("/v1/repos").
@@ -26,21 +26,38 @@ func (u User) Repos() []Repo {
 		Body().
 		Raw()
 
-	reposResp := make(map[string][]returntypes.RepoInfo)
+	var reposResp struct {
+		Repos []returntypes.RepoInfo
+	}
 	u.A.NoError(json.Unmarshal([]byte(respStr), &reposResp))
-	u.A.NotNil(reposResp["repos"])
-	repos := reposResp["repos"]
-	u.A.Len(repos, 6*2)
+	u.A.Len(reposResp.Repos, 6*2)
 
 	ret := []Repo{}
-	for _, r := range repos {
+	for _, r := range reposResp.Repos {
 		ret = append(ret, Repo{
 			RepoInfo: r,
-			u:        &u,
+			u:        u,
 		})
 	}
 
 	return ret
+}
+
+func (u *User) WerePrivateReposFetched() bool {
+	initFakeGithubClient()
+
+	respStr := u.E.GET("/v1/repos").
+		Expect().
+		Status(http.StatusOK).
+		Body().
+		Raw()
+
+	var resp struct {
+		PrivateReposWereFetched bool
+	}
+	u.A.NoError(json.Unmarshal([]byte(respStr), &resp))
+
+	return resp.PrivateReposWereFetched
 }
 
 func (r *Repo) updateFromResponse(resp *httpexpect.Response) {

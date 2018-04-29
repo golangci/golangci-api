@@ -41,7 +41,7 @@ func CreateStore(maxAge int) *redistore.RediStore {
 		log.Fatalf("Can't create redis session store: %s", err)
 	}
 
-	log.Infof("Successfully created redis session store")
+	log.Infof("Successfully created redis session store with maxAge %d", maxAge)
 
 	store.SetMaxAge(maxAge)
 	store.SetSerializer(redistore.JSONSerializer{})

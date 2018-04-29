@@ -129,7 +129,7 @@ func getActivatedUserRepos(ctx *context.C) (map[string]*models.GithubRepo, error
 }
 
 func getReposList(ctx context.C) error {
-	client, err := github.GetClient(&ctx)
+	client, needPrivateRepos, err := github.GetClient(&ctx)
 	if err != nil {
 		return herrors.New(err, "can't get github client")
 	}
@@ -160,7 +160,8 @@ func getReposList(ctx context.C) error {
 	}
 
 	ctx.ReturnJSON(map[string]interface{}{
-		"repos": ret,
+		"repos":                   ret,
+		"privateReposWereFetched": needPrivateRepos,
 	})
 	return nil
 }

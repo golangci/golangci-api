@@ -1,6 +1,8 @@
 package github
 
 import (
+	"fmt"
+
 	"github.com/golangci/golangci-api/app/internal/auth/user"
 	"github.com/golangci/golib/server/context"
 	"github.com/golangci/golib/server/handlers/herrors"
@@ -10,16 +12,29 @@ import (
 
 var GetClient = getClient
 
-func getClient(ctx *context.C) (*gh.Client, error) {
+func getClient(ctx *context.C) (*gh.Client, bool, error) {
 	ga, err := user.GetGithubAuth(ctx)
 	if err != nil {
-		return nil, herrors.New(err, "can't get current github auth")
+		return nil, false, herrors.New(err, "can't get current github auth")
+	}
+
+	at := ga.AccessToken
+	needPrivateRepos := ga.PrivateAccessToken != ""
+	if needPrivateRepos {
+		at = ga.PrivateAccessToken
+	}
+
+	if at == "" {
+		return nil, false, fmt.Errorf("access token is empty")
 	}
 
 	ts := oauth2.StaticTokenSource(
-		&oauth2.Token{AccessToken: ga.AccessToken},
+		&oauth2.Token{
+			AccessToken: at,
+		},
 	)
 	tc := oauth2.NewClient(ctx.Ctx, ts)
 	client := gh.NewClient(tc)
-	return client, nil
+
+	return client, needPrivateRepos, nil
 }

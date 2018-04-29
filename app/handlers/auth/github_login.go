@@ -3,13 +3,16 @@ package auth
 import (
 	"fmt"
 	"os"
-	"strings"
 
 	"github.com/golangci/golangci-api/app/handlers"
 	"github.com/golangci/golangci-api/app/internal/auth/oauth"
 	"github.com/golangci/golangci-api/app/internal/auth/user"
+	"github.com/golangci/golangci-api/app/internal/db"
+	"github.com/golangci/golangci-api/app/models"
 	"github.com/golangci/golib/server/context"
 )
+
+const callbackURL = "/v1/auth/github/callback"
 
 func getWebRoot() string {
 	return os.Getenv("WEB_ROOT")
@@ -26,19 +29,22 @@ func githubLogin(ctx context.C) error {
 		return nil
 	}
 
-	oauth.BeginAuthHandler(ctx.W, ctx.R)
-	return nil
+	a := oauth.GetPublicReposGithubAuthorizer(callbackURL)
+	return a.RedirectToProvider(&ctx)
 }
 
 func githubOAuthCallback(ctx context.C) error {
-	gu, err := oauth.CompleteUserAuth(ctx.W, ctx.R)
+	if _, err := user.GetCurrent(&ctx); err == nil {
+		// User is already authorized, but we checked it in githubLogin.
+		// Therefore it's a private login callback.
+		return githubPrivateOAuthCallback(ctx)
+	}
+
+	a := oauth.GetPublicReposGithubAuthorizer(callbackURL)
+	gu, err := a.HandleProviderCallback(&ctx)
 	if err != nil {
 		return fmt.Errorf("can't complete github oauth: %s", err)
 	}
-
-	// Normalize data: it's important for user with github login in different case
-	gu.NickName = strings.ToLower(gu.NickName)
-	gu.Email = strings.ToLower(gu.Email)
 
 	ctx.L.Infof("Github oauth completed: %+v", gu)
 	if err = user.LoginGithub(&ctx, gu); err != nil {
@@ -49,7 +55,39 @@ func githubOAuthCallback(ctx context.C) error {
 	return nil
 }
 
+func githubPrivateLogin(ctx context.C) error {
+	a := oauth.GetPrivateReposGithubAuthorizer(callbackURL)
+	return a.RedirectToProvider(&ctx)
+}
+
+func githubPrivateOAuthCallback(ctx context.C) error {
+	a := oauth.GetPrivateReposGithubAuthorizer(callbackURL)
+	gu, err := a.HandleProviderCallback(&ctx)
+	if err != nil {
+		return fmt.Errorf("can't complete github oauth: %s", err)
+	}
+
+	ga, err := user.GetGithubAuth(&ctx)
+	if err != nil {
+		return err
+	}
+
+	if ga.Login != gu.NickName {
+		return fmt.Errorf("mismatch of current github login %q and private github login %q",
+			ga.Login, gu.NickName)
+	}
+
+	ga.PrivateAccessToken = gu.AccessToken
+	if err := ga.Update(db.Get(&ctx), models.GithubAuthDBSchema.PrivateAccessToken); err != nil {
+		return fmt.Errorf("can't save access token: %s", err)
+	}
+
+	ctx.RedirectTemp(getWebRoot() + "/repos/github?refresh=1&after=private_login")
+	return nil
+}
+
 func init() {
 	handlers.Register("/v1/auth/github", githubLogin)
-	handlers.Register("/v1/auth/github/callback", githubOAuthCallback)
+	handlers.Register("/v1/auth/github/private", githubPrivateLogin)
+	handlers.Register(callbackURL, githubOAuthCallback)
 }

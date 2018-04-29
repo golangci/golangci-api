@@ -11,7 +11,6 @@ import (
 	"path"
 	"sync"
 
-	"github.com/golangci/golangci-api/app/internal/auth/oauth"
 	"github.com/golangci/golangci-api/app/utils"
 	"github.com/gorilla/mux"
 	"github.com/markbates/goth/providers/github"
@@ -65,8 +64,6 @@ func initFakeGithubServer() {
 
 	os.Setenv("GITHUB_CALLBACK_HOST", server.URL)
 	os.Setenv("WEB_ROOT", server.URL)
-
-	oauth.InitGithub()
 }
 
 const (
