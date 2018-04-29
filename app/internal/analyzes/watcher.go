@@ -48,7 +48,7 @@ func CheckStaleAnalyzes(ctx *context.C, taskProcessingTimeout time.Duration) (in
 
 	for _, analysis := range analyzes {
 		if err = updateStaleAnalysis(ctx, analysis); err != nil {
-			ctx.L.Errorf("Can't update stale analysis %+v: %s", analysis, err)
+			errors.Errorf(ctx, "Can't update stale analysis %+v: %s", analysis, err)
 		} else {
 			errors.Warnf(ctx, "Fixed stale analysis %+v", analysis)
 		}

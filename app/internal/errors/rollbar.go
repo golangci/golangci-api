@@ -17,6 +17,10 @@ func Error(ctx *context.C, err error) {
 	track(ctx, err, "ERROR")
 }
 
+func Errorf(ctx *context.C, format string, args ...interface{}) {
+	track(ctx, fmt.Errorf(format, args...), "ERROR")
+}
+
 func track(ctx *context.C, err error, level string) {
 	fields := []*rollbar.Field{}
 	u, userErr := user.GetCurrent(ctx)
@@ -32,7 +36,12 @@ func track(ctx *context.C, err error, level string) {
 	} else { // background
 		go rollbar.Error(level, err, fields...)
 	}
-	ctx.L.Warnf("%s: %+v", err, u)
+
+	if level == "ERROR" {
+		ctx.L.Errorf("%s: %+v", err, u)
+	} else {
+		ctx.L.Warnf("%s: %+v", err, u)
+	}
 }
 
 func init() {
