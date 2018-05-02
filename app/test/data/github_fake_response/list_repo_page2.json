@@ -22,7 +22,7 @@
       "type": "User",
       "site_admin": false
     },
-    "private": true,
+    "private": false,
     "html_url": "https://github.com/golangci/golangci-api",
     "description": null,
     "fork": false,

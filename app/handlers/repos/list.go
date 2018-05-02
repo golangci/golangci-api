@@ -21,8 +21,9 @@ import (
 )
 
 type ShortRepoInfo struct {
-	FullName string
-	IsAdmin  bool
+	FullName  string
+	IsAdmin   bool `json:",omitempty"`
+	IsPrivate bool `json:",omitempty"`
 }
 
 func fetchGithubReposCached(ctx *context.C, client *gh.Client, maxPageNumber int) ([]ShortRepoInfo, error) {
@@ -32,6 +33,10 @@ func fetchGithubReposCached(ctx *context.C, client *gh.Client, maxPageNumber int
 	}
 
 	key := fmt.Sprintf("repos/github/fetch?user_id=%d&maxPage=%d&v=2", userID, maxPageNumber)
+	if repos.ArePrivateReposEnabledForUser(ctx) {
+		key += "&private=true"
+	}
+
 	c := cache.Get()
 
 	var repos []ShortRepoInfo
@@ -86,8 +91,9 @@ func fetchGithubReposFromGithub(ctx *context.C, client *gh.Client, maxPageNumber
 
 		for _, r := range pageRepos {
 			allRepos = append(allRepos, ShortRepoInfo{
-				FullName: r.GetFullName(),
-				IsAdmin:  r.GetPermissions()["admin"],
+				FullName:  r.GetFullName(),
+				IsAdmin:   r.GetPermissions()["admin"],
+				IsPrivate: r.GetPrivate(),
 			})
 		}
 
@@ -144,23 +150,31 @@ func getReposList(ctx context.C) error {
 		return herrors.New(err, "can't get activated repos for user")
 	}
 
-	ret := []returntypes.RepoInfo{}
+	retRepos := []returntypes.RepoInfo{}
+	retPrivateRepos := []returntypes.RepoInfo{}
 	for _, r := range repos {
 		ar := activatedRepos[strings.ToLower(r.FullName)]
 		hookID := ""
 		if ar != nil {
 			hookID = ar.HookID
 		}
-		ret = append(ret, returntypes.RepoInfo{
+		retRepo := returntypes.RepoInfo{
 			Name:        r.FullName,
 			IsAdmin:     r.IsAdmin,
 			IsActivated: ar != nil,
+			IsPrivate:   r.IsPrivate,
 			HookID:      hookID,
-		})
+		}
+		if retRepo.IsPrivate {
+			retPrivateRepos = append(retPrivateRepos, retRepo)
+		} else {
+			retRepos = append(retRepos, retRepo)
+		}
 	}
 
 	ctx.ReturnJSON(map[string]interface{}{
-		"repos":                   ret,
+		"repos":                   retRepos,
+		"privateRepos":            retPrivateRepos,
 		"privateReposWereFetched": needPrivateRepos,
 	})
 	return nil
