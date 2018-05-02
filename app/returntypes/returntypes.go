@@ -6,6 +6,7 @@ type RepoInfo struct {
 	Name        string `json:"name"`
 	IsAdmin     bool   `json:"isAdmin"`
 	IsActivated bool   `json:"isActivated,omitempty"`
+	IsPrivate   bool   `json:"isPrivate,omitempty"`
 	HookID      string `json:"hookId,omitempty"`
 }
 

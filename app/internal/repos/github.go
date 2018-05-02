@@ -6,6 +6,7 @@ import (
 
 	"github.com/golangci/golangci-api/app/internal/auth/user"
 	"github.com/golangci/golangci-api/app/internal/db"
+	"github.com/golangci/golangci-api/app/internal/errors"
 	"github.com/golangci/golangci-api/app/internal/github"
 	"github.com/golangci/golangci-api/app/models"
 	"github.com/golangci/golangci-api/app/utils"
@@ -115,6 +116,12 @@ func DeactivateAll(ctx *context.C) error {
 	return nil
 }
 
-func ArePrivateReposEnabledForUser(_ *context.C) bool {
-	return false
+func ArePrivateReposEnabledForUser(ctx *context.C) bool {
+	ga, err := user.GetGithubAuth(ctx)
+	if err != nil {
+		errors.Errorf(ctx, "Can't get current github auth: %s", err)
+		return false
+	}
+
+	return ga.PrivateAccessToken != ""
 }
