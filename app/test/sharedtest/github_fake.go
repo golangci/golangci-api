@@ -113,7 +113,7 @@ func emailHandler(w http.ResponseWriter, r *http.Request) {
 
 func listReposHandler(w http.ResponseWriter, r *http.Request) {
 	q := r.URL.Query()
-	if q.Get("visibility") != "public" || q.Get("sort") != "pushed" {
+	if (q.Get("visibility") != "public" && q.Get("visibility") != "all") || q.Get("sort") != "pushed" {
 		log.Printf("Invalid query params: %+v", q)
 		w.WriteHeader(http.StatusBadRequest)
 		return
