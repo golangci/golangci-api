@@ -28,7 +28,6 @@
 [[constraint]]
   branch = "master"
   name = "github.com/golangci/golib"
-  source = "git@github.com:golangci/golib.git"
 
 [[constraint]]
   version = "1.3.0"
@@ -41,7 +40,6 @@
 [[constraint]]
   branch = "master"
   name = "github.com/golangci/golangci-worker"
-  source = "git@github.com:golangci/golangci-worker.git"
 
 [[constraint]]
   branch = "master"
