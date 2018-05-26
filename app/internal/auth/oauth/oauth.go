@@ -135,7 +135,9 @@ func (a Authorizer) getDataFromSession(req *http.Request) (string, error) {
 
 	value := session.Values[a.providerName]
 	if value == nil {
-		return "", fmt.Errorf("could not find a matching session %s for this request in session %+v", a.providerName, session)
+		err = fmt.Errorf("could not find a matching session %q for this request in session %+v, cookie are %+v",
+			a.providerName, session, req.Cookies())
+		return "", err
 	}
 
 	return value.(string), nil
