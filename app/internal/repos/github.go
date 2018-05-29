@@ -61,6 +61,11 @@ func ActivateRepo(ctx *context.C, ga *models.GithubAuth, owner, repo string) (*m
 		return &gr, nil
 	}
 
+	err = models.NewGithubRepoQuerySet(db.Get(ctx)).UserIDNe(ga.UserID).NameEq(repoName).One(&gr)
+	if err == nil {
+		return nil, fmt.Errorf("repo is already activated by another user")
+	}
+
 	gc, _, err := github.GetClient(ctx)
 	if err != nil {
 		return nil, herrors.New(err, "can't get github client")
