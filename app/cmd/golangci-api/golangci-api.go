@@ -8,6 +8,7 @@ import (
 
 	"github.com/golangci/golangci-api/app/handlers"
 	_ "github.com/golangci/golangci-api/app/handlers/auth"
+	_ "github.com/golangci/golangci-api/app/handlers/events"
 	_ "github.com/golangci/golangci-api/app/handlers/repos"
 	"github.com/golangci/golangci-api/app/internal/shared"
 
