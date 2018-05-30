@@ -20,7 +20,8 @@ func StartWatcher() {
 }
 
 func watch() {
-	const taskProcessingTimeout = time.Minute * 5
+	// If you change it don't forget to change it golangci-worker
+	const taskProcessingTimeout = time.Minute * 10
 	ctx := utils.NewBackgroundContext()
 
 	for range time.Tick(taskProcessingTimeout / 2) {
