@@ -6,6 +6,7 @@ import (
 
 	"github.com/golangci/golangci-api/app/handlers"
 	"github.com/golangci/golangci-api/app/internal/db"
+	"github.com/golangci/golangci-api/app/internal/errors"
 	"github.com/golangci/golangci-api/app/models"
 	"github.com/golangci/golangci-worker/app/analyze/analyzerqueue"
 	"github.com/golangci/golangci-worker/app/analyze/task"
@@ -76,24 +77,34 @@ func receiveGithubWebhook(ctx context.C) error {
 	ctx.L.Infof("Got webhook %+v", payload)
 	ctx.L.Infof("Analysis object is %+v", analysis)
 
-	t := &task.Task{
-		Context: github.Context{
-			Repo: github.Repo{
-				Owner: ctx.URLVar("owner"),
-				Name:  ctx.URLVar("name"),
-			},
-			GithubAccessToken: ga.AccessToken,
-			PullRequestNumber: prNumber,
+	githubCtx := github.Context{
+		Repo: github.Repo{
+			Owner: ctx.URLVar("owner"),
+			Name:  ctx.URLVar("name"),
 		},
+		GithubAccessToken: ga.AccessToken,
+		PullRequestNumber: prNumber,
+	}
+	t := &task.Task{
+		Context:      githubCtx,
 		APIRequestID: ctx.RequestID,
 		UserID:       gr.UserID,
 		AnalysisGUID: guid,
 	}
+
+	gc := github.NewMyClient()
+	err = gc.SetCommitStatus(ctx.Ctx, &githubCtx, analysis.CommitSHA,
+		github.StatusPending, "Waiting in queue...")
+	if err != nil {
+		errors.Warnf(&ctx, "Can't set commit status 'pending in queue' for task %+v: %s",
+			t, err)
+	}
+
 	if err = analyzerqueue.Send(t); err != nil {
 		return fmt.Errorf("can't send pull request for analysis into queue: %s", err)
 	}
-
 	ctx.L.Infof("Sent task %+v to analyze queue", t)
+
 	return nil
 }
 
