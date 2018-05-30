@@ -13,6 +13,5 @@ func TestListRepos(t *testing.T) {
 
 func TestGithubPrivateLogin(t *testing.T) {
 	u := sharedtest.StubLogin(t)
-	u.A.False(u.WerePrivateReposFetched())
 	u.A.True(u.GithubPrivateLogin().WerePrivateReposFetched())
 }
