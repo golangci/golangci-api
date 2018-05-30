@@ -125,6 +125,15 @@
 
 [[projects]]
   branch = "master"
+  name = "github.com/golangci/golangci-shared"
+  packages = [
+    "pkg/events",
+    "pkg/runmode"
+  ]
+  revision = "8616b61d0d835899c41129685068fa10e7a27718"
+
+[[projects]]
+  branch = "master"
   name = "github.com/golangci/golangci-worker"
   packages = [
     "app/analyze/analyzerqueue",
@@ -492,6 +501,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "abd3142802e5e75572abc79ecb694d9f832f3890f6795c996a387dbca14a073f"
+  inputs-digest = "33d51f323bdd3a40716b9ac5a0e6da7af0eaaa7f13245f064c76840a35fb25f7"
   solver-name = "gps-cdcl"
   solver-version = 1

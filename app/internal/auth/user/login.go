@@ -2,11 +2,12 @@ package user
 
 import (
 	"fmt"
+	"time"
 
-	"github.com/golangci/golangci-api/app/internal/analytics"
 	"github.com/golangci/golangci-api/app/internal/auth/sess"
 	"github.com/golangci/golangci-api/app/internal/db"
 	"github.com/golangci/golangci-api/app/models"
+	"github.com/golangci/golangci-shared/pkg/events"
 	"github.com/golangci/golib/server/context"
 	"github.com/jinzhu/gorm"
 	"github.com/markbates/goth"
@@ -37,8 +38,13 @@ func getOrStoreUserInDB(ctx *context.C, gu *goth.User) (*models.User, uint, erro
 			return nil, 0, fmt.Errorf("can't create user %v: %s", u, err)
 		}
 
-		tracker := analytics.GetTracker(ctx.Ctx)
-		go tracker.UserRegistered(u)
+		t := events.NewAuthenticatedTracker(int(u.ID)).WithUserProps(map[string]interface{}{
+			"registeredAt": time.Now(),
+		})
+
+		go t.Track(ctx.Ctx, "registered", map[string]interface{}{
+			"provider": "github",
+		})
 
 		return u, 0, nil
 	}
