@@ -31,6 +31,11 @@ func track(ctx *context.C, err error, level string) {
 		})
 	}
 
+	fields = append(fields, &rollbar.Field{
+		Name: "project",
+		Data: "api",
+	})
+
 	if ctx.R != nil {
 		go rollbar.RequestError(level, ctx.R, err, fields...)
 	} else { // background
