@@ -15,13 +15,11 @@ type GithubAuthRawData map[string]interface{}
 func (d *GithubAuthRawData) Scan(val interface{}) error {
 	switch v := val.(type) {
 	case []byte:
-		json.Unmarshal(v, &d)
-		return nil
+		return json.Unmarshal(v, &d)
 	case string:
-		json.Unmarshal([]byte(v), &d)
-		return nil
+		return json.Unmarshal([]byte(v), &d)
 	default:
-		return fmt.Errorf("Unsupported type: %T", v)
+		return fmt.Errorf("unsupported type: %T", v)
 	}
 }
 

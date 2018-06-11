@@ -122,6 +122,7 @@ func storeEvent(event *Event) error {
 
 		Status:              status,
 		ReportedIssuesCount: event.EventProperties.TotalIssues,
+		// TODO: ResultJSON
 	}
 
 	if err = ga.Create(database.GetDB()); err != nil {

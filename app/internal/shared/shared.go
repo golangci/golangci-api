@@ -14,7 +14,7 @@ import (
 	log "github.com/sirupsen/logrus"
 
 	"github.com/mattes/migrate"
-	_ "github.com/mattes/migrate/source/file"
+	_ "github.com/mattes/migrate/source/file" // must have for migrations
 )
 
 func init() {

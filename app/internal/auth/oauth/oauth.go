@@ -18,6 +18,7 @@ import (
 	"time"
 
 	"github.com/golangci/golangci-api/app/internal/auth/sess"
+	"github.com/golangci/golangci-api/app/internal/errors"
 	"github.com/golangci/golib/server/context"
 	"github.com/golangci/golib/server/handlers/herrors"
 	"github.com/gorilla/sessions"
@@ -69,7 +70,11 @@ func (a Authorizer) HandleProviderCallback(ctx *context.C) (*goth.User, error) {
 		return nil, fmt.Errorf("can't data get from session: %s", err)
 	}
 
-	defer a.Cleanup(ctx.W, ctx.R)
+	defer func() {
+		if cerr := a.Cleanup(ctx.W, ctx.R); cerr != nil {
+			errors.Warnf(ctx, "Can't cleanup session: %s", cerr)
+		}
+	}()
 
 	sess, err := a.provider.UnmarshalSession(value)
 	if err != nil {
@@ -166,10 +171,6 @@ func setState(req *http.Request) string {
 		nonceBytes[i] = byte(gothicRand.Int63() % 256)
 	}
 	return base64.URLEncoding.EncodeToString(nonceBytes)
-}
-
-func getState(req *http.Request) string {
-	return req.URL.Query().Get("state")
 }
 
 // validateState ensures that the state token param from the original

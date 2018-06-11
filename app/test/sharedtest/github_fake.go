@@ -68,7 +68,7 @@ func initFakeGithubServer() {
 
 const (
 	authURL    = "/login/oauth/authorize"
-	tokenURL   = "/login/oauth/access_token"
+	tokenURL   = "/login/oauth/access_token" //nolint:gas
 	profileURL = "/user"
 	emailURL   = "/user/emails"
 )

@@ -6,7 +6,7 @@ import (
 
 //go:generate goqueryset -in github_analysis.go
 
-// gen:qs
+//gen:qs
 type GithubAnalysis struct {
 	gorm.Model
 
@@ -19,6 +19,8 @@ type GithubAnalysis struct {
 
 	Status              string
 	ReportedIssuesCount int
+
+	ResultJSON []byte
 }
 
 func (GithubAnalysis) TableName() string {

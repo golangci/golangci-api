@@ -702,6 +702,7 @@ var GithubAnalysisDBSchema = struct {
 	CommitSHA               githubAnalysisDBSchemaField
 	Status                  githubAnalysisDBSchemaField
 	ReportedIssuesCount     githubAnalysisDBSchemaField
+	ResultJSON              githubAnalysisDBSchemaField
 }{
 
 	ID:                      githubAnalysisDBSchemaField("id"),
@@ -715,6 +716,7 @@ var GithubAnalysisDBSchema = struct {
 	CommitSHA:               githubAnalysisDBSchemaField("commit_sha"),
 	Status:                  githubAnalysisDBSchemaField("status"),
 	ReportedIssuesCount:     githubAnalysisDBSchemaField("reported_issues_count"),
+	ResultJSON:              githubAnalysisDBSchemaField("result_json"),
 }
 
 // Update updates GithubAnalysis fields by primary key
@@ -731,6 +733,7 @@ func (o *GithubAnalysis) Update(db *gorm.DB, fields ...githubAnalysisDBSchemaFie
 		"commit_sha":                 o.CommitSHA,
 		"status":                     o.Status,
 		"reported_issues_count":      o.ReportedIssuesCount,
+		"result_json":                o.ResultJSON,
 	}
 	u := map[string]interface{}{}
 	for _, f := range fields {
