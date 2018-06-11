@@ -1,6 +1,8 @@
 package repos
 
 import (
+	"net/http"
+
 	"github.com/golangci/golangci-api/app/handlers"
 	"github.com/golangci/golangci-api/app/internal/auth/user"
 	"github.com/golangci/golangci-api/app/internal/repos"
@@ -20,14 +22,14 @@ func changeRepo(ctx context.C) error {
 	repoName := ctx.URLVar("repoName")
 
 	var gr *models.GithubRepo
-	var activate = ctx.R.Method == "PUT"
+	var activate = ctx.R.Method == http.MethodPut
 	switch ctx.R.Method {
-	case "PUT":
+	case http.MethodPut:
 		gr, err = repos.ActivateRepo(&ctx, ga, repoOwner, repoName)
 		if err != nil {
 			return herrors.New(err, "can't activate repo")
 		}
-	case "DELETE":
+	case http.MethodDelete:
 		gr, err = repos.DeactivateRepo(&ctx, repoOwner, repoName)
 		if err != nil {
 			return herrors.New(err, "can't deactivate repo")

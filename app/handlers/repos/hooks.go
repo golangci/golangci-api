@@ -16,38 +16,78 @@ import (
 	gh "github.com/google/go-github/github"
 )
 
-func receiveGithubWebhook(ctx context.C) error {
+func getWebhookPayload(ctx context.C) (*gh.PullRequestEvent, error) {
 	var payload gh.PullRequestEvent
 	if err := json.NewDecoder(ctx.R.Body).Decode(&payload); err != nil {
-		return herrors.New400Errorf("invalid payload json: %s", err)
+		return nil, herrors.New400Errorf("invalid payload json: %s", err)
 	}
 
 	if payload.PullRequest == nil {
 		ctx.L.Infof("Got webhook without PR")
-		return nil
+		return nil, nil
 	}
 
 	if payload.GetAction() != "opened" && payload.GetAction() != "synchronize" {
 		ctx.L.Infof("Got webhook with action %s, skip it", payload.GetAction())
-		return nil
+		return nil, nil
 	}
 
-	prNumber := payload.PullRequest.GetNumber()
-	if prNumber == 0 {
-		return fmt.Errorf("got zero pull request number: %+v", payload.PullRequest)
+	if payload.PullRequest.GetNumber() == 0 {
+		return nil, herrors.New400Errorf("got zero pull request number: %+v", payload.PullRequest)
 	}
 
+	return &payload, nil
+}
+
+func fetchGithubRepo(ctx context.C) (*models.GithubRepo, error) {
 	var gr models.GithubRepo
 	hookID := ctx.URLVar("hookID")
 	err := models.NewGithubRepoQuerySet(db.Get(&ctx)).
 		HookIDEq(hookID).
 		One(&gr)
 	if err != nil {
-		return fmt.Errorf("can't get github repo with hook id %q: %s", hookID, err)
+		return nil, fmt.Errorf("can't get github repo with hook id %q: %s", hookID, err)
 	}
 
 	if gr.Name != fmt.Sprintf("%s/%s", ctx.URLVar("owner"), ctx.URLVar("name")) {
-		return herrors.New400Errorf("invalid reponame: expected %q", gr.Name)
+		return nil, herrors.New400Errorf("invalid reponame: expected %q", gr.Name)
+	}
+
+	return &gr, nil
+}
+
+func createAnalysis(ctx context.C, pr *gh.PullRequest, gr *models.GithubRepo) (*models.GithubAnalysis, error) {
+	guid := ctx.R.Header.Get("X-GitHub-Delivery")
+	if guid == "" {
+		return nil, herrors.New400Errorf("delivery without GUID")
+	}
+
+	analysis := models.GithubAnalysis{
+		GithubRepoID:            gr.ID,
+		GithubPullRequestNumber: pr.GetNumber(),
+		GithubDeliveryGUID:      guid,
+		CommitSHA:               pr.GetHead().GetSHA(),
+
+		Status:     "sent_to_queue",
+		ResultJSON: []byte("{}"),
+	}
+	if err := analysis.Create(db.Get(&ctx)); err != nil {
+		return nil, herrors.New(err, "can't create analysis")
+	}
+
+	return &analysis, nil
+}
+
+func receiveGithubWebhook(ctx context.C) error {
+	payload, err := getWebhookPayload(ctx)
+	if payload == nil {
+		return err
+	}
+	ctx.L.Infof("Got webhook %+v", payload)
+
+	gr, err := fetchGithubRepo(ctx)
+	if err != nil {
+		return err
 	}
 
 	var ga models.GithubAuth
@@ -58,23 +98,10 @@ func receiveGithubWebhook(ctx context.C) error {
 		return herrors.New(err, "can't get github auth for user %d", gr.UserID)
 	}
 
-	guid := ctx.R.Header.Get("X-GitHub-Delivery")
-	if guid == "" {
-		return herrors.New400Errorf("delivery without GUID")
+	analysis, err := createAnalysis(ctx, payload.PullRequest, gr)
+	if err != nil {
+		return err
 	}
-	analysis := models.GithubAnalysis{
-		GithubRepoID:            gr.ID,
-		GithubPullRequestNumber: prNumber,
-		GithubDeliveryGUID:      guid,
-		CommitSHA:               payload.PullRequest.GetHead().GetSHA(),
-
-		Status: "sent_to_queue",
-	}
-	if err = analysis.Create(db.Get(&ctx)); err != nil {
-		return herrors.New(err, "can't create analysis")
-	}
-
-	ctx.L.Infof("Got webhook %+v", payload)
 	ctx.L.Infof("Analysis object is %+v", analysis)
 
 	githubCtx := github.Context{
@@ -83,13 +110,13 @@ func receiveGithubWebhook(ctx context.C) error {
 			Name:  ctx.URLVar("name"),
 		},
 		GithubAccessToken: ga.AccessToken,
-		PullRequestNumber: prNumber,
+		PullRequestNumber: analysis.GithubPullRequestNumber,
 	}
 	t := &task.Task{
 		Context:      githubCtx,
 		APIRequestID: ctx.RequestID,
 		UserID:       gr.UserID,
-		AnalysisGUID: guid,
+		AnalysisGUID: analysis.GithubDeliveryGUID,
 	}
 
 	gc := github.NewMyClient()

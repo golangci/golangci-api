@@ -15,6 +15,7 @@ import (
 type State struct {
 	Status              string
 	ReportedIssuesCount int
+	ResultJSON          json.RawMessage
 }
 
 func handleAnalysisState(ctx context.C) error {
@@ -41,6 +42,7 @@ func getAnalysisState(ctx context.C) error {
 	ctx.ReturnJSON(State{
 		Status:              analysis.Status,
 		ReportedIssuesCount: analysis.ReportedIssuesCount,
+		ResultJSON:          analysis.ResultJSON,
 	})
 	return nil
 }
@@ -63,7 +65,11 @@ func updateAnalysisState(ctx context.C) error {
 	prevStatus := analysis.Status
 	analysis.Status = payload.Status
 	analysis.ReportedIssuesCount = payload.ReportedIssuesCount
-	err = analysis.Update(db.Get(&ctx), models.GithubAnalysisDBSchema.Status, models.GithubAnalysisDBSchema.ReportedIssuesCount)
+	analysis.ResultJSON = payload.ResultJSON
+	err = analysis.Update(db.Get(&ctx),
+		models.GithubAnalysisDBSchema.Status,
+		models.GithubAnalysisDBSchema.ReportedIssuesCount,
+		models.GithubAnalysisDBSchema.ResultJSON)
 	if err != nil {
 		return herrors.New(err, "can't update stats")
 	}
