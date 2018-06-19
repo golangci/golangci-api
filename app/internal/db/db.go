@@ -1,7 +1,10 @@
 package db
 
 import (
+	"fmt"
 	"os"
+
+	"github.com/golangci/golib/server/handlers/herrors"
 
 	"github.com/golangci/golib/server/context"
 	"github.com/golangci/golib/server/database"
@@ -23,4 +26,13 @@ func Get(ctx *context.C) *gorm.DB {
 	})
 
 	return DB
+}
+
+func Error(err error, format string, args ...interface{}) error {
+	if err == gorm.ErrRecordNotFound {
+		errBegin := fmt.Sprintf(format, args...)
+		return herrors.New404Errorf("%s: %s", errBegin, err)
+	}
+
+	return herrors.New(err, format, args...)
 }

@@ -1,0 +1,1 @@
+DROP INDEX github_pull_request_number_idx;
