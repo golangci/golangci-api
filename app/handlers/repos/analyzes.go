@@ -4,18 +4,25 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strconv"
 
 	"github.com/golangci/golangci-api/app/handlers"
 	"github.com/golangci/golangci-api/app/internal/db"
 	"github.com/golangci/golangci-api/app/models"
 	"github.com/golangci/golib/server/context"
 	"github.com/golangci/golib/server/handlers/herrors"
+	"github.com/jinzhu/gorm"
 )
 
 type State struct {
-	Status              string
-	ReportedIssuesCount int
-	ResultJSON          json.RawMessage
+	gorm.Model
+
+	Status                  string
+	ReportedIssuesCount     int
+	ResultJSON              json.RawMessage
+	CommitSHA               string
+	GithubPullRequestNumber int
+	GithubRepoName          string
 }
 
 func handleAnalysisState(ctx context.C) error {
@@ -36,13 +43,64 @@ func getAnalysisState(ctx context.C) error {
 		GithubDeliveryGUIDEq(analysisGUID).
 		One(&analysis)
 	if err != nil {
-		return herrors.New(err, "can't get github analysis with guid %s", analysisGUID)
+		return db.Error(err, "can't get github analysis with guid %s", analysisGUID)
+	}
+
+	repoName := fmt.Sprintf("%s/%s", ctx.URLVar("owner"), ctx.URLVar("name"))
+	var repo models.GithubRepo
+	err = models.NewGithubRepoQuerySet(db.Get(&ctx)).
+		NameEq(repoName).
+		One(&repo)
+	if err != nil {
+		return db.Error(err, "can't get github repo %s", repoName)
 	}
 
 	ctx.ReturnJSON(State{
-		Status:              analysis.Status,
-		ReportedIssuesCount: analysis.ReportedIssuesCount,
-		ResultJSON:          analysis.ResultJSON,
+		Model:                   analysis.Model,
+		Status:                  analysis.Status,
+		ReportedIssuesCount:     analysis.ReportedIssuesCount,
+		ResultJSON:              analysis.ResultJSON,
+		CommitSHA:               analysis.CommitSHA,
+		GithubPullRequestNumber: analysis.GithubPullRequestNumber,
+		GithubRepoName:          repo.Name,
+	})
+	return nil
+}
+
+func handlePRAnalysisState(ctx context.C) error {
+	repoName := fmt.Sprintf("%s/%s", ctx.URLVar("owner"), ctx.URLVar("name"))
+	var repo models.GithubRepo
+	err := models.NewGithubRepoQuerySet(db.Get(&ctx)).
+		NameEq(repoName).
+		One(&repo)
+	if err != nil {
+		return db.Error(err, "can't get github repo %s", repoName)
+	}
+
+	prNumber, err := strconv.Atoi(ctx.URLVar("prNumber"))
+	if err != nil {
+		return fmt.Errorf("invalid pr number %q: %s", ctx.URLVar("prNumber"), err)
+	}
+
+	var analysis models.GithubAnalysis
+	err = models.NewGithubAnalysisQuerySet(db.Get(&ctx)).
+		GithubPullRequestNumberEq(prNumber).
+		GithubRepoIDEq(repo.ID).
+		OrderDescByID(). // get last
+		Limit(1).
+		One(&analysis)
+	if err != nil {
+		return db.Error(err, "can't get github analysis with pr number %s and repo id %d", prNumber, repo.ID)
+	}
+
+	ctx.ReturnJSON(State{
+		Model:                   analysis.Model,
+		Status:                  analysis.Status,
+		ReportedIssuesCount:     analysis.ReportedIssuesCount,
+		ResultJSON:              analysis.ResultJSON,
+		CommitSHA:               analysis.CommitSHA,
+		GithubPullRequestNumber: analysis.GithubPullRequestNumber,
+		GithubRepoName:          repo.Name,
 	})
 	return nil
 }
@@ -81,4 +139,5 @@ func updateAnalysisState(ctx context.C) error {
 func init() {
 	handlers.Register("/v1/repos/{owner}/{name}/analyzes/{analysisID}/status", handleAnalysisState)
 	handlers.Register("/v1/repos/{owner}/{name}/analyzes/{analysisID}/state", handleAnalysisState)
+	handlers.Register("/v1/repos/{owner}/{name}/pulls/{prNumber}", handlePRAnalysisState)
 }
