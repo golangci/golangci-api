@@ -21,7 +21,7 @@ func StartWatcher() {
 
 func watch() {
 	// If you change it don't forget to change it golangci-worker
-	const taskProcessingTimeout = time.Minute * 10
+	const taskProcessingTimeout = time.Minute * 20 // 2x as in golangci-worker: need time for queue processing
 	ctx := utils.NewBackgroundContext()
 
 	for range time.Tick(taskProcessingTimeout / 2) {
@@ -103,7 +103,7 @@ func setGithubStatus(ctx *context.C, analysis models.GithubAnalysis) error {
 	}
 
 	err = GithubClient.SetCommitStatus(ctx.Ctx, githubContext, pr.GetHead().GetSHA(),
-		github.StatusSuccess, "No issues found!")
+		github.StatusError, "Processing timeout")
 	if err != nil {
 		return fmt.Errorf("can't set github status: %s", err)
 	}

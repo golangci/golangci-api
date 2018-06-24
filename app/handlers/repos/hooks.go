@@ -123,7 +123,7 @@ func receiveGithubWebhook(ctx context.C) error {
 	err = gc.SetCommitStatus(ctx.Ctx, &githubCtx, analysis.CommitSHA,
 		github.StatusPending, "Waiting in queue...")
 	if err != nil {
-		errors.Warnf(&ctx, "Can't set commit status 'pending in queue' for task %+v: %s",
+		errors.Warnf(&ctx, "Can't set github commit status to 'pending in queue' for task %+v: %s",
 			t, err)
 	}
 
