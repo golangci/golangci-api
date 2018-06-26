@@ -37,8 +37,8 @@ DATABASE_DEBUG=1
 ```
 
 ### How to run tests
-
 ```
+echo "CREATE DATABASE api_prod;" | docker-compose exec -T pg psql -U postgres
 make test
 ```
 

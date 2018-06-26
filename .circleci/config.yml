@@ -20,4 +20,5 @@ jobs:
       - run: go get -u github.com/golangci/golangci-lint/cmd/golangci-lint
       - run: echo 'REDIS_URL="redis://localhost:6379"' >.env
       - run: echo 'DATABASE_URL="postgresql://postgres:test@localhost:5432/api_prod?sslmode=disable"' >.env.test
+      - run: echo "CREATE DATABASE api_prod;" | docker-compose exec -T pg psql -U postgres
       - run: make test
