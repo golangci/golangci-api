@@ -12,4 +12,5 @@ migrate_example:
 
 test:
 	go test -v -parallel 1 ./app/handlers/...
+	golangci-lint run -v
 
