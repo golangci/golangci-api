@@ -11,6 +11,6 @@ migrate_example:
 	godotenv -f .env.test sh -c 'migrate -database $DATABASE_URL -path ./app/migrations force 4'
 
 test:
-	go test -v -parallel 1 ./app/handlers/...
+	go test -v -parallel 1 -p 1 ./app/handlers/...
 	golangci-lint run -v
 
