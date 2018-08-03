@@ -104,12 +104,19 @@ func receiveGithubWebhook(ctx context.C) error {
 	}
 	ctx.L.Infof("Analysis object is %+v", analysis)
 
+	var taskAccessToken string
+	if payload.GetRepo().GetPrivate() {
+		taskAccessToken = ga.PrivateAccessToken
+	} else {
+		taskAccessToken = ga.AccessToken
+	}
+
 	githubCtx := github.Context{
 		Repo: github.Repo{
 			Owner: ctx.URLVar("owner"),
 			Name:  ctx.URLVar("name"),
 		},
-		GithubAccessToken: ga.AccessToken,
+		GithubAccessToken: taskAccessToken,
 		PullRequestNumber: analysis.GithubPullRequestNumber,
 	}
 	t := &task.Task{
