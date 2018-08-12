@@ -1,6 +1,8 @@
 package models
 
 import (
+	"encoding/json"
+
 	"github.com/jinzhu/gorm"
 )
 
@@ -15,7 +17,8 @@ type RepoAnalysis struct {
 
 	AnalysisGUID string
 	Status       string
-	ResultJSON   []byte
+	CommitSHA    string
+	ResultJSON   json.RawMessage
 }
 
 func (RepoAnalysis) TableName() string {

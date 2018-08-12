@@ -12,7 +12,7 @@ import (
 	"github.com/golangci/golangci-api/app/models"
 	"github.com/golangci/golangci-api/app/test/sharedtest"
 	"github.com/golangci/golangci-api/app/utils"
-	"github.com/golangci/golangci-worker/app/utils/github"
+	"github.com/golangci/golangci-worker/app/lib/github"
 	gh "github.com/google/go-github/github"
 	"github.com/stretchr/testify/assert"
 )

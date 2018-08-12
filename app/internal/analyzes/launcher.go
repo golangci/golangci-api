@@ -2,10 +2,12 @@ package analyzes
 
 import (
 	"fmt"
+	"os"
 	"strings"
 	"time"
 
 	"github.com/jinzhu/gorm"
+	"github.com/sirupsen/logrus"
 
 	"github.com/satori/go.uuid"
 
@@ -13,12 +15,27 @@ import (
 	"github.com/golangci/golangci-api/app/internal/errors"
 	"github.com/golangci/golangci-api/app/models"
 	"github.com/golangci/golangci-api/app/utils"
-	"github.com/golangci/golangci-worker/app/analyze/analyzerqueue"
-	"github.com/golangci/golangci-worker/app/analyze/task"
+	"github.com/golangci/golangci-worker/app/analyze/analyzequeue"
+	"github.com/golangci/golangci-worker/app/analyze/analyzequeue/task"
 	"github.com/golangci/golib/server/context"
 )
 
-const reanalyzeInterval = 30 * time.Minute // reanalyze each repo every reanalyzeInterval duration
+var reanalyzeInterval = getReanalyzeInterval() // reanalyze each repo every reanalyzeInterval duration
+
+func getReanalyzeInterval() time.Duration {
+	cfgStr := os.Getenv("REPO_REANALYZE_INTERVAL")
+	if cfgStr == "" {
+		return 30 * time.Minute
+	}
+
+	d, err := time.ParseDuration(cfgStr)
+	if err != nil {
+		logrus.Errorf("Invalid REPO_REANALYZE_INTERVAL %q: %s", cfgStr, err)
+		return 30 * time.Minute
+	}
+
+	return d
+}
 
 func StartLauncher() {
 	go launch()
@@ -27,7 +44,13 @@ func StartLauncher() {
 func launch() {
 	ctx := utils.NewBackgroundContext()
 
-	for range time.Tick(reanalyzeInterval / 2) {
+	checkInterval := reanalyzeInterval / 2
+	const minCheckInterval = time.Minute * 5
+	if checkInterval < minCheckInterval {
+		checkInterval = minCheckInterval
+	}
+
+	for range time.Tick(checkInterval) {
 		if err := launchAnalyzes(ctx); err != nil {
 			errors.Warnf(ctx, "Can't launch analyzes: %s", err)
 			continue
@@ -97,7 +120,8 @@ func processAnalysisStatus(ctx *context.C, as *models.RepoAnalysisStatus) error 
 	needAnalysis := as.LastAnalyzedAt.IsZero() ||
 		(as.HasPendingChanges && as.LastAnalyzedAt.Add(reanalyzeInterval).Before(time.Now()))
 	if !needAnalysis {
-		ctx.L.Infof("No need to launch analysis for analysis status %+v", as)
+		ctx.L.Infof("No need to launch analysis for analysis status %v: last_analyzed=%s ago, reanalyze_interval=%s",
+			as, time.Since(as.LastAnalyzedAt), reanalyzeInterval)
 		return nil
 	}
 
@@ -109,7 +133,7 @@ func processAnalysisStatus(ctx *context.C, as *models.RepoAnalysisStatus) error 
 	return nil
 }
 
-func OnRepoMasterUpdated(ctx *context.C, repoName string) error {
+func OnRepoMasterUpdated(ctx *context.C, repoName, defaultBranch, commitSHA string) error {
 	var as models.RepoAnalysisStatus
 	err := models.NewRepoAnalysisStatusQuerySet(db.Get(ctx)).
 		NameEq(repoName).
@@ -129,7 +153,13 @@ func OnRepoMasterUpdated(ctx *context.C, repoName string) error {
 	}
 
 	as.HasPendingChanges = true
-	err = as.Update(db.Get(ctx), models.RepoAnalysisStatusDBSchema.HasPendingChanges)
+	as.DefaultBranch = defaultBranch
+	as.PendingCommitSHA = commitSHA
+	err = as.Update(db.Get(ctx),
+		models.RepoAnalysisStatusDBSchema.HasPendingChanges,
+		models.RepoAnalysisStatusDBSchema.DefaultBranch,
+		models.RepoAnalysisStatusDBSchema.PendingCommitSHA,
+	)
 	if err != nil {
 		return fmt.Errorf("can't update has_pending_changes to true: %s", err)
 	}
@@ -150,6 +180,7 @@ func launchAnalysis(ctx *context.C, as *models.RepoAnalysisStatus) (err error) {
 		RepoAnalysisStatusID: as.ID,
 		AnalysisGUID:         uuid.NewV4().String(),
 		Status:               "sent_to_queue",
+		CommitSHA:            as.PendingCommitSHA,
 		ResultJSON:           []byte("{}"),
 	}
 	if err = a.Create(db.Get(ctx)); err != nil {
@@ -159,9 +190,10 @@ func launchAnalysis(ctx *context.C, as *models.RepoAnalysisStatus) (err error) {
 	t := &task.RepoAnalysis{
 		Name:         strings.ToLower(as.Name),
 		AnalysisGUID: a.AnalysisGUID,
+		Branch:       as.DefaultBranch,
 	}
 
-	if err = analyzerqueue.StartRepoAnalysis(t); err != nil {
+	if err = analyzequeue.ScheduleRepoAnalysis(t); err != nil {
 		return fmt.Errorf("can't send repo for analysis into queue: %s", err)
 	}
 
@@ -170,7 +202,7 @@ func launchAnalysis(ctx *context.C, as *models.RepoAnalysisStatus) (err error) {
 		GetUpdater().
 		SetHasPendingChanges(false).
 		SetVersion(as.Version + 1).
-		SetLastAnalyzedAt(time.Now()).
+		SetLastAnalyzedAt(time.Now().UTC()).
 		UpdateNum()
 	if err != nil {
 		return fmt.Errorf("can't update repo analysis status after processing: %s", err)
