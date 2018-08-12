@@ -10,9 +10,9 @@ import (
 	"github.com/golangci/golangci-api/app/internal/db"
 	"github.com/golangci/golangci-api/app/internal/errors"
 	"github.com/golangci/golangci-api/app/models"
-	"github.com/golangci/golangci-worker/app/analyze/analyzerqueue"
-	"github.com/golangci/golangci-worker/app/analyze/task"
-	"github.com/golangci/golangci-worker/app/utils/github"
+	"github.com/golangci/golangci-worker/app/analyze/analyzequeue"
+	"github.com/golangci/golangci-worker/app/analyze/analyzequeue/task"
+	"github.com/golangci/golangci-worker/app/lib/github"
 	"github.com/golangci/golib/server/context"
 	"github.com/golangci/golib/server/handlers/herrors"
 	gh "github.com/google/go-github/github"
@@ -151,7 +151,7 @@ func receivePullRequestWebhook(ctx context.C) error {
 			t, err)
 	}
 
-	if err = analyzerqueue.StartPRAnalysis(t); err != nil {
+	if err = analyzequeue.SchedulePRAnalysis(t); err != nil {
 		return fmt.Errorf("can't send pull request for analysis into queue: %s", err)
 	}
 	ctx.L.Infof("Sent task %+v to analyze queue", t)
@@ -187,7 +187,8 @@ func receivePushWebhook(ctx context.C) error {
 		return nil
 	}
 
-	return analyzes.OnRepoMasterUpdated(&ctx, repoName)
+	return analyzes.OnRepoMasterUpdated(&ctx, repoName,
+		payload.GetRepo().GetDefaultBranch(), payload.GetHeadCommit().GetID())
 }
 
 func init() {

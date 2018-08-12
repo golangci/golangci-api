@@ -7,7 +7,7 @@ import (
 	"github.com/golangci/golangci-api/app/internal/db"
 	"github.com/golangci/golangci-api/app/models"
 	"github.com/golangci/golangci-api/app/utils"
-	"github.com/golangci/golangci-worker/app/utils/github"
+	"github.com/golangci/golangci-worker/app/lib/github"
 	"github.com/golangci/golib/server/context"
 	gh "github.com/google/go-github/github"
 	_ "github.com/mattes/migrate/database/postgres" // pg

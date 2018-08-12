@@ -16,5 +16,7 @@ type RepoAnalysisStatus struct {
 	LastAnalyzedAt time.Time
 
 	HasPendingChanges bool
+	PendingCommitSHA  string
 	Version           int
+	DefaultBranch     string
 }

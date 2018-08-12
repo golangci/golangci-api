@@ -8,7 +8,7 @@ import (
 
 	"github.com/golangci/golangci-api/app/internal/analyzes"
 	"github.com/golangci/golangci-api/app/utils"
-	"github.com/golangci/golangci-worker/app/utils/queue"
+	"github.com/golangci/golangci-worker/app/lib/queue"
 	"github.com/golangci/golib/server/database"
 
 	log "github.com/sirupsen/logrus"

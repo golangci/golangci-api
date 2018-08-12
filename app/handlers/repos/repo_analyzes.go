@@ -98,5 +98,5 @@ func handleRepoAnalyzesStatus(ctx context.C) error {
 
 func init() {
 	handlers.Register("/v1/repos/{owner}/{name}/repoanalyzes/{analysisID}", handleRepoAnalysis)
-	handlers.Register("/v1/repos/{owner}/{name}/repoanalyzes/status", handleRepoAnalyzesStatus)
+	handlers.Register("/v1/repos/{owner}/{name}/repoanalyzes", handleRepoAnalyzesStatus)
 }
