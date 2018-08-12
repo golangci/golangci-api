@@ -127,7 +127,7 @@ func updateAnalysisState(ctx context.C) error {
 	err = analysis.Update(db.Get(&ctx),
 		models.GithubAnalysisDBSchema.Status,
 		models.GithubAnalysisDBSchema.ReportedIssuesCount,
-		models.GithubAnalysisDBSchema.ResultJSON)
+		"result_json")
 	if err != nil {
 		return herrors.New(err, "can't update stats")
 	}
@@ -137,7 +137,6 @@ func updateAnalysisState(ctx context.C) error {
 }
 
 func init() {
-	handlers.Register("/v1/repos/{owner}/{name}/analyzes/{analysisID}/status", handleAnalysisState)
 	handlers.Register("/v1/repos/{owner}/{name}/analyzes/{analysisID}/state", handleAnalysisState)
 	handlers.Register("/v1/repos/{owner}/{name}/pulls/{prNumber}", handlePRAnalysisState)
 }

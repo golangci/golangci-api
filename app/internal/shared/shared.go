@@ -34,6 +34,7 @@ func Init() {
 	queue.Init()
 
 	analyzes.StartWatcher()
+	analyzes.StartLauncher()
 }
 
 func runMigrations() error {

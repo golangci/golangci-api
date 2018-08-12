@@ -94,12 +94,13 @@ func (r *Repo) Deactivate() {
 	)
 }
 
-func (r Repo) ExpectWebhook(payload interface{}) *httpexpect.Response {
+func (r Repo) ExpectWebhook(eventType string, payload interface{}) *httpexpect.Response {
 	// Create new because GitHub makes request without authorization.
 	return NewHTTPExpect(r.u.t).
 		POST(repos.GetWebhookURLPathForRepo(r.Name, r.HookID)).
 		WithJSON(payload).
 		WithHeader("X-GitHub-Delivery", uuid.NewV4().String()).
+		WithHeader("X-GitHub-Event", eventType).
 		Expect()
 }
 

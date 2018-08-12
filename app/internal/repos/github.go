@@ -86,7 +86,7 @@ func ActivateRepo(ctx *context.C, ga *models.GithubAuth, owner, repo string) (*m
 	hookURL := os.Getenv("GITHUB_CALLBACK_HOST") + GetWebhookURLPathForRepo(gr.Name, gr.HookID)
 	hook := gh.Hook{
 		Name:   &web,
-		Events: []string{"pull_request"},
+		Events: []string{"push", "pull_request"},
 		Config: map[string]interface{}{
 			"url":          hookURL,
 			"content_type": "json",

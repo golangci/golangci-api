@@ -19,7 +19,8 @@ import (
 
 func TestReceivePingWebhook(t *testing.T) {
 	r, _ := sharedtest.GetActivatedRepo(t)
-	r.ExpectWebhook(gh.PingEvent{}).Status(http.StatusOK)
+	r.ExpectWebhook("pull_request", gh.PingEvent{}).Status(http.StatusOK)
+	r.ExpectWebhook("push", gh.PingEvent{}).Status(http.StatusOK)
 }
 
 func getTestPREvent() gh.PullRequestEvent {
@@ -36,7 +37,7 @@ func getTestPREvent() gh.PullRequestEvent {
 
 func TestReceivePullRequestOpenedWebhook(t *testing.T) {
 	r, _ := sharedtest.GetActivatedRepo(t)
-	r.ExpectWebhook(getTestPREvent()).Status(http.StatusOK)
+	r.ExpectWebhook("pull_request", getTestPREvent()).Status(http.StatusOK)
 }
 
 func TestStaleAnalyzes(t *testing.T) {
@@ -46,7 +47,7 @@ func TestStaleAnalyzes(t *testing.T) {
 	err := models.NewGithubAnalysisQuerySet(db.Get(ctx)).Delete()
 	assert.NoError(t, err)
 
-	r.ExpectWebhook(getTestPREvent()).Status(http.StatusOK)
+	r.ExpectWebhook("pull_request", getTestPREvent()).Status(http.StatusOK)
 
 	timeout := time.Second
 	staleCount, err := analyzes.CheckStaleAnalyzes(ctx, timeout)
@@ -60,7 +61,7 @@ func TestStaleAnalyzes(t *testing.T) {
 	mc := github.NewMockClient(ctrl)
 	any := gomock.Any()
 	mc.EXPECT().GetPullRequest(any, any).AnyTimes().Return(&gh.PullRequest{}, nil)
-	mc.EXPECT().SetCommitStatus(any, any, any, any, any).Return(nil)
+	mc.EXPECT().SetCommitStatus(any, any, any, any, any, "").Return(nil)
 	analyzes.GithubClient = mc
 	defer func() {
 		analyzes.GithubClient = github.NewMyClient()

@@ -16,32 +16,43 @@ import (
 	_ "github.com/lib/pq"
 )
 
+const (
+	eventTypePullRequest = "pull_request"
+	eventTypePush        = "push"
+)
+
 func main() {
 	repoName := flag.String("repo", "", "owner/name")
+	hookType := flag.String("type", eventTypePullRequest, "hook type")
 	commitSHA := flag.String("sha", "", "commit sha")
 	prNumber := flag.Int("pr", 0, "pull request number")
 	flag.Parse()
 
-	if *repoName == "" || *commitSHA == "" || *prNumber == 0 {
-		log.Fatalf("Must set --repo and --sha and --pr")
+	if *repoName == "" {
+		log.Fatalf("Must set --repo")
 	}
 
-	if err := emulateWebhook(*repoName, *commitSHA, *prNumber); err != nil {
-		log.Fatalf("Can't emulate webhook: %s", err)
+	if *hookType == eventTypePullRequest && (*commitSHA == "" || *prNumber == 0) {
+		log.Fatalf("Must set --sha and --pr")
+	}
+
+	switch *hookType {
+	case eventTypePullRequest:
+		if err := emulatePullRequestWebhook(*repoName, *commitSHA, *prNumber); err != nil {
+			log.Fatalf("Can't emulate pull_request webhook: %s", err)
+		}
+	case eventTypePush:
+		if err := emulatePushWebhook(*repoName); err != nil {
+			log.Fatalf("Can't emulate push webhook: %s", err)
+		}
+	default:
+		log.Fatalf("unknown hook type %s", *hookType)
 	}
 
 	log.Printf("Successfully emulated webhook")
 }
 
-func emulateWebhook(repoName, commitSHA string, prNumber int) error {
-	var repo models.GithubRepo
-	err := models.NewGithubRepoQuerySet(database.GetDB()).NameEq(repoName).One(&repo)
-	if err != nil {
-		return fmt.Errorf("can't get repo with name %q: %s", repoName, err)
-	}
-
-	webhookURL := fmt.Sprintf("https://api.dev.golangci.com/v1/repos/%s/hooks/%s",
-		repoName, repo.HookID)
+func emulatePullRequestWebhook(repoName, commitSHA string, prNumber int) error {
 	payload := gh.PullRequestEvent{
 		Action: gh.String("opened"),
 		PullRequest: &gh.PullRequest{
@@ -51,6 +62,31 @@ func emulateWebhook(repoName, commitSHA string, prNumber int) error {
 			},
 		},
 	}
+
+	return sendWebhookPayload(repoName, eventTypePullRequest, payload)
+}
+
+func emulatePushWebhook(repoName string) error {
+	payload := gh.PushEvent{
+		Ref: gh.String("master"),
+		Repo: &gh.PushEventRepository{
+			DefaultBranch: gh.String("master"),
+			FullName:      gh.String(repoName),
+		},
+	}
+
+	return sendWebhookPayload(repoName, eventTypePush, payload)
+}
+
+func sendWebhookPayload(repoName, event string, payload interface{}) error {
+	var repo models.GithubRepo
+	err := models.NewGithubRepoQuerySet(database.GetDB()).NameEq(repoName).One(&repo)
+	if err != nil {
+		return fmt.Errorf("can't get repo with name %q: %s", repoName, err)
+	}
+
+	webhookURL := fmt.Sprintf("https://api.dev.golangci.com/v1/repos/%s/hooks/%s",
+		repoName, repo.HookID)
 
 	payloadBytes, err := json.Marshal(payload)
 	if err != nil {
@@ -62,6 +98,7 @@ func emulateWebhook(repoName, commitSHA string, prNumber int) error {
 		return fmt.Errorf("can't create post request: %s", err)
 	}
 
+	req.Header.Add("X-GitHub-Event", event)
 	req.Header.Add("X-GitHub-Delivery", fmt.Sprintf("emulated_guid_%d", time.Now().UnixNano()))
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
