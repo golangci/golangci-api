@@ -103,7 +103,7 @@ func setGithubStatus(ctx *context.C, analysis models.GithubAnalysis) error {
 	}
 
 	err = GithubClient.SetCommitStatus(ctx.Ctx, githubContext, pr.GetHead().GetSHA(),
-		github.StatusError, "Processing timeout")
+		github.StatusError, "Processing timeout", "")
 	if err != nil {
 		return fmt.Errorf("can't set github status: %s", err)
 	}

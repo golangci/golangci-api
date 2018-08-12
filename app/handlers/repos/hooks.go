@@ -3,8 +3,10 @@ package repos
 import (
 	"encoding/json"
 	"fmt"
+	"strings"
 
 	"github.com/golangci/golangci-api/app/handlers"
+	"github.com/golangci/golangci-api/app/internal/analyzes"
 	"github.com/golangci/golangci-api/app/internal/db"
 	"github.com/golangci/golangci-api/app/internal/errors"
 	"github.com/golangci/golangci-api/app/models"
@@ -16,7 +18,7 @@ import (
 	gh "github.com/google/go-github/github"
 )
 
-func getWebhookPayload(ctx context.C) (*gh.PullRequestEvent, error) {
+func getPullRequestWebhookPayload(ctx context.C) (*gh.PullRequestEvent, error) {
 	var payload gh.PullRequestEvent
 	if err := json.NewDecoder(ctx.R.Body).Decode(&payload); err != nil {
 		return nil, herrors.New400Errorf("invalid payload json: %s", err)
@@ -79,7 +81,19 @@ func createAnalysis(ctx context.C, pr *gh.PullRequest, gr *models.GithubRepo) (*
 }
 
 func receiveGithubWebhook(ctx context.C) error {
-	payload, err := getWebhookPayload(ctx)
+	eventType := ctx.R.Header.Get("X-GitHub-Event")
+	switch eventType {
+	case "pull_request":
+		return receivePullRequestWebhook(ctx)
+	case "push":
+		return receivePushWebhook(ctx)
+	}
+
+	return fmt.Errorf("got unknown webhook event type %s", eventType)
+}
+
+func receivePullRequestWebhook(ctx context.C) error {
+	payload, err := getPullRequestWebhookPayload(ctx)
 	if payload == nil {
 		return err
 	}
@@ -119,7 +133,7 @@ func receiveGithubWebhook(ctx context.C) error {
 		GithubAccessToken: taskAccessToken,
 		PullRequestNumber: analysis.GithubPullRequestNumber,
 	}
-	t := &task.Task{
+	t := &task.PRAnalysis{
 		Context:      githubCtx,
 		APIRequestID: ctx.RequestID,
 		UserID:       gr.UserID,
@@ -128,18 +142,48 @@ func receiveGithubWebhook(ctx context.C) error {
 
 	gc := github.NewMyClient()
 	err = gc.SetCommitStatus(ctx.Ctx, &githubCtx, analysis.CommitSHA,
-		github.StatusPending, "Waiting in queue...")
+		github.StatusPending, "Waiting in queue...", "")
 	if err != nil {
 		errors.Warnf(&ctx, "Can't set github commit status to 'pending in queue' for task %+v: %s",
 			t, err)
 	}
 
-	if err = analyzerqueue.Send(t); err != nil {
+	if err = analyzerqueue.StartPRAnalysis(t); err != nil {
 		return fmt.Errorf("can't send pull request for analysis into queue: %s", err)
 	}
 	ctx.L.Infof("Sent task %+v to analyze queue", t)
 
 	return nil
+}
+
+func getPushWebhookPayload(ctx context.C) (*gh.PushEvent, error) {
+	var payload gh.PushEvent
+	if err := json.NewDecoder(ctx.R.Body).Decode(&payload); err != nil {
+		return nil, herrors.New400Errorf("invalid payload json: %s", err)
+	}
+
+	if payload.GetRef() != payload.GetRepo().GetDefaultBranch() {
+		ctx.L.Infof("Got push webhook for branch %s, but default branch is %s, skip it",
+			payload.GetRef(), payload.GetRepo().GetDefaultBranch())
+		return nil, nil
+	}
+
+	return &payload, nil
+}
+
+func receivePushWebhook(ctx context.C) error {
+	payload, err := getPushWebhookPayload(ctx)
+	if payload == nil {
+		return err
+	}
+
+	repoName := strings.ToLower(payload.GetRepo().GetFullName())
+	if repoName == "" {
+		ctx.L.Infof("Got push webhook without repo info")
+		return nil
+	}
+
+	return analyzes.OnRepoMasterUpdated(&ctx, repoName)
 }
 
 func init() {

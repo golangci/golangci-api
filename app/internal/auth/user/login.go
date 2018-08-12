@@ -88,7 +88,7 @@ func LoginGithub(ctx *context.C, gu *goth.User) (err error) {
 			return fmt.Errorf("can't create github authorization %v: %s", u, err)
 		}
 	} else {
-		err = ga.Update(DB, models.GithubAuthDBSchema.RawData, models.GithubAuthDBSchema.AccessToken)
+		err = ga.Update(DB, "raw_data", models.GithubAuthDBSchema.AccessToken)
 		if err != nil {
 			return fmt.Errorf("can't create github authorization %v: %s", u, err)
 		}
