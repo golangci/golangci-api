@@ -162,9 +162,10 @@ func getPushWebhookPayload(ctx context.C) (*gh.PushEvent, error) {
 		return nil, herrors.New400Errorf("invalid payload json: %s", err)
 	}
 
-	if payload.GetRef() != payload.GetRepo().GetDefaultBranch() {
+	branch := strings.TrimPrefix(payload.GetRef(), "refs/heads/")
+	if branch != payload.GetRepo().GetDefaultBranch() {
 		ctx.L.Infof("Got push webhook for branch %s, but default branch is %s, skip it",
-			payload.GetRef(), payload.GetRepo().GetDefaultBranch())
+			branch, payload.GetRepo().GetDefaultBranch())
 		return nil, nil
 	}
 

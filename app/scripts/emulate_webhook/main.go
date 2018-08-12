@@ -68,7 +68,7 @@ func emulatePullRequestWebhook(repoName, commitSHA string, prNumber int) error {
 
 func emulatePushWebhook(repoName string) error {
 	payload := gh.PushEvent{
-		Ref: gh.String("master"),
+		Ref: gh.String("refs/heads/master"),
 		Repo: &gh.PushEventRepository{
 			DefaultBranch: gh.String("master"),
 			FullName:      gh.String(repoName),
