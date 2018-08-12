@@ -56,6 +56,9 @@ func updateRepoAnalysis(ctx context.C) error {
 	prevStatus := analysis.Status
 	analysis.Status = payload.Status
 	analysis.ResultJSON = payload.ResultJSON
+	if analysis.ResultJSON == nil {
+		analysis.ResultJSON = []byte("{}")
+	}
 	err = analysis.Update(db.Get(&ctx),
 		models.RepoAnalysisDBSchema.Status,
 		"result_json")

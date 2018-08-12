@@ -124,6 +124,9 @@ func updateAnalysisState(ctx context.C) error {
 	analysis.Status = payload.Status
 	analysis.ReportedIssuesCount = payload.ReportedIssuesCount
 	analysis.ResultJSON = payload.ResultJSON
+	if analysis.ResultJSON == nil {
+		analysis.ResultJSON = []byte("{}")
+	}
 	err = analysis.Update(db.Get(&ctx),
 		models.GithubAnalysisDBSchema.Status,
 		models.GithubAnalysisDBSchema.ReportedIssuesCount,
