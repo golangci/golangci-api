@@ -198,6 +198,7 @@ func launchAnalysis(ctx *context.C, as *models.RepoAnalysisStatus) (err error) {
 	}
 
 	n, err := models.NewRepoAnalysisStatusQuerySet(db.Get(ctx)).
+		NameEq(strings.ToLower(as.Name)).
 		VersionEq(as.Version).
 		GetUpdater().
 		SetHasPendingChanges(false).
