@@ -127,12 +127,13 @@ func updateAnalysisState(ctx context.C) error {
 	if analysis.ResultJSON == nil {
 		analysis.ResultJSON = []byte("{}")
 	}
+
 	err = analysis.Update(db.Get(&ctx),
 		models.GithubAnalysisDBSchema.Status,
 		models.GithubAnalysisDBSchema.ReportedIssuesCount,
-		"result_json")
+		models.GithubAnalysisDBSchema.ResultJSON)
 	if err != nil {
-		return herrors.New(err, "can't update stats")
+		return herrors.New(err, "can't update pr analysis state for analytis %#v", analysis)
 	}
 
 	ctx.L.Infof("Updated analysis %s status: %s -> %s", analysisGUID, prevStatus, analysis.Status)

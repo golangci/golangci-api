@@ -61,7 +61,7 @@ func updateRepoAnalysis(ctx context.C) error {
 	}
 	err = analysis.Update(db.Get(&ctx),
 		models.RepoAnalysisDBSchema.Status,
-		"result_json")
+		models.RepoAnalysisDBSchema.ResultJSON)
 	if err != nil {
 		return herrors.New(err, "can't update repo analysis")
 	}
