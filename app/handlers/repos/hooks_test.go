@@ -19,8 +19,7 @@ import (
 
 func TestReceivePingWebhook(t *testing.T) {
 	r, _ := sharedtest.GetActivatedRepo(t)
-	r.ExpectWebhook("pull_request", gh.PingEvent{}).Status(http.StatusOK)
-	r.ExpectWebhook("push", gh.PingEvent{}).Status(http.StatusOK)
+	r.ExpectWebhook("ping", gh.PingEvent{}).Status(http.StatusOK)
 }
 
 func getTestPREvent() gh.PullRequestEvent {
