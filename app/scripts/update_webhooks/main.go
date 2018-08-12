@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"log"
 
 	"github.com/golangci/golangci-api/app/internal/db"
 	"github.com/golangci/golangci-api/app/models"
@@ -9,6 +10,7 @@ import (
 	"github.com/golangci/golangci-worker/app/utils/github"
 	"github.com/golangci/golib/server/context"
 	gh "github.com/google/go-github/github"
+	_ "github.com/mattes/migrate/database/postgres" // pg
 )
 
 func main() {
@@ -25,10 +27,13 @@ func updateAllWebhooks() error {
 		return fmt.Errorf("can't fetch all repos: %s", err)
 	}
 
-	for _, repo := range repos {
+	log.Printf("Got %d repos to update", len(repos))
+
+	for i, repo := range repos {
 		if err := updateRepoWebhook(ctx, &repo); err != nil {
-			return fmt.Errorf("can't update repo %#v webhook: %s", repo, err)
+			log.Printf("Can't update repo %#v webhook: %s", repo, err)
 		}
+		log.Printf("#%d/%d: successfully updated webhook", i+1, len(repos))
 	}
 
 	return nil
