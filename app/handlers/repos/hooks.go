@@ -87,6 +87,9 @@ func receiveGithubWebhook(ctx context.C) error {
 		return receivePullRequestWebhook(ctx)
 	case "push":
 		return receivePushWebhook(ctx)
+	case "ping":
+		ctx.L.Infof("Got ping hook")
+		return nil
 	}
 
 	return fmt.Errorf("got unknown webhook event type %s", eventType)
