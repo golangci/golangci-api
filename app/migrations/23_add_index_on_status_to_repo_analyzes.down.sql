@@ -1,0 +1,1 @@
+DROP INDEX repo_analyzes_status_idx;

@@ -20,28 +20,30 @@ import (
 	"github.com/golangci/golib/server/context"
 )
 
-var reanalyzeInterval = getReanalyzeInterval() // reanalyze each repo every reanalyzeInterval duration
+// reanalyze each repo every reanalyzeInterval duration
+var reanalyzeInterval = getDurationFromEnv("REPO_REANALYZE_INTERVAL", 30*time.Minute)
 
-func getReanalyzeInterval() time.Duration {
-	cfgStr := os.Getenv("REPO_REANALYZE_INTERVAL")
+func getDurationFromEnv(key string, def time.Duration) time.Duration {
+	cfgStr := os.Getenv(key)
 	if cfgStr == "" {
-		return 30 * time.Minute
+		return def
 	}
 
 	d, err := time.ParseDuration(cfgStr)
 	if err != nil {
-		logrus.Errorf("Invalid REPO_REANALYZE_INTERVAL %q: %s", cfgStr, err)
-		return 30 * time.Minute
+		logrus.Errorf("Invalid %s %q: %s", key, cfgStr, err)
+		return def
 	}
 
 	return d
 }
 
 func StartLauncher() {
-	go launch()
+	go launchRepoAnalyzes()
+	go restartRepoAnalyzes()
 }
 
-func launch() {
+func launchRepoAnalyzes() {
 	ctx := utils.NewBackgroundContext()
 
 	checkInterval := reanalyzeInterval / 2
@@ -202,6 +204,7 @@ func launchAnalysis(ctx *context.C, as *models.RepoAnalysisStatus) (err error) {
 		VersionEq(as.Version).
 		GetUpdater().
 		SetHasPendingChanges(false).
+		SetPendingCommitSHA("").
 		SetVersion(as.Version + 1).
 		SetLastAnalyzedAt(time.Now().UTC()).
 		UpdateNum()
@@ -211,6 +214,50 @@ func launchAnalysis(ctx *context.C, as *models.RepoAnalysisStatus) (err error) {
 	if n == 0 {
 		return fmt.Errorf("got race condition updating repo analysis status on version %d->%d",
 			as.Version, as.Version+1)
+	}
+
+	return nil
+}
+
+func restartRepoAnalyzes() {
+	repoAnalysisTimeout := getDurationFromEnv("REPO_ANALYSIS_TIMEOUT", 15*time.Minute)
+	ctx := utils.NewBackgroundContext()
+
+	for range time.Tick(repoAnalysisTimeout / 2) {
+		if err := runRestartRepoAnalyzesIter(ctx, repoAnalysisTimeout); err != nil {
+			errors.Warnf(ctx, "Can't restart analyzes: %s", err)
+		}
+	}
+}
+
+func runRestartRepoAnalyzesIter(ctx *context.C, repoAnalysisTimeout time.Duration) error {
+	var analyzes []models.RepoAnalysis
+	err := models.NewRepoAnalysisQuerySet(db.Get(ctx)).
+		StatusIn("sent_to_queue", "processing", "error").
+		CreatedAtLt(time.Now().Add(-repoAnalysisTimeout)).
+		PreloadRepoAnalysisStatus().
+		All(&analyzes)
+	if err != nil {
+		return fmt.Errorf("can't get repo analyzes: %s", err)
+	}
+
+	if len(analyzes) == 0 {
+		return nil
+	}
+
+	for _, a := range analyzes {
+		as := a.RepoAnalysisStatus
+		t := &task.RepoAnalysis{
+			Name:         strings.ToLower(as.Name),
+			AnalysisGUID: a.AnalysisGUID,
+			Branch:       as.DefaultBranch,
+		}
+
+		if err = analyzequeue.ScheduleRepoAnalysis(t); err != nil {
+			return fmt.Errorf("can't resend repo %s for analysis into queue: %s", as.Name, err)
+		}
+
+		errors.Warnf(ctx, "Restarted analysis for %s in status %s", as.Name, a.Status)
 	}
 
 	return nil
