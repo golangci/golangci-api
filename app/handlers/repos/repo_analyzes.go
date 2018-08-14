@@ -91,8 +91,17 @@ func handleRepoAnalyzesStatus(ctx context.C) error {
 	if err != nil {
 		return db.Error(err, "can't get repo analysis with analysis status id %d", as.ID)
 	}
+	analysis.RepoAnalysisStatus = as
 
-	ctx.ReturnJSON(analysis)
+	resp := struct {
+		models.RepoAnalysis
+		GithubRepoName string
+	}{
+		RepoAnalysis:   analysis,
+		GithubRepoName: repoName,
+	}
+
+	ctx.ReturnJSON(resp)
 	return nil
 }
 
