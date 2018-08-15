@@ -220,7 +220,7 @@ func launchAnalysis(ctx *context.C, as *models.RepoAnalysisStatus) (err error) {
 }
 
 func restartRepoAnalyzes() {
-	repoAnalysisTimeout := getDurationFromEnv("REPO_ANALYSIS_TIMEOUT", 15*time.Minute)
+	repoAnalysisTimeout := getDurationFromEnv("REPO_ANALYSIS_TIMEOUT", 60*time.Minute)
 	ctx := utils.NewBackgroundContext()
 
 	for range time.Tick(repoAnalysisTimeout / 2) {
@@ -231,9 +231,10 @@ func restartRepoAnalyzes() {
 }
 
 func runRestartRepoAnalyzesIter(ctx *context.C, repoAnalysisTimeout time.Duration) error {
+	// TODO: restart errored analyzed with exponential backoff time between retries
 	var analyzes []models.RepoAnalysis
 	err := models.NewRepoAnalysisQuerySet(db.Get(ctx)).
-		StatusIn("sent_to_queue", "processing", "error").
+		StatusIn("sent_to_queue", "processing").
 		CreatedAtLt(time.Now().Add(-repoAnalysisTimeout)).
 		PreloadRepoAnalysisStatus().
 		All(&analyzes)
