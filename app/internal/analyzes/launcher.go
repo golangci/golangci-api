@@ -166,7 +166,8 @@ func OnRepoMasterUpdated(ctx *context.C, repoName, defaultBranch, commitSHA stri
 		return fmt.Errorf("can't update has_pending_changes to true: %s", err)
 	}
 
-	ctx.L.Infof("Set has_pending_changes=true for repo %s analysis status", repoName)
+	ctx.L.Infof("Set has_pending_changes=true, default_branch=%s for repo %s analysis status",
+		defaultBranch, repoName)
 
 	return processAnalysisStatus(ctx, &as)
 }

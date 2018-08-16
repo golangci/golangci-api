@@ -187,6 +187,11 @@ func receivePushWebhook(ctx context.C) error {
 		return nil
 	}
 
+	if payload.GetRepo().GetDefaultBranch() == "" {
+		errors.Warnf(&ctx, "Got push webhook without default branch: %+v, %+v",
+			payload.GetRepo(), *payload)
+	}
+
 	return analyzes.OnRepoMasterUpdated(&ctx, repoName,
 		payload.GetRepo().GetDefaultBranch(), payload.GetHeadCommit().GetID())
 }
