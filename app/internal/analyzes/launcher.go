@@ -2,6 +2,7 @@ package analyzes
 
 import (
 	"fmt"
+	"math"
 	"os"
 	"strings"
 	"time"
@@ -185,6 +186,7 @@ func launchAnalysis(ctx *context.C, as *models.RepoAnalysisStatus) (err error) {
 		Status:               "sent_to_queue",
 		CommitSHA:            as.PendingCommitSHA,
 		ResultJSON:           []byte("{}"),
+		AttemptNumber:        1,
 	}
 	if err = a.Create(db.Get(ctx)); err != nil {
 		return fmt.Errorf("can't create repo analysis: %s", err)
@@ -231,11 +233,27 @@ func restartRepoAnalyzes() {
 	}
 }
 
+func getNextRetryTime(a *models.RepoAnalysis) time.Time {
+	const maxRetryInterval = time.Hour * 24
+
+	// 1 => 2**1 = 2 => 1h
+	// 2 => 2**2 = 4 => 2h
+	// 3 => 2**3 = 8 => 4h
+	// 4 => 2**4 = 16 => 8h
+	// 5 => 2**5 = 32 => 16h
+
+	retryInterval := time.Hour * time.Duration(math.Exp2(float64(a.AttemptNumber))) / 2
+	if retryInterval > maxRetryInterval {
+		retryInterval = maxRetryInterval
+	}
+
+	return a.UpdatedAt.Add(retryInterval)
+}
+
 func runRestartRepoAnalyzesIter(ctx *context.C, repoAnalysisTimeout time.Duration) error {
-	// TODO: restart errored analyzed with exponential backoff time between retries
 	var analyzes []models.RepoAnalysis
 	err := models.NewRepoAnalysisQuerySet(db.Get(ctx)).
-		StatusIn("sent_to_queue", "processing").
+		StatusIn("sent_to_queue", "processing", "error").
 		CreatedAtLt(time.Now().Add(-repoAnalysisTimeout)).
 		PreloadRepoAnalysisStatus().
 		All(&analyzes)
@@ -248,6 +266,11 @@ func runRestartRepoAnalyzesIter(ctx *context.C, repoAnalysisTimeout time.Duratio
 	}
 
 	for _, a := range analyzes {
+		retryTime := getNextRetryTime(&a)
+		if retryTime.After(time.Now()) {
+			continue
+		}
+
 		as := a.RepoAnalysisStatus
 		t := &task.RepoAnalysis{
 			Name:         strings.ToLower(as.Name),
@@ -255,11 +278,18 @@ func runRestartRepoAnalyzesIter(ctx *context.C, repoAnalysisTimeout time.Duratio
 			Branch:       as.DefaultBranch,
 		}
 
+		a.AttemptNumber++
+		err = a.Update(db.Get(ctx), models.RepoAnalysisDBSchema.AttemptNumber)
+		if err != nil {
+			return fmt.Errorf("can't update attempt number for analysis %+v: %s", a, err)
+		}
+
 		if err = analyzequeue.ScheduleRepoAnalysis(t); err != nil {
 			return fmt.Errorf("can't resend repo %s for analysis into queue: %s", as.Name, err)
 		}
 
-		errors.Warnf(ctx, "Restarted analysis for %s in status %s", as.Name, a.Status)
+		errors.Warnf(ctx, "Restarted analysis for %s in status %s with %d-th attempt",
+			as.Name, a.Status, a.AttemptNumber)
 	}
 
 	return nil
