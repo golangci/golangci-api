@@ -66,8 +66,8 @@ func GetCurrent(ctx *context.C) (*models.User, error) {
 
 func GetGithubAuth(ctx *context.C) (*models.GithubAuth, error) {
 	if v := ctx.Ctx.Value(githubAuthCtxKey); v != nil {
-		a := v.(models.GithubAuth)
-		return &a, nil
+		a := v.(*models.GithubAuth)
+		return a, nil
 	}
 
 	userID, err := GetCurrentID(ctx)
@@ -75,14 +75,23 @@ func GetGithubAuth(ctx *context.C) (*models.GithubAuth, error) {
 		return nil, err
 	}
 
+	ga, err := GetGithubAuthForUser(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
+
+	ctx.Ctx = gocontext.WithValue(ctx.Ctx, githubAuthCtxKey, ga)
+	return ga, nil
+}
+
+func GetGithubAuthForUser(ctx *context.C, userID uint) (*models.GithubAuth, error) {
 	var ga models.GithubAuth
-	err = models.NewGithubAuthQuerySet(db.Get(ctx)).
+	err := models.NewGithubAuthQuerySet(db.Get(ctx)).
 		UserIDEq(userID).
 		One(&ga)
 	if err != nil {
 		return nil, herrors.New(err, "can't get github auth for user %d", userID)
 	}
 
-	ctx.Ctx = gocontext.WithValue(ctx.Ctx, githubAuthCtxKey, ga)
 	return &ga, nil
 }

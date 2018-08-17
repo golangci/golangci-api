@@ -14,6 +14,7 @@ import (
 
 	"github.com/golangci/golangci-api/app/internal/db"
 	"github.com/golangci/golangci-api/app/internal/errors"
+	"github.com/golangci/golangci-api/app/internal/github"
 	"github.com/golangci/golangci-api/app/models"
 	"github.com/golangci/golangci-api/app/utils"
 	"github.com/golangci/golangci-worker/app/analyze/analyzequeue"
@@ -87,14 +88,57 @@ func createNewAnalysisStatuses(ctx *context.C) error {
 			continue
 		}
 
-		as := models.RepoAnalysisStatus{
-			Name: strings.ToLower(repo.Name),
-		}
-		if err = as.Create(db.Get(ctx)); err != nil {
-			return fmt.Errorf("can't create repo analysis status %+v: %s", as, err)
+		if err := createNewAnalysisStatusForRepo(ctx, &repo); err != nil {
+			return fmt.Errorf("can't create repo analysis status for %s: %s", repo.Name, err)
 		}
 	}
 
+	return nil
+}
+
+type RepoAnalysisStartState struct {
+	DefaultBranch string
+	HeadCommitSHA string
+}
+
+func FetchStartStateForRepoAnalysis(ctx *context.C, repo *models.GithubRepo) (*RepoAnalysisStartState, error) {
+	gc, _, err := github.GetClientForUser(ctx, repo.UserID)
+	if err != nil {
+		return nil, fmt.Errorf("can't get github client: %s", err)
+	}
+
+	gr, _, err := gc.Repositories.Get(ctx.Ctx, repo.Owner(), repo.Repo())
+	if err != nil {
+		return nil, fmt.Errorf("can't get repo %s from github: %s", repo.Name, err)
+	}
+
+	defaultBranch := gr.GetDefaultBranch()
+	grb, _, err := gc.Repositories.GetBranch(ctx.Ctx, repo.Owner(), repo.Repo(), defaultBranch)
+	if err != nil {
+		return nil, fmt.Errorf("can't get github branch %s info: %s", defaultBranch, err)
+	}
+
+	return &RepoAnalysisStartState{
+		DefaultBranch: defaultBranch,
+		HeadCommitSHA: grb.GetCommit().GetSHA(),
+	}, nil
+}
+
+func createNewAnalysisStatusForRepo(ctx *context.C, repo *models.GithubRepo) error {
+	state, err := FetchStartStateForRepoAnalysis(ctx, repo)
+	if err != nil {
+		return err
+	}
+
+	as := models.RepoAnalysisStatus{
+		Name:              strings.ToLower(repo.Name),
+		DefaultBranch:     state.DefaultBranch,
+		PendingCommitSHA:  state.HeadCommitSHA,
+		HasPendingChanges: true,
+	}
+	if err := as.Create(db.Get(ctx)); err != nil {
+		return fmt.Errorf("can't create analysis status in db: %s", err)
+	}
 	return nil
 }
 
@@ -105,6 +149,7 @@ func launchAnalyzes(ctx *context.C) error {
 
 	var analysisStatuses []models.RepoAnalysisStatus
 	err := models.NewRepoAnalysisStatusQuerySet(db.Get(ctx)).
+		HasPendingChangesEq(true).
 		All(&analysisStatuses)
 	if err != nil {
 		return fmt.Errorf("can't get all analysis statuses: %s", err)
@@ -120,8 +165,7 @@ func launchAnalyzes(ctx *context.C) error {
 }
 
 func processAnalysisStatus(ctx *context.C, as *models.RepoAnalysisStatus) error {
-	needAnalysis := as.LastAnalyzedAt.IsZero() ||
-		(as.HasPendingChanges && as.LastAnalyzedAt.Add(reanalyzeInterval).Before(time.Now()))
+	needAnalysis := as.LastAnalyzedAt.IsZero() || as.LastAnalyzedAt.Add(reanalyzeInterval).Before(time.Now())
 	if !needAnalysis {
 		ctx.L.Infof("No need to launch analysis for analysis status %v: last_analyzed=%s ago, reanalyze_interval=%s",
 			as, time.Since(as.LastAnalyzedAt), reanalyzeInterval)
