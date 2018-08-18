@@ -70,6 +70,10 @@ func updateRepoAnalysis(ctx context.C) error {
 	return nil
 }
 
+func isCompleteAnalysisStatus(s string) bool {
+	return s == "processed" || s == "error"
+}
+
 func handleRepoAnalyzesStatus(ctx context.C) error {
 	repoName := fmt.Sprintf("%s/%s", ctx.URLVar("owner"), ctx.URLVar("name"))
 	repoName = strings.ToLower(repoName)
@@ -82,23 +86,45 @@ func handleRepoAnalyzesStatus(ctx context.C) error {
 		return db.Error(err, "can't get repo analysis status for %s", repoName)
 	}
 
-	var analysis models.RepoAnalysis
+	var analyzes []models.RepoAnalysis
 	err = models.NewRepoAnalysisQuerySet(db.Get(&ctx)).
 		RepoAnalysisStatusIDEq(as.ID).
 		OrderDescByID(). // get last
-		Limit(1).
-		One(&analysis)
-	if err != nil {
-		return db.Error(err, "can't get repo analysis with analysis status id %d", as.ID)
+		Limit(2).
+		All(&analyzes)
+	if err != nil || len(analyzes) == 0 {
+		return db.Error(err, "can't get repo analyzes with analysis status id %d", as.ID)
 	}
-	analysis.RepoAnalysisStatus = as
 
+	var lastCompleteAnalysis models.RepoAnalysis
+	var nextAnalysisStatus string
+
+	if !isCompleteAnalysisStatus(analyzes[0].Status) { // the last analysis is running now
+		if len(analyzes) == 1 || !isCompleteAnalysisStatus(analyzes[1].Status) {
+			// render that analysis is running (yes, it's not complete)
+			lastCompleteAnalysis = analyzes[0]
+		} else {
+			// prev analysis was complete, render it and show that new analysis is running
+			lastCompleteAnalysis = analyzes[1]
+			nextAnalysisStatus = analyzes[0].Status
+		}
+	} else {
+		lastCompleteAnalysis = analyzes[0]
+		if as.HasPendingChanges {
+			// next analysis isn't running because of rate-limiting, but planned
+			nextAnalysisStatus = "planned"
+		}
+	}
+
+	lastCompleteAnalysis.RepoAnalysisStatus = as
 	resp := struct {
 		models.RepoAnalysis
-		GithubRepoName string
+		GithubRepoName     string
+		NextAnalysisStatus string `json:",omitempty"`
 	}{
-		RepoAnalysis:   analysis,
-		GithubRepoName: repoName,
+		RepoAnalysis:       lastCompleteAnalysis,
+		GithubRepoName:     repoName,
+		NextAnalysisStatus: nextAnalysisStatus,
 	}
 
 	ctx.ReturnJSON(resp)
