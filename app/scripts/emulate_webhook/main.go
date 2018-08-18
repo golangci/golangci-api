@@ -9,6 +9,10 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/sirupsen/logrus"
+
+	"github.com/jinzhu/gorm"
+
 	"github.com/satori/go.uuid"
 
 	"github.com/golangci/golangci-api/app/models"
@@ -31,6 +35,7 @@ func main() {
 	prNumber := flag.Int("pr", 0, "pull request number")
 	hookID := flag.String("hook-id", "", "Hook ID for repo")
 	isProd := flag.Bool("prod", false, "is production")
+	branchName := flag.String("branch", "master", "branch name")
 	flag.Parse()
 
 	if *repoName == "" || *commitSHA == "" {
@@ -51,7 +56,7 @@ func main() {
 			log.Fatalf("Can't emulate pull_request webhook: %s", err)
 		}
 	case eventTypePush:
-		if err := emulatePushWebhook(*repoName, *commitSHA, *hookID, *isProd); err != nil {
+		if err := emulatePushWebhook(*repoName, *commitSHA, *branchName, *hookID, *isProd); err != nil {
 			log.Fatalf("Can't emulate push webhook: %s", err)
 		}
 	default:
@@ -75,11 +80,11 @@ func emulatePullRequestWebhook(repoName, commitSHA, hookID string, prNumber int,
 	return sendWebhookPayload(repoName, eventTypePullRequest, hookID, isProd, payload)
 }
 
-func emulatePushWebhook(repoName, commitSHA, hookID string, isProd bool) error {
+func emulatePushWebhook(repoName, commitSHA, branchName, hookID string, isProd bool) error {
 	payload := gh.PushEvent{
-		Ref: gh.String("refs/heads/master"),
+		Ref: gh.String(fmt.Sprintf("refs/heads/%s", branchName)),
 		Repo: &gh.PushEventRepository{
-			DefaultBranch: gh.String("master"),
+			DefaultBranch: gh.String(branchName),
 			FullName:      gh.String(repoName),
 		},
 		HeadCommit: &gh.PushEventCommit{
@@ -102,10 +107,9 @@ func sendWebhookPayload(repoName, event, hookID string, isProd bool, payload int
 	if hookID != "" {
 		webhookURL = fmt.Sprintf("%s/v1/repos/%s/hooks/%s", host, repoName, hookID)
 	} else {
-		var repo models.GithubRepo
-		err := models.NewGithubRepoQuerySet(database.GetDB()).NameEq(repoName).One(&repo)
+		repo, err := getOrCreateRepo(repoName)
 		if err != nil {
-			return fmt.Errorf("can't get repo with name %q: %s", repoName, err)
+			return fmt.Errorf("can't get/create repo %s: %s", repoName, err)
 		}
 
 		webhookURL = fmt.Sprintf("%s/v1/repos/%s/hooks/%s", host, repoName, repo.HookID)
@@ -133,4 +137,34 @@ func sendWebhookPayload(repoName, event, hookID string, isProd bool, payload int
 	}
 
 	return nil
+}
+
+func getOrCreateRepo(repoName string) (*models.GithubRepo, error) {
+	var repo models.GithubRepo
+	err := models.NewGithubRepoQuerySet(database.GetDB()).NameEq(repoName).One(&repo)
+	if err == nil {
+		return &repo, nil
+	}
+
+	if err != gorm.ErrRecordNotFound {
+		return nil, fmt.Errorf("can't get repo with name %q: %s", repoName, err)
+	}
+
+	// repo not found, create it
+	var u models.User
+	err = models.NewUserQuerySet(database.GetDB()).EmailEq("idenx@yandex.com").One(&u)
+	if err != nil {
+		return nil, fmt.Errorf("can't get user: %s", err)
+	}
+
+	repo.Name = repoName
+	repo.UserID = u.ID
+	repo.GithubHookID = 1
+	repo.HookID = uuid.NewV4().String()[:32]
+	if err = repo.Create(database.GetDB()); err != nil {
+		return nil, fmt.Errorf("can't create repo %#v: %s", repo, err)
+	}
+
+	logrus.Infof("created repo %#v", repo)
+	return &repo, nil
 }
