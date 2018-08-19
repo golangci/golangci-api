@@ -15,11 +15,12 @@ type RepoAnalysis struct {
 	RepoAnalysisStatusID uint
 	RepoAnalysisStatus   RepoAnalysisStatus
 
-	AnalysisGUID  string
-	Status        string
-	CommitSHA     string
-	ResultJSON    json.RawMessage
-	AttemptNumber int
+	AnalysisGUID   string
+	Status         string
+	CommitSHA      string
+	ResultJSON     json.RawMessage
+	AttemptNumber  int
+	LintersVersion string
 }
 
 func (RepoAnalysis) TableName() string {
