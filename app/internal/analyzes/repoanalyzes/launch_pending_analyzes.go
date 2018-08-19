@@ -69,7 +69,8 @@ func launchPendingRepoAnalysisChecked(ctx *context.C, as *models.RepoAnalysisSta
 }
 
 func launchRepoAnalysis(ctx *context.C, as *models.RepoAnalysisStatus) (err error) {
-	finishTx, err := db.BeginTx(ctx)
+	var finishTx db.FinishTxFunc
+	finishTx, err = db.BeginTx(ctx)
 	if err != nil {
 		return err
 	}
