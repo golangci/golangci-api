@@ -1,0 +1,4 @@
+ALTER TABLE repo_analysis_statuses
+  DROP COLUMN last_analyzed_linters_version;
+
+DROP INDEX repo_analysis_statuses_last_analyzed_linters_version_idx;

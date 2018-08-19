@@ -12,8 +12,9 @@ import (
 type RepoAnalysisStatus struct {
 	gorm.Model
 
-	Name           string
-	LastAnalyzedAt time.Time
+	Name                       string
+	LastAnalyzedAt             time.Time
+	LastAnalyzedLintersVersion string
 
 	HasPendingChanges bool
 	PendingCommitSHA  string

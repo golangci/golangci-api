@@ -1,0 +1,5 @@
+ALTER TABLE repo_analysis_statuses
+  ADD COLUMN last_analyzed_linters_version VARCHAR(64);
+
+CREATE INDEX repo_analysis_statuses_last_analyzed_linters_version_idx
+  ON repo_analysis_statuses(last_analyzed_linters_version);

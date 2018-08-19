@@ -104,6 +104,7 @@ func launchRepoAnalysis(ctx *context.C, as *models.RepoAnalysisStatus) (err erro
 		SetPendingCommitSHA("").
 		SetVersion(as.Version + 1).
 		SetLastAnalyzedAt(time.Now().UTC()).
+		SetLastAnalyzedLintersVersion(a.LintersVersion).
 		UpdateNum()
 	if err != nil {
 		return fmt.Errorf("can't update repo analysis status after processing: %s", err)
