@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/jinzhu/gorm"
+
 	"github.com/golangci/golangci-api/app/internal/db"
 	"github.com/golangci/golangci-api/app/internal/errors"
 	"github.com/golangci/golangci-api/app/models"
@@ -62,6 +64,19 @@ func reanalyzeAnalysisByNewLinters(ctx *context.C, as *models.RepoAnalysisStatus
 		OrderDescByID().
 		One(&a)
 	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			err = models.NewRepoAnalysisStatusQuerySet(db.Get(ctx)).
+				IDEq(as.ID).
+				GetUpdater().
+				SetHasPendingChanges(true).
+				Update()
+			if err != nil {
+				return fmt.Errorf("can't set has_pending_changes to true: %s", err)
+			}
+
+			return nil
+		}
+
 		return fmt.Errorf("can't fetch last repo analysis for %s: %s", as.Name, err)
 	}
 
@@ -72,11 +87,13 @@ func reanalyzeAnalysisByNewLinters(ctx *context.C, as *models.RepoAnalysisStatus
 			SetLastAnalyzedLintersVersion(a.LintersVersion).
 			Update()
 		if err != nil {
-			return fmt.Errorf("can't set last_analyzed_linters_version to %s", a.LintersVersion)
+			return fmt.Errorf("can't set last_analyzed_linters_version to %s: %s", a.LintersVersion, err)
 		}
 
-		// send it to the next iteration to prevent extra checks here
-		return nil
+		as.LastAnalyzedLintersVersion = a.LintersVersion
+		if as.LastAnalyzedLintersVersion == lintersVersion {
+			return nil
+		}
 	}
 
 	err = models.NewRepoAnalysisStatusQuerySet(db.Get(ctx)).

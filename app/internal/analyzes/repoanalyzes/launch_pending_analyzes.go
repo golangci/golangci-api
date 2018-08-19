@@ -45,6 +45,8 @@ func launchPendingRepoAnalyzesIter(ctx *context.C) error {
 		if err := launchPendingRepoAnalysisChecked(ctx, &as); err != nil {
 			return err
 		}
+
+		time.Sleep(2 * time.Minute) // no more than 1 repo per 2 minutes
 	}
 
 	return nil

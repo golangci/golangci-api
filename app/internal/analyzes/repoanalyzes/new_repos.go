@@ -69,6 +69,7 @@ func (nrl *NewReposLauncher) createNewAnalysisStatuses(ctx *context.C) error {
 		if err := nrl.createNewAnalysisStatusForRepo(ctx, &repo); err != nil {
 			return fmt.Errorf("can't create repo analysis status for %s: %s", repo.Name, err)
 		}
+		time.Sleep(time.Minute) // no more than 1 repo per minute
 	}
 
 	return nil
