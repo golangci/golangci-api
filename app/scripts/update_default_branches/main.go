@@ -5,7 +5,7 @@ import (
 	"log"
 	"strings"
 
-	"github.com/golangci/golangci-api/app/internal/analyzes"
+	"github.com/golangci/golangci-api/app/internal/analyzes/repoanalyzes"
 	"github.com/golangci/golangci-api/app/internal/db"
 	"github.com/golangci/golangci-api/app/models"
 	"github.com/golangci/golangci-api/app/utils"
@@ -41,7 +41,7 @@ func updateAllBranches() error {
 }
 
 func updateRepoDefaultBranch(ctx *context.C, repo *models.GithubRepo) error {
-	state, err := analyzes.FetchStartStateForRepoAnalysis(ctx, repo)
+	state, err := repoanalyzes.FetchStartStateForRepoAnalysis(ctx, repo)
 	if err != nil {
 		return err
 	}

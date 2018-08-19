@@ -6,7 +6,7 @@ import (
 	"strings"
 
 	"github.com/golangci/golangci-api/app/handlers"
-	"github.com/golangci/golangci-api/app/internal/analyzes"
+	"github.com/golangci/golangci-api/app/internal/analyzes/repoanalyzes"
 	"github.com/golangci/golangci-api/app/internal/db"
 	"github.com/golangci/golangci-api/app/internal/errors"
 	"github.com/golangci/golangci-api/app/models"
@@ -192,7 +192,7 @@ func receivePushWebhook(ctx context.C) error {
 			payload.GetRepo(), *payload)
 	}
 
-	return analyzes.OnRepoMasterUpdated(&ctx, repoName,
+	return repoanalyzes.OnRepoMasterUpdated(&ctx, repoName,
 		payload.GetRepo().GetDefaultBranch(), payload.GetHeadCommit().GetID())
 }
 
