@@ -6,6 +6,8 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/jinzhu/gorm"
+
 	"github.com/golangci/golangci-api/app/handlers"
 	"github.com/golangci/golangci-api/app/internal/db"
 	"github.com/golangci/golangci-api/app/models"
@@ -75,6 +77,13 @@ func isCompleteAnalysisStatus(s string) bool {
 }
 
 func handleRepoAnalyzesStatus(ctx context.C) error {
+	type response struct {
+		models.RepoAnalysis
+		GithubRepoName     string
+		NextAnalysisStatus string `json:",omitempty"`
+		IsPreparing        bool   `json:",omitempty"`
+	}
+
 	repoName := fmt.Sprintf("%s/%s", ctx.URLVar("owner"), ctx.URLVar("name"))
 	repoName = strings.ToLower(repoName)
 
@@ -83,6 +92,17 @@ func handleRepoAnalyzesStatus(ctx context.C) error {
 		NameEq(repoName).
 		One(&as)
 	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			n, _ := models.NewGithubRepoQuerySet(db.Get(&ctx)).NameEq(repoName).Count()
+			if n != 0 {
+				resp := response{
+					IsPreparing:    true,
+					GithubRepoName: repoName,
+				}
+				ctx.ReturnJSON(resp)
+				return nil
+			}
+		}
 		return db.Error(err, "can't get repo analysis status for %s", repoName)
 	}
 
@@ -117,11 +137,7 @@ func handleRepoAnalyzesStatus(ctx context.C) error {
 	}
 
 	lastCompleteAnalysis.RepoAnalysisStatus = as
-	resp := struct {
-		models.RepoAnalysis
-		GithubRepoName     string
-		NextAnalysisStatus string `json:",omitempty"`
-	}{
+	resp := response{
 		RepoAnalysis:       lastCompleteAnalysis,
 		GithubRepoName:     repoName,
 		NextAnalysisStatus: nextAnalysisStatus,
