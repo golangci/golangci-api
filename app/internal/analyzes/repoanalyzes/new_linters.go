@@ -23,7 +23,6 @@ func reanalyzeByNewLinters() {
 		err := models.NewRepoAnalysisStatusQuerySet(db.Get(ctx)).
 			LastAnalyzedLintersVersionNe(lintersVersion).
 			HasPendingChangesEq(false).
-			Limit(100).
 			All(&analysisStatuses)
 		if err != nil {
 			errors.Warnf(ctx, "Can't fetch analysis statuses")
@@ -57,6 +56,7 @@ func reanalyzeFromCh(ctx *context.C, analysisStatusesCh <-chan models.RepoAnalys
 	}
 }
 
+//nolint
 func reanalyzeAnalysisByNewLinters(ctx *context.C, as *models.RepoAnalysisStatus) error {
 	var a models.RepoAnalysis
 	err := models.NewRepoAnalysisQuerySet(db.Get(ctx)).
@@ -64,7 +64,33 @@ func reanalyzeAnalysisByNewLinters(ctx *context.C, as *models.RepoAnalysisStatus
 		OrderDescByID().
 		One(&a)
 	if err != nil {
-		if err == gorm.ErrRecordNotFound {
+		if err == gorm.ErrRecordNotFound { // TODO: remove this branch after first reanalysis of all repos
+			if as.PendingCommitSHA == "" {
+				var gr models.GithubRepo
+				err = models.NewGithubRepoQuerySet(db.Get(ctx)).NameEq(as.Name).One(&gr)
+				if err != nil {
+					return fmt.Errorf("can't fetch github repo with name %s: %s", as.Name, err)
+				}
+
+				state, err := FetchStartStateForRepoAnalysis(ctx, &gr)
+				if err != nil {
+					return fmt.Errorf("can't fetch initial state for repo %s: %s", as.Name, err)
+				}
+
+				err = models.NewRepoAnalysisStatusQuerySet(db.Get(ctx)).
+					IDEq(as.ID).
+					GetUpdater().
+					SetHasPendingChanges(true).
+					SetPendingCommitSHA(state.HeadCommitSHA).
+					SetDefaultBranch(state.DefaultBranch).
+					Update()
+				if err != nil {
+					return fmt.Errorf("can't set has_pending_changes to true: %s", err)
+				}
+
+				return nil
+			}
+
 			err = models.NewRepoAnalysisStatusQuerySet(db.Get(ctx)).
 				IDEq(as.ID).
 				GetUpdater().
