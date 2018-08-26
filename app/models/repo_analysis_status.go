@@ -20,4 +20,6 @@ type RepoAnalysisStatus struct {
 	PendingCommitSHA  string
 	Version           int
 	DefaultBranch     string
+
+	Active bool
 }

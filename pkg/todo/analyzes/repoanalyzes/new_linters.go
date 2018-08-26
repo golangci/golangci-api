@@ -23,6 +23,7 @@ func reanalyzeByNewLinters() {
 		err := models.NewRepoAnalysisStatusQuerySet(db.Get(ctx)).
 			LastAnalyzedLintersVersionNe(lintersVersion).
 			HasPendingChangesEq(false).
+			ActiveEq(true).
 			All(&analysisStatuses)
 		if err != nil {
 			errors.Warnf(ctx, "Can't fetch analysis statuses")
@@ -74,7 +75,10 @@ func reanalyzeAnalysisByNewLinters(ctx *context.C, as *models.RepoAnalysisStatus
 
 				state, err := FetchStartStateForRepoAnalysis(ctx, &gr)
 				if err != nil {
-					return fmt.Errorf("can't fetch initial state for repo %s: %s", as.Name, err)
+					_ = models.NewRepoAnalysisStatusQuerySet(db.Get(ctx)).
+						IDEq(as.ID).GetUpdater().SetActive(false).Update()
+					errors.Warnf(ctx, "Mark repo as inactive: can't fetch initial state for repo %s: %s", as.Name, err)
+					return nil
 				}
 
 				err = models.NewRepoAnalysisStatusQuerySet(db.Get(ctx)).
