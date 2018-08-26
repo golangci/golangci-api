@@ -19,7 +19,7 @@ func reanalyzeByNewLinters() {
 	analysisStatusesCh := make(chan models.RepoAnalysisStatus, 1024)
 	go reanalyzeFromCh(ctx, analysisStatusesCh)
 
-	for range time.NewTicker(time.Minute).C {
+	for range time.NewTicker(10 * time.Minute).C {
 		var analysisStatuses []models.RepoAnalysisStatus
 		err := models.NewRepoAnalysisStatusQuerySet(db.Get(ctx)).
 			LastAnalyzedLintersVersionNe(lintersVersion).
