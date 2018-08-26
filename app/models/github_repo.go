@@ -13,7 +13,8 @@ type GithubRepo struct {
 	gorm.Model
 
 	UserID       uint
-	Name         string
+	Name         string // lower-cased DisplayName to avoid case-sensitivity bugs
+	DisplayName  string // original name of repo from github: original register is saved
 	HookID       string
 	GithubHookID int
 }

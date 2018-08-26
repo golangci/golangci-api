@@ -94,5 +94,9 @@ func getDB(cfg config.Config) (*gorm.DB, error) {
 		return nil, errors.Wrap(err, "can't open db connection")
 	}
 
+	if cfg.GetBool("DEBUG_DB", false) {
+		db = db.Debug()
+	}
+
 	return db, nil
 }

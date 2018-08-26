@@ -1,0 +1,2 @@
+ALTER TABLE github_repos
+  ADD COLUMN display_name VARCHAR(256) NOT NULL DEFAULT '';

@@ -77,9 +77,10 @@ func ActivateRepo(ctx *context.C, ga *models.GithubAuth, owner, repo string) (*m
 	}
 
 	gr = models.GithubRepo{
-		UserID: ga.UserID,
-		Name:   repoName,
-		HookID: hookID,
+		UserID:      ga.UserID,
+		Name:        repoName,
+		DisplayName: repoName,
+		HookID:      hookID,
 	}
 
 	web := "web"
