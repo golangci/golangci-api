@@ -67,7 +67,7 @@ func (nrl *NewReposLauncher) createNewAnalysisStatuses(ctx *context.C) error {
 		}
 
 		if err := nrl.createNewAnalysisStatusForRepo(ctx, &repo); err != nil {
-			return fmt.Errorf("can't create repo analysis status for %s: %s", repo.Name, err)
+			errors.Warnf(ctx, "Can't create new repo analysis status for %s: %s", repo.Name, err)
 		}
 		time.Sleep(time.Minute) // no more than 1 repo per minute
 	}
@@ -76,18 +76,23 @@ func (nrl *NewReposLauncher) createNewAnalysisStatuses(ctx *context.C) error {
 }
 
 func (nrl *NewReposLauncher) createNewAnalysisStatusForRepo(ctx *context.C, repo *models.GithubRepo) error {
+	active := true
 	state, err := FetchStartStateForRepoAnalysis(ctx, repo)
 	if err != nil {
-		return err
+		active = false
+		errors.Warnf(ctx, "Create analysis for the new repo: mark repo as inactive: "+
+			"can't fetch initial state for repo %s: %s", repo.Name, err)
+		state = &RepoAnalysisStartState{}
 	}
 
 	as := models.RepoAnalysisStatus{
-		Name:              strings.ToLower(repo.Name),
+		Name:              repo.Name,
 		DefaultBranch:     state.DefaultBranch,
 		PendingCommitSHA:  state.HeadCommitSHA,
 		HasPendingChanges: true,
+		Active:            active,
 	}
-	if err := as.Create(db.Get(ctx)); err != nil {
+	if err = as.Create(db.Get(ctx)); err != nil {
 		return fmt.Errorf("can't create analysis status in db: %s", err)
 	}
 

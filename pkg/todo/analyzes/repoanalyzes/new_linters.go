@@ -5,8 +5,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/jinzhu/gorm"
-
 	"github.com/golangci/golangci-api/app/models"
 	"github.com/golangci/golangci-api/app/utils"
 	"github.com/golangci/golangci-api/pkg/todo/db"
@@ -81,49 +79,6 @@ func reanalyzeAnalysisByNewLinters(ctx *context.C, as *models.RepoAnalysisStatus
 		OrderDescByID().
 		One(&a)
 	if err != nil {
-		if err == gorm.ErrRecordNotFound { // TODO: remove this branch after first reanalysis of all repos
-			if as.PendingCommitSHA == "" {
-				var gr models.GithubRepo
-				err = models.NewGithubRepoQuerySet(db.Get(ctx)).NameEq(as.Name).One(&gr)
-				if err != nil {
-					return fmt.Errorf("can't fetch github repo with name %s: %s", as.Name, err)
-				}
-
-				state, err := FetchStartStateForRepoAnalysis(ctx, &gr)
-				if err != nil {
-					updateErr := models.NewRepoAnalysisStatusQuerySet(db.Get(ctx)).
-						IDEq(as.ID).GetUpdater().SetActive(false).Update()
-					errors.Warnf(ctx, "Mark repo as inactive: can't fetch initial state for repo %s: %s (update error: %s)",
-						as.Name, err, updateErr)
-					return nil
-				}
-
-				err = models.NewRepoAnalysisStatusQuerySet(db.Get(ctx)).
-					IDEq(as.ID).
-					GetUpdater().
-					SetHasPendingChanges(true).
-					SetPendingCommitSHA(state.HeadCommitSHA).
-					SetDefaultBranch(state.DefaultBranch).
-					Update()
-				if err != nil {
-					return fmt.Errorf("can't set has_pending_changes to true: %s", err)
-				}
-
-				return nil
-			}
-
-			err = models.NewRepoAnalysisStatusQuerySet(db.Get(ctx)).
-				IDEq(as.ID).
-				GetUpdater().
-				SetHasPendingChanges(true).
-				Update()
-			if err != nil {
-				return fmt.Errorf("can't set has_pending_changes to true: %s", err)
-			}
-
-			return nil
-		}
-
 		return fmt.Errorf("can't fetch last repo analysis for %s: %s", as.Name, err)
 	}
 

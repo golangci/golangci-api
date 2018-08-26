@@ -48,7 +48,8 @@ func OnRepoMasterUpdated(ctx *context.C, repoName, defaultBranch, commitSHA stri
 	if err != nil {
 		if err == gorm.ErrRecordNotFound {
 			as = models.RepoAnalysisStatus{
-				Name: repoName,
+				Name:   repoName,
+				Active: true,
 			}
 			if err = as.Create(db.Get(ctx)); err != nil {
 				return fmt.Errorf("can't create repo analysis status %+v: %s", as, err)
