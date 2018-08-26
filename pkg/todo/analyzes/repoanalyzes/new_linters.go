@@ -2,6 +2,7 @@ package repoanalyzes
 
 import (
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/jinzhu/gorm"
@@ -34,7 +35,12 @@ func reanalyzeByNewLinters() {
 			break
 		}
 
-		ctx.L.Infof("Fetched %d analysis statuses to reanalyze by new linters", len(analysisStatuses))
+		if len(analysisStatuses) < 20 {
+			ctx.L.Infof("Fetched %d analysis statuses to reanalyze by new linters: %s",
+				len(analysisStatuses), analysisStatusesToString(analysisStatuses))
+		} else {
+			ctx.L.Infof("Fetched %d analysis statuses to reanalyze by new linters", len(analysisStatuses))
+		}
 
 		for _, as := range analysisStatuses {
 			analysisStatusesCh <- as
@@ -44,12 +50,22 @@ func reanalyzeByNewLinters() {
 	close(analysisStatusesCh)
 }
 
+func analysisStatusesToString(analysisStatuses []models.RepoAnalysisStatus) string {
+	var r []string
+	for _, as := range analysisStatuses {
+		r = append(r, as.Name)
+	}
+
+	return strings.Join(r, ", ")
+}
+
 func reanalyzeFromCh(ctx *context.C, analysisStatusesCh <-chan models.RepoAnalysisStatus) {
 	const avgAnalysisTime = time.Minute
 	const maxReanalyzeCapacity = 0.5
 	reanalyzeInterval := time.Duration(float64(avgAnalysisTime) / maxReanalyzeCapacity)
 
 	for as := range analysisStatusesCh {
+		ctx.L.Infof("Starting reanalyzing repo %s by new linters...", as.Name)
 		if err := reanalyzeAnalysisByNewLinters(ctx, &as); err != nil {
 			errors.Warnf(ctx, "Can't reanalyze analysis status %#v: %s", as, err)
 		}
@@ -75,9 +91,10 @@ func reanalyzeAnalysisByNewLinters(ctx *context.C, as *models.RepoAnalysisStatus
 
 				state, err := FetchStartStateForRepoAnalysis(ctx, &gr)
 				if err != nil {
-					_ = models.NewRepoAnalysisStatusQuerySet(db.Get(ctx)).
+					updateErr := models.NewRepoAnalysisStatusQuerySet(db.Get(ctx)).
 						IDEq(as.ID).GetUpdater().SetActive(false).Update()
-					errors.Warnf(ctx, "Mark repo as inactive: can't fetch initial state for repo %s: %s", as.Name, err)
+					errors.Warnf(ctx, "Mark repo as inactive: can't fetch initial state for repo %s: %s (update error: %s)",
+						as.Name, err, updateErr)
 					return nil
 				}
 
