@@ -7,8 +7,8 @@ import (
 	"testing"
 
 	"github.com/gavv/httpexpect"
-	"github.com/golangci/golangci-api/app/internal/repos"
 	"github.com/golangci/golangci-api/app/returntypes"
+	"github.com/golangci/golangci-api/pkg/todo/repos"
 	"github.com/satori/go.uuid"
 )
 

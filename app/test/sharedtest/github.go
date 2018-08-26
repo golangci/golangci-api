@@ -5,7 +5,7 @@ import (
 	"net/url"
 	"sync"
 
-	"github.com/golangci/golangci-api/app/internal/github"
+	"github.com/golangci/golangci-api/pkg/todo/github"
 	"github.com/golangci/golib/server/context"
 	gh "github.com/google/go-github/github"
 )

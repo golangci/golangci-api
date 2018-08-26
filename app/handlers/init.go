@@ -3,7 +3,7 @@ package handlers
 import (
 	"net/http"
 
-	"github.com/golangci/golangci-api/app/internal/errors"
+	"github.com/golangci/golangci-api/pkg/todo/errors"
 	"github.com/golangci/golib/server/context"
 	"github.com/golangci/golib/server/handlers/herrors"
 	"github.com/golangci/golib/server/handlers/manager"

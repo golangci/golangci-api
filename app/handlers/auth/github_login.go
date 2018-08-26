@@ -5,10 +5,10 @@ import (
 	"os"
 
 	"github.com/golangci/golangci-api/app/handlers"
-	"github.com/golangci/golangci-api/app/internal/auth/oauth"
-	"github.com/golangci/golangci-api/app/internal/auth/user"
-	"github.com/golangci/golangci-api/app/internal/db"
 	"github.com/golangci/golangci-api/app/models"
+	"github.com/golangci/golangci-api/pkg/todo/auth/oauth"
+	"github.com/golangci/golangci-api/pkg/todo/auth/user"
+	"github.com/golangci/golangci-api/pkg/todo/db"
 	"github.com/golangci/golib/server/context"
 )
 

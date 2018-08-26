@@ -3,9 +3,10 @@ build:
 
 gen:
 	go generate ./...
+	go run cmd/genservices/main.go
 
 run_dev:
-	godotenv go run app/cmd/golangci-api/golangci-api.go
+	godotenv go run cmd/golangci-api/main.go
 
 migrate_example:
 	godotenv -f .env.test sh -c 'migrate -database $${DATABASE_URL} -path ./app/migrations force 18'

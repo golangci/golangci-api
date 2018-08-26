@@ -5,7 +5,7 @@ import (
 	"net/http"
 
 	"github.com/golangci/golangci-api/app/handlers"
-	"github.com/golangci/golangci-api/app/internal/auth/user"
+	"github.com/golangci/golangci-api/pkg/todo/auth/user"
 	sharedevents "github.com/golangci/golangci-shared/pkg/events"
 	"github.com/golangci/golib/server/context"
 	"github.com/golangci/golib/server/handlers/herrors"

@@ -7,8 +7,8 @@ import (
 	"strconv"
 
 	"github.com/golangci/golangci-api/app/handlers"
-	"github.com/golangci/golangci-api/app/internal/db"
 	"github.com/golangci/golangci-api/app/models"
+	"github.com/golangci/golangci-api/pkg/todo/db"
 	"github.com/golangci/golib/server/context"
 	"github.com/golangci/golib/server/handlers/herrors"
 	"github.com/jinzhu/gorm"
@@ -143,4 +143,7 @@ func updateAnalysisState(ctx context.C) error {
 func init() {
 	handlers.Register("/v1/repos/{owner}/{name}/analyzes/{analysisID}/state", handleAnalysisState)
 	handlers.Register("/v1/repos/{owner}/{name}/pulls/{prNumber}", handlePRAnalysisState)
+
+	handlers.Register("/v1/repos/github.com/{owner}/{name}/analyzes/{analysisID}/state", handleAnalysisState)
+	handlers.Register("/v1/repos/github.com/{owner}/{name}/pulls/{prNumber}", handlePRAnalysisState)
 }

@@ -93,6 +93,14 @@
   version = "v2.0.0"
 
 [[projects]]
+  digest = "1:fed1f537c2f1269fe475a8556c393fe466641682d73ef8fd0491cd3aa1e47bad"
+  name = "github.com/certifi/gocertifi"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "deb3ae2ef2610fde3330947281941c562861188b"
+  version = "2018.01.18"
+
+[[projects]]
   branch = "master"
   digest = "1:1f7f77f3320fee4b173abc1fbbafc7ce17c99dfd0bf79ce080c0bf73a83c31f8"
   name = "github.com/davecgh/go-spew"
@@ -152,12 +160,40 @@
   revision = "6f8212e8d10df7383609d3c377ca08884d8f3ec0"
 
 [[projects]]
+  branch = "master"
+  digest = "1:608d0fe1621755354728fbaeef8ada8b4a33001aec88b66c970e641be950d850"
+  name = "github.com/getsentry/raven-go"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "7535a8fa2ace0ffb684b19f28d00655459ea2dae"
+
+[[projects]]
   digest = "1:50772cf1f376b08cb57b4e8e9225775d9f9f4aad8487313afcb66846ceaa5d4c"
   name = "github.com/go-ini/ini"
   packages = ["."]
   pruneopts = "UT"
   revision = "32e4c1e6bc4e7d0d8451aa6b75200d19e37a536a"
   version = "v1.32.0"
+
+[[projects]]
+  digest = "1:44c19b0501d2ae50d64ed0e4ac587c27084bd9f6d591c8fd4695f1f1339e5538"
+  name = "github.com/go-kit/kit"
+  packages = [
+    "endpoint",
+    "log",
+    "transport/http",
+  ]
+  pruneopts = "UT"
+  revision = "ca4112baa34cb55091301bdc13b1420a122b1b9e"
+  version = "v0.7.0"
+
+[[projects]]
+  digest = "1:31a18dae27a29aa074515e43a443abfd2ba6deb6d69309d8d7ce789c45f34659"
+  name = "github.com/go-logfmt/logfmt"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "390ab7935ee28ec6b286364bba9b4dd6410cb3d5"
+  version = "v0.3.0"
 
 [[projects]]
   digest = "1:64a5a67c69b70c2420e607a8545d674a23778ed9c3e80607bfd17b77c6c87f6a"
@@ -169,6 +205,14 @@
   pruneopts = "UT"
   revision = "a41e3c4b706f6ae8dfbff342b06e40fa4d2d0506"
   version = "v1.2.1"
+
+[[projects]]
+  digest = "1:c4a2528ccbcabf90f9f3c464a5fc9e302d592861bbfd0b7135a7de8a943d0406"
+  name = "github.com/go-stack/stack"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "259ab82a6cad3992b4e21ff5cac294ccb06474bc"
+  version = "v1.7.0"
 
 [[projects]]
   branch = "master"
@@ -375,6 +419,14 @@
 
 [[projects]]
   branch = "master"
+  digest = "1:a64e323dc06b73892e5bb5d040ced475c4645d456038333883f58934abbf6f72"
+  name = "github.com/kr/logfmt"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "b84e30acd515aadc4b783ad4ff83aff3299bdfe0"
+
+[[projects]]
+  branch = "master"
   digest = "1:f176954e0bd79a8e69966d64557848841d7ff8ce80905a8b644404d78f0bcf35"
   name = "github.com/levigross/grequests"
   packages = ["."]
@@ -442,12 +494,12 @@
   revision = "9ac6cf4d929b2fa8fd2d2e6dec5bb0feb4f4911d"
 
 [[projects]]
-  branch = "master"
-  digest = "1:d4b2269e6262767e76b145ad15ac6d8bce8b3f0ffd4ecc37110d8ea9bc6c3615"
-  name = "github.com/namsral/flag"
+  digest = "1:40e195917a951a8bf867cd05de2a46aaf1806c50cf92eebf4c16f78cd196f747"
+  name = "github.com/pkg/errors"
   packages = ["."]
   pruneopts = "UT"
-  revision = "67f268f20922975c067ed799e4be6bacf152208c"
+  revision = "645ef00459ed84a119197bfb8d8205042c6df63d"
+  version = "v0.8.0"
 
 [[projects]]
   branch = "master"
@@ -688,6 +740,19 @@
   revision = "e56139fd9c5bc7244c76116c68e500765bb6db6b"
 
 [[projects]]
+  branch = "master"
+  digest = "1:c4fb9f59246ae89e57d9a7f50a92bee0bc08ba108e17055c5bbb0b90d06b805d"
+  name = "golang.org/x/tools"
+  packages = [
+    "go/ast/astutil",
+    "go/buildutil",
+    "go/internal/cgo",
+    "go/loader",
+  ]
+  pruneopts = "UT"
+  revision = "f6ba5742950514ddd66494151ed5498ed77969ca"
+
+[[projects]]
   digest = "1:9cf45e754ab2dff5f53a553e6948b994ff738e4d1092ca608dcada945d8be0ef"
   name = "google.golang.org/appengine"
   packages = [
@@ -745,9 +810,15 @@
   analyzer-name = "dep"
   analyzer-version = 1
   input-imports = [
+    "github.com/fatih/color",
     "github.com/garyburd/redigo/redis",
     "github.com/gavv/httpexpect",
+    "github.com/getsentry/raven-go",
+    "github.com/go-kit/kit/endpoint",
+    "github.com/go-kit/kit/log",
+    "github.com/go-kit/kit/transport/http",
     "github.com/golang/mock/gomock",
+    "github.com/golangci/golangci-lint/pkg/exitcodes",
     "github.com/golangci/golangci-shared/pkg/events",
     "github.com/golangci/golangci-worker/app/analyze/analyzequeue",
     "github.com/golangci/golangci-worker/app/analyze/analyzequeue/task",
@@ -771,7 +842,7 @@
     "github.com/mattes/migrate",
     "github.com/mattes/migrate/database/postgres",
     "github.com/mattes/migrate/source/file",
-    "github.com/namsral/flag",
+    "github.com/pkg/errors",
     "github.com/rs/cors",
     "github.com/satori/go.uuid",
     "github.com/sirupsen/logrus",
@@ -779,6 +850,7 @@
     "github.com/stvp/rollbar",
     "github.com/urfave/negroni",
     "golang.org/x/oauth2",
+    "golang.org/x/tools/go/loader",
     "gopkg.in/boj/redistore.v1",
   ]
   solver-name = "gps-cdcl"

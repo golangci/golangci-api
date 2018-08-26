@@ -6,10 +6,10 @@ import (
 	"strings"
 
 	"github.com/golangci/golangci-api/app/handlers"
-	"github.com/golangci/golangci-api/app/internal/analyzes/repoanalyzes"
-	"github.com/golangci/golangci-api/app/internal/db"
-	"github.com/golangci/golangci-api/app/internal/errors"
 	"github.com/golangci/golangci-api/app/models"
+	"github.com/golangci/golangci-api/pkg/todo/analyzes/repoanalyzes"
+	"github.com/golangci/golangci-api/pkg/todo/db"
+	"github.com/golangci/golangci-api/pkg/todo/errors"
 	"github.com/golangci/golangci-worker/app/analyze/analyzequeue"
 	"github.com/golangci/golangci-worker/app/analyze/analyzequeue/task"
 	"github.com/golangci/golangci-worker/app/lib/github"
