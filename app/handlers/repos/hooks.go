@@ -51,7 +51,7 @@ func fetchGithubRepo(ctx context.C) (*models.GithubRepo, error) {
 		return nil, fmt.Errorf("can't get github repo with hook id %q: %s", hookID, err)
 	}
 
-	if gr.Name != fmt.Sprintf("%s/%s", ctx.URLVar("owner"), ctx.URLVar("name")) {
+	if gr.Name != strings.ToLower(fmt.Sprintf("%s/%s", ctx.URLVar("owner"), ctx.URLVar("name"))) {
 		return nil, herrors.New400Errorf("invalid reponame: expected %q", gr.Name)
 	}
 
@@ -130,8 +130,8 @@ func receivePullRequestWebhook(ctx context.C) error {
 
 	githubCtx := github.Context{
 		Repo: github.Repo{
-			Owner: ctx.URLVar("owner"),
-			Name:  ctx.URLVar("name"),
+			Owner: strings.ToLower(ctx.URLVar("owner")),
+			Name:  strings.ToLower(ctx.URLVar("name")),
 		},
 		GithubAccessToken: taskAccessToken,
 		PullRequestNumber: analysis.GithubPullRequestNumber,

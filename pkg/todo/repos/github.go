@@ -3,6 +3,7 @@ package repos
 import (
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/golangci/golangci-api/app/models"
 	"github.com/golangci/golangci-api/app/utils"
@@ -24,7 +25,7 @@ func DeactivateRepo(ctx *context.C, owner, repo string) (*models.GithubRepo, err
 
 	var gr models.GithubRepo
 	err = models.NewGithubRepoQuerySet(db.Get(ctx)).
-		NameEq(fmt.Sprintf("%s/%s", owner, repo)).
+		NameEq(strings.ToLower(fmt.Sprintf("%s/%s", owner, repo))).
 		One(&gr)
 	if err != nil {
 		if err == gorm.ErrRecordNotFound { // Race condition: double deactivation request
@@ -52,7 +53,8 @@ func GetWebhookURLPathForRepo(name, hookID string) string {
 }
 
 func ActivateRepo(ctx *context.C, ga *models.GithubAuth, owner, repo string) (*models.GithubRepo, error) {
-	repoName := fmt.Sprintf("%s/%s", owner, repo)
+	origRepoName := fmt.Sprintf("%s/%s", owner, repo)
+	repoName := strings.ToLower(origRepoName)
 
 	var gr models.GithubRepo
 	err := models.NewGithubRepoQuerySet(db.Get(ctx)).UserIDEq(ga.UserID).NameEq(repoName).One(&gr)
@@ -79,7 +81,7 @@ func ActivateRepo(ctx *context.C, ga *models.GithubAuth, owner, repo string) (*m
 	gr = models.GithubRepo{
 		UserID:      ga.UserID,
 		Name:        repoName,
-		DisplayName: repoName,
+		DisplayName: origRepoName,
 		HookID:      hookID,
 	}
 

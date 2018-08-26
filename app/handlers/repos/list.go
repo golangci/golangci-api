@@ -126,7 +126,7 @@ func getActivatedUserRepos(ctx *context.C) (map[string]*models.GithubRepo, error
 
 	ret := map[string]*models.GithubRepo{}
 	for _, r := range repos {
-		ret[strings.ToLower(r.Name)] = &r
+		ret[r.Name] = &r
 	}
 
 	ctx.L.Infof("user %d repos: %v, map: %v", ga.UserID, repos, ret)

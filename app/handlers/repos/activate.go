@@ -39,7 +39,7 @@ func changeRepo(ctx context.C) error {
 	}
 
 	ri := returntypes.RepoInfo{
-		Name:        gr.Name,
+		Name:        gr.DisplayName,
 		IsActivated: activate,
 		HookID:      gr.HookID,
 	}
