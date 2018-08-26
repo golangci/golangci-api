@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/golangci/golangci-api/pkg/apperrors"
-	"github.com/golangci/golangci-api/pkg/config"
-	"github.com/golangci/golangci-api/pkg/logutil"
+	"github.com/golangci/golangci-shared/pkg/apperrors"
+	"github.com/golangci/golangci-shared/pkg/config"
+	"github.com/golangci/golangci-shared/pkg/logutil"
 
 	"github.com/golangci/golangci-api/pkg/todo/auth/user"
 	"github.com/golangci/golib/server/context"
@@ -28,7 +28,7 @@ func Errorf(ctx *context.C, format string, args ...interface{}) {
 func track(ctx *context.C, err error, level string) {
 	log := logutil.NewStderrLog("track")
 	cfg := config.NewEnvConfig(log)
-	et := GetTracker(cfg, log)
+	et := apperrors.GetTracker(cfg, log)
 	if ctx.R != nil {
 		et = et.WithHTTPRequest(ctx.R)
 	}

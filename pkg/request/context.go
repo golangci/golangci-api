@@ -4,7 +4,7 @@ import (
 	"context"
 	"time"
 
-	"github.com/golangci/golangci-api/pkg/logutil"
+	"github.com/golangci/golangci-shared/pkg/logutil"
 )
 
 type Context struct {

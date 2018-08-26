@@ -2,6 +2,7 @@ package repoanalyzes
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/jinzhu/gorm"
 
@@ -42,7 +43,7 @@ func FetchStartStateForRepoAnalysis(ctx *context.C, repo *models.GithubRepo) (*R
 func OnRepoMasterUpdated(ctx *context.C, repoName, defaultBranch, commitSHA string) error {
 	var as models.RepoAnalysisStatus
 	err := models.NewRepoAnalysisStatusQuerySet(db.Get(ctx)).
-		NameEq(repoName).
+		NameEq(strings.ToLower(repoName)). // repoName is in original case
 		One(&as)
 
 	if err != nil {

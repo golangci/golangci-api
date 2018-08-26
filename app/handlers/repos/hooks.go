@@ -181,7 +181,8 @@ func receivePushWebhook(ctx context.C) error {
 		return err
 	}
 
-	repoName := strings.ToLower(payload.GetRepo().GetFullName())
+	// it's important to no lowercase name here: otherwise will get go compilation error
+	repoName := payload.GetRepo().GetFullName()
 	if repoName == "" {
 		ctx.L.Infof("Got push webhook without repo info")
 		return nil

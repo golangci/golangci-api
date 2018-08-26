@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/golangci/golangci-api/pkg/logutil"
+	"github.com/golangci/golangci-shared/pkg/logutil"
 )
 
 type Repo struct {

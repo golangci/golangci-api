@@ -4,7 +4,7 @@ import (
 	"fmt"
 
 	"github.com/go-kit/kit/log"
-	"github.com/golangci/golangci-api/pkg/logutil"
+	"github.com/golangci/golangci-shared/pkg/logutil"
 )
 
 func AdaptErrorLogger(log logutil.Log) log.Logger {

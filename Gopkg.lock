@@ -246,14 +246,15 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:28f7d2c8e63428d368bc95b6593ec058227bd523400d1ce5f4f0579409b09433"
+  digest = "1:564e18aec0717a9e4d803ae516a0431b21550dbc07d1000398869c47d24c96bb"
   name = "github.com/golangci/golangci-shared"
   packages = [
-    "pkg/events",
-    "pkg/runmode",
+    "pkg/apperrors",
+    "pkg/config",
+    "pkg/logutil",
   ]
   pruneopts = "UT"
-  revision = "8616b61d0d835899c41129685068fa10e7a27718"
+  revision = "19c8059838115b64910500f1809e6426299831a5"
 
 [[projects]]
   branch = "master"
@@ -810,16 +811,16 @@
   analyzer-name = "dep"
   analyzer-version = 1
   input-imports = [
-    "github.com/fatih/color",
+    "github.com/dukex/mixpanel",
     "github.com/garyburd/redigo/redis",
     "github.com/gavv/httpexpect",
-    "github.com/getsentry/raven-go",
     "github.com/go-kit/kit/endpoint",
     "github.com/go-kit/kit/log",
     "github.com/go-kit/kit/transport/http",
     "github.com/golang/mock/gomock",
-    "github.com/golangci/golangci-lint/pkg/exitcodes",
-    "github.com/golangci/golangci-shared/pkg/events",
+    "github.com/golangci/golangci-shared/pkg/apperrors",
+    "github.com/golangci/golangci-shared/pkg/config",
+    "github.com/golangci/golangci-shared/pkg/logutil",
     "github.com/golangci/golangci-worker/app/analyze/analyzequeue",
     "github.com/golangci/golangci-worker/app/analyze/analyzequeue/task",
     "github.com/golangci/golangci-worker/app/lib/github",
@@ -845,6 +846,7 @@
     "github.com/pkg/errors",
     "github.com/rs/cors",
     "github.com/satori/go.uuid",
+    "github.com/savaki/amplitude-go",
     "github.com/sirupsen/logrus",
     "github.com/stretchr/testify/assert",
     "github.com/stvp/rollbar",

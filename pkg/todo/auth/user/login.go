@@ -7,7 +7,7 @@ import (
 	"github.com/golangci/golangci-api/app/models"
 	"github.com/golangci/golangci-api/pkg/todo/auth/sess"
 	"github.com/golangci/golangci-api/pkg/todo/db"
-	"github.com/golangci/golangci-shared/pkg/events"
+	"github.com/golangci/golangci-api/pkg/todo/events"
 	"github.com/golangci/golib/server/context"
 	"github.com/jinzhu/gorm"
 	"github.com/markbates/goth"

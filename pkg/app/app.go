@@ -7,17 +7,16 @@ import (
 	"os"
 
 	"github.com/golangci/golangci-api/app/handlers"
-	"github.com/golangci/golangci-api/pkg/apperrors"
-	todoerrors "github.com/golangci/golangci-api/pkg/todo/errors"
+	"github.com/golangci/golangci-shared/pkg/apperrors"
 
 	"github.com/golangci/golib/server/handlers/manager"
 	"github.com/gorilla/mux"
 
 	"strings"
 
-	"github.com/golangci/golangci-api/pkg/config"
-	"github.com/golangci/golangci-api/pkg/logutil"
 	"github.com/golangci/golangci-api/pkg/services/repoanalysis"
+	"github.com/golangci/golangci-shared/pkg/config"
+	"github.com/golangci/golangci-shared/pkg/logutil"
 	"github.com/jinzhu/gorm"
 	"github.com/pkg/errors"
 
@@ -41,7 +40,7 @@ func NewApp() *App {
 
 	cfg := config.NewEnvConfig(slog)
 
-	errTracker := todoerrors.GetTracker(cfg, slog)
+	errTracker := apperrors.GetTracker(cfg, slog)
 
 	db, err := getDB(cfg)
 	if err != nil {

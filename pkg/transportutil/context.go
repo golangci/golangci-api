@@ -6,9 +6,9 @@ import (
 	"time"
 
 	httptransport "github.com/go-kit/kit/transport/http"
-	"github.com/golangci/golangci-api/pkg/apperrors"
 	"github.com/golangci/golangci-api/pkg/endpointutil"
-	"github.com/golangci/golangci-api/pkg/logutil"
+	"github.com/golangci/golangci-shared/pkg/apperrors"
+	"github.com/golangci/golangci-shared/pkg/logutil"
 )
 
 func MakeStoreRequestContext(log logutil.Log, et apperrors.Tracker) httptransport.RequestFunc {

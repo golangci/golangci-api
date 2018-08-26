@@ -71,10 +71,6 @@
 
 [[constraint]]
   branch = "master"
-  name = "github.com/namsral/flag"
-
-[[constraint]]
-  branch = "master"
   name = "github.com/rs/cors"
 
 [[constraint]]

@@ -8,8 +8,8 @@ import (
 	"github.com/go-kit/kit/endpoint"
 	"github.com/golangci/golangci-api/app/models"
 	"github.com/golangci/golangci-api/pkg/endpointutil"
-	"github.com/golangci/golangci-api/pkg/logutil"
 	"github.com/golangci/golangci-api/pkg/request"
+	"github.com/golangci/golangci-shared/pkg/logutil"
 	"github.com/pkg/errors"
 )
 

@@ -4,9 +4,9 @@ import (
 	"context"
 	"time"
 
-	"github.com/golangci/golangci-api/pkg/apperrors"
-	"github.com/golangci/golangci-api/pkg/logutil"
 	"github.com/golangci/golangci-api/pkg/request"
+	"github.com/golangci/golangci-shared/pkg/apperrors"
+	"github.com/golangci/golangci-shared/pkg/logutil"
 )
 
 type contextKey string
