@@ -104,7 +104,7 @@
 [metadata.heroku]
   root-package = "github.com/golangci/golangci-api"
   go-version = "go1.9"
-  install = [ "./app/cmd/..." ]
+  install = [ "./cmd/..." ]
 
 [[constraint]]
   name = "github.com/stvp/rollbar"
