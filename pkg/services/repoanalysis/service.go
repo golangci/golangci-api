@@ -78,7 +78,10 @@ func (s BasicService) GetStatus(rc *request.Context, repo *request.Repo) (*Statu
 	}
 
 	if len(analyzes) == 0 {
-		return nil, errors.New("got 0 analyzes")
+		return &Status{
+			IsPreparing:    true,
+			GithubRepoName: repoName,
+		}, nil
 	}
 
 	var lastCompleteAnalysis models.RepoAnalysis
