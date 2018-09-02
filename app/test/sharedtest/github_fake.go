@@ -9,6 +9,8 @@ import (
 	"net/http/httptest"
 	"os"
 	"path"
+	"path/filepath"
+	"strings"
 	"sync"
 
 	"github.com/golangci/golangci-api/app/utils"
@@ -20,6 +22,7 @@ type FakeGithubServerConfig struct {
 	AuthHandler       http.HandlerFunc
 	TokenHandler      http.HandlerFunc
 	ProfileHandler    http.HandlerFunc
+	GetRepoHandler    http.HandlerFunc
 	EmailHandler      http.HandlerFunc
 	ListReposHandler  http.HandlerFunc
 	AddHookHandler    http.HandlerFunc
@@ -30,6 +33,7 @@ var FakeGithubCfg = FakeGithubServerConfig{
 	AuthHandler:       authHandler,
 	TokenHandler:      tokenHandler,
 	ProfileHandler:    profileHandler,
+	GetRepoHandler:    getRepoHandler,
 	EmailHandler:      emailHandler,
 	ListReposHandler:  listReposHandler,
 	AddHookHandler:    addHookHandler,
@@ -50,6 +54,7 @@ func initFakeGithubServer() {
 	r.HandleFunc(authURL, FakeGithubCfg.AuthHandler)
 	r.HandleFunc(tokenURL, FakeGithubCfg.TokenHandler)
 	r.HandleFunc(profileURL, wrapF(&FakeGithubCfg.ProfileHandler))
+	r.HandleFunc("/repos/{owner}/{repo}", FakeGithubCfg.GetRepoHandler)
 	r.HandleFunc(emailURL, FakeGithubCfg.EmailHandler)
 	r.HandleFunc("/user/repos", FakeGithubCfg.ListReposHandler)
 	r.HandleFunc("/repos/{owner}/{repo}/hooks", FakeGithubCfg.AddHookHandler)
@@ -106,6 +111,11 @@ func tokenHandler(w http.ResponseWriter, r *http.Request) {
 
 func profileHandler(w http.ResponseWriter, r *http.Request) {
 	sendFakeGithubJSON("get_profile", w)
+}
+
+func getRepoHandler(w http.ResponseWriter, r *http.Request) {
+	fileName := strings.ToLower(filepath.Join("get_repo", mux.Vars(r)["owner"], mux.Vars(r)["repo"]))
+	sendFakeGithubJSON(fileName, w)
 }
 
 func emailHandler(w http.ResponseWriter, r *http.Request) {

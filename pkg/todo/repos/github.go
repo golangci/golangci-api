@@ -106,6 +106,12 @@ func ActivateRepo(ctx *context.C, ga *models.GithubAuth, owner, repo string) (*m
 		return nil, fmt.Errorf("can't post hook %v to github: %s", hook, err)
 	}
 
+	githubRepo, _, err := gc.Repositories.Get(ctx.Ctx, owner, repo)
+	if err != nil {
+		return nil, fmt.Errorf("can't get repo %s/%s data: %s", owner, repo, err)
+	}
+	gr.GithubID = githubRepo.GetID()
+
 	gr.GithubHookID = rh.GetID()
 	if err := gr.Create(db.Get(ctx)); err != nil {
 		return nil, herrors.New(err, "can't create github repo")
