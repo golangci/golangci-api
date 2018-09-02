@@ -90,7 +90,7 @@ func handlePRAnalysisState(ctx context.C) error {
 		Limit(1).
 		One(&analysis)
 	if err != nil {
-		return db.Error(err, "can't get github analysis with pr number %s and repo id %d", prNumber, repo.ID)
+		return db.Error(err, "can't get github analysis with pr number %d and repo id %d", prNumber, repo.ID)
 	}
 
 	ctx.ReturnJSON(State{

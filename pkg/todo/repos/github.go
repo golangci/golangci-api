@@ -2,6 +2,7 @@ package repos
 
 import (
 	"fmt"
+	"net/http"
 	"os"
 	"strings"
 
@@ -37,8 +38,13 @@ func DeactivateRepo(ctx *context.C, owner, repo string) (*models.GithubRepo, err
 
 	_, err = gc.Repositories.DeleteHook(ctx.Ctx, owner, repo, gr.GithubHookID)
 	if err != nil {
-		return nil, fmt.Errorf("can't delete hook %d from github repo %s/%s: %s",
-			gr.GithubHookID, owner, repo, err)
+		if er, ok := err.(*gh.ErrorResponse); ok && er.Response.StatusCode == http.StatusNotFound {
+			ctx.L.Warnf("Webhook or repo for %#v was deleted by user: deactivating repo without deleting webhook",
+				repo)
+		} else {
+			return nil, fmt.Errorf("can't delete hook %d from github repo %s/%s: %s",
+				gr.GithubHookID, owner, repo, err)
+		}
 	}
 
 	if err = gr.Delete(db.Get(ctx)); err != nil {
