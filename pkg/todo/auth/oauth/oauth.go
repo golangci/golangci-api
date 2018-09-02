@@ -95,8 +95,7 @@ func (a Authorizer) HandleProviderCallback(ctx *context.C) (*goth.User, error) {
 		return nil, fmt.Errorf("can't fetch user: %s", err)
 	}
 
-	// Normalize data: it's important for user with github login in different case
-	gu.NickName = strings.ToLower(gu.NickName)
+	// Don't lowercase nickname: it's not used as identifier anywhere
 	gu.Email = strings.ToLower(gu.Email)
 
 	return &gu, err

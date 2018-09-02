@@ -88,6 +88,7 @@ func GetGithubAuthForUser(ctx *context.C, userID uint) (*models.GithubAuth, erro
 	var ga models.GithubAuth
 	err := models.NewGithubAuthQuerySet(db.Get(ctx)).
 		UserIDEq(userID).
+		OrderDescByID().
 		One(&ga)
 	if err != nil {
 		return nil, herrors.New(err, "can't get github auth for user %d", userID)

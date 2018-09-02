@@ -1,0 +1,1 @@
+DROP INDEX github_auths_github_user_id_idx;
