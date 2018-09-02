@@ -3,6 +3,7 @@ package repoanalysis
 
 import (
 	"context"
+	"errors"
 	"runtime/debug"
 
 	"github.com/go-kit/kit/endpoint"
@@ -10,7 +11,6 @@ import (
 	"github.com/golangci/golangci-api/pkg/endpointutil"
 	"github.com/golangci/golangci-api/pkg/request"
 	"github.com/golangci/golangci-shared/pkg/logutil"
-	"github.com/pkg/errors"
 )
 
 type GetStatusRequest struct {

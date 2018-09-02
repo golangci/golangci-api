@@ -7,8 +7,8 @@ import (
 	"net/http"
 
 	httptransport "github.com/go-kit/kit/transport/http"
-	"github.com/golangci/golangci-shared/pkg/apperrors"
 	"github.com/golangci/golangci-api/pkg/transportutil"
+	"github.com/golangci/golangci-shared/pkg/apperrors"
 	"github.com/golangci/golangci-shared/pkg/logutil"
 	"github.com/gorilla/mux"
 	"github.com/pkg/errors"
