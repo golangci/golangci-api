@@ -17,6 +17,7 @@ type GithubRepo struct {
 	DisplayName  string // original name of repo from github: original register is saved
 	HookID       string
 	GithubHookID int
+	GithubID     int // github repo id: use it (not name) as repo identifier because of repo renaming
 }
 
 func (r *GithubRepo) Owner() string {

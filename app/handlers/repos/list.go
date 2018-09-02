@@ -24,6 +24,7 @@ type ShortRepoInfo struct {
 	FullName  string
 	IsAdmin   bool `json:",omitempty"`
 	IsPrivate bool `json:",omitempty"`
+	GithubID  int
 }
 
 func fetchGithubReposCached(ctx *context.C, client *gh.Client, maxPageNumber int) ([]ShortRepoInfo, error) {
@@ -32,7 +33,7 @@ func fetchGithubReposCached(ctx *context.C, client *gh.Client, maxPageNumber int
 		return nil, err
 	}
 
-	key := fmt.Sprintf("repos/github/fetch?user_id=%d&maxPage=%d&v=2", userID, maxPageNumber)
+	key := fmt.Sprintf("repos/github/fetch?user_id=%d&maxPage=%d&v=3", userID, maxPageNumber)
 	if repos.ArePrivateReposEnabledForUser(ctx) {
 		key += "&private=true"
 	}
@@ -94,6 +95,7 @@ func fetchGithubReposFromGithub(ctx *context.C, client *gh.Client, maxPageNumber
 				FullName:  r.GetFullName(),
 				IsAdmin:   r.GetPermissions()["admin"],
 				IsPrivate: r.GetPrivate(),
+				GithubID:  r.GetID(),
 			})
 		}
 
