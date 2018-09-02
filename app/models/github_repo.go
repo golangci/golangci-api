@@ -27,3 +27,7 @@ func (r *GithubRepo) Owner() string {
 func (r *GithubRepo) Repo() string {
 	return strings.ToLower(strings.Split(r.Name, "/")[1])
 }
+
+func (r *GithubRepo) String() string {
+	return r.Name
+}
