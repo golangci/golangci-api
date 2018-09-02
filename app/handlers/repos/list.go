@@ -2,7 +2,6 @@ package repos
 
 import (
 	"fmt"
-	"strings"
 	"time"
 
 	"github.com/golangci/golangci-api/app/handlers"
@@ -114,24 +113,23 @@ func fetchGithubReposFromGithub(ctx *context.C, client *gh.Client, maxPageNumber
 	return allRepos, nil
 }
 
-func getActivatedUserRepos(ctx *context.C) (map[string]*models.GithubRepo, error) {
-	ga, err := user.GetGithubAuth(ctx)
-	if err != nil {
-		return nil, herrors.New(err, "can't get current github auth")
-	}
+func getActivatedRepos(ctx *context.C) (map[int]*models.GithubRepo, error) {
+	startedAt := time.Now()
 
 	var repos []models.GithubRepo
-	err = models.NewGithubRepoQuerySet(db.Get(ctx)).UserIDEq(ga.UserID).All(&repos)
-	if err != nil {
+	if err := models.NewGithubRepoQuerySet(db.Get(ctx)).All(&repos); err != nil {
 		return nil, fmt.Errorf("can't select activated repos from db: %s", err)
 	}
 
-	ret := map[string]*models.GithubRepo{}
+	ret := map[int]*models.GithubRepo{}
 	for _, r := range repos {
-		ret[r.Name] = &r
+		ret[r.GithubID] = &r
 	}
 
-	ctx.L.Infof("user %d repos: %v, map: %v", ga.UserID, repos, ret)
+	ctx.L.Infof("Built map of all %d activated repos for %s", len(ret), time.Since(startedAt))
+	if len(ret) < 10 {
+		ctx.L.Infof("Repos map: %#v", ret)
+	}
 
 	return ret, nil
 }
@@ -147,15 +145,15 @@ func getReposList(ctx context.C) error {
 		return herrors.New(err, "can't fetch repos from github")
 	}
 
-	activatedRepos, err := getActivatedUserRepos(&ctx)
+	activatedRepos, err := getActivatedRepos(&ctx)
 	if err != nil {
-		return herrors.New(err, "can't get activated repos for user")
+		return herrors.New(err, "can't get activated repos")
 	}
 
 	retRepos := []returntypes.RepoInfo{}
 	retPrivateRepos := []returntypes.RepoInfo{}
 	for _, r := range repos {
-		ar := activatedRepos[strings.ToLower(r.FullName)]
+		ar := activatedRepos[r.GithubID]
 		hookID := ""
 		if ar != nil {
 			hookID = ar.HookID

@@ -47,6 +47,8 @@ func DeactivateRepo(ctx *context.C, owner, repo string) (*models.GithubRepo, err
 		}
 	}
 
+	// It's important to delete only after successful github hook deletion to prevent
+	// deletion of foreign repo
 	if err = gr.Delete(db.Get(ctx)); err != nil {
 		return nil, fmt.Errorf("can't delete github repo: %s", err)
 	}
@@ -63,15 +65,10 @@ func ActivateRepo(ctx *context.C, ga *models.GithubAuth, owner, repo string) (*m
 	repoName := strings.ToLower(origRepoName)
 
 	var gr models.GithubRepo
-	err := models.NewGithubRepoQuerySet(db.Get(ctx)).UserIDEq(ga.UserID).NameEq(repoName).One(&gr)
+	err := models.NewGithubRepoQuerySet(db.Get(ctx)).NameEq(repoName).One(&gr) // TODO: match by id here
 	if err == nil {
 		ctx.L.Infof("user attempts to activate repo twice")
 		return &gr, nil
-	}
-
-	err = models.NewGithubRepoQuerySet(db.Get(ctx)).UserIDNe(ga.UserID).NameEq(repoName).One(&gr)
-	if err == nil {
-		return nil, fmt.Errorf("repo is already activated by another user")
 	}
 
 	gc, _, err := github.GetClient(ctx)
