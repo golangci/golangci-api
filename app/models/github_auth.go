@@ -43,7 +43,8 @@ type GithubAuth struct {
 	AccessToken        string
 	PrivateAccessToken string
 
-	RawData GithubAuthRawData
-	UserID  uint
-	Login   string
+	RawData      GithubAuthRawData
+	UserID       uint
+	GithubUserID uint64
+	Login        string
 }

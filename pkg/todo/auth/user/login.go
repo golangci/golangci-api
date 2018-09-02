@@ -2,6 +2,7 @@ package user
 
 import (
 	"fmt"
+	"strconv"
 	"time"
 
 	"github.com/golangci/golangci-api/app/models"
@@ -11,6 +12,7 @@ import (
 	"github.com/golangci/golib/server/context"
 	"github.com/jinzhu/gorm"
 	"github.com/markbates/goth"
+	"github.com/pkg/errors"
 )
 
 const userIDSessKey = "UserID"
@@ -71,14 +73,20 @@ func LoginGithub(ctx *context.C, gu *goth.User) (err error) {
 		return err
 	}
 
+	githubUserID, err := strconv.ParseUint(gu.UserID, 10, 64)
+	if err != nil {
+		return errors.Wrapf(err, "can't parse github user id %s", gu.UserID)
+	}
+
 	ga := models.GithubAuth{
 		Model: gorm.Model{
 			ID: gaID,
 		},
-		RawData:     gu.RawData,
-		AccessToken: gu.AccessToken,
-		UserID:      u.ID,
-		Login:       gu.NickName,
+		RawData:      gu.RawData,
+		AccessToken:  gu.AccessToken,
+		UserID:       u.ID,
+		Login:        gu.NickName,
+		GithubUserID: githubUserID,
 	}
 
 	DB := db.Get(ctx)
