@@ -67,8 +67,8 @@ func StubLogin(t *testing.T) *User {
 
 	userResp := make(map[string]*User)
 	assert.NoError(t, json.Unmarshal([]byte(checkBody), &userResp))
-	assert.NotNil(t, userResp["user"])
 	user := userResp["user"]
+	assert.NotNil(t, user)
 	assert.NotZero(t, user.ID)
 
 	user.A = assert.New(t)

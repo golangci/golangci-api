@@ -1,0 +1,1 @@
+ALTER TABLE github_auths ADD CONSTRAINT uniq_login UNIQUE (login);

@@ -72,11 +72,6 @@ func githubPrivateOAuthCallback(ctx context.C) error {
 		return err
 	}
 
-	if ga.Login != gu.NickName {
-		return fmt.Errorf("mismatch of current github login %q and private github login %q",
-			ga.Login, gu.NickName)
-	}
-
 	ga.PrivateAccessToken = gu.AccessToken
 	if err := ga.Update(db.Get(&ctx), models.GithubAuthDBSchema.PrivateAccessToken); err != nil {
 		return fmt.Errorf("can't save access token: %s", err)

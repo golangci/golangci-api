@@ -20,7 +20,7 @@ func TestGithubLoginNotFirstTime(t *testing.T) {
 	sharedtest.StubLogin(t)
 }
 
-func TestLoginWithUpperCasedLogin(t *testing.T) {
+func TestLoginWithAnotherLogin(t *testing.T) {
 	u := sharedtest.StubLogin(t)
 	u.A.Equal("golangci", u.GithubLogin)
 
@@ -31,8 +31,11 @@ func TestLoginWithUpperCasedLogin(t *testing.T) {
 	wasSent := false
 	sharedtest.FakeGithubCfg.ProfileHandler = func(w http.ResponseWriter, r *http.Request) {
 		ret := map[string]interface{}{
-			"login": "GolangCI",
-			"email": "dev@golangci.com",
+			"login":      "AnotherLogin",
+			"email":      "Another_Email@golangci.com",
+			"id":         1, // the same github user id
+			"avatar_url": "another Avatar",
+			"name":       "Another Name",
 		}
 
 		sharedtest.SendJSON(w, ret)
@@ -41,6 +44,9 @@ func TestLoginWithUpperCasedLogin(t *testing.T) {
 
 	u2 := sharedtest.StubLogin(t)
 	u2.A.True(wasSent)
-	u2.A.Equal("golangci", u.GithubLogin)
+	u2.A.Equal("AnotherLogin", u2.GithubLogin)
+	u2.A.Equal("another_email@golangci.com", u2.Email)
+	u2.A.Equal("another Avatar", u2.AvatarURL)
+	u2.A.Equal("Another Name", u2.Name)
 	u.A.Equal(u.ID, u2.ID) // logined into the same user
 }

@@ -110,6 +110,7 @@ func receivePullRequestWebhook(ctx context.C) error {
 	var ga models.GithubAuth
 	err = models.NewGithubAuthQuerySet(db.Get(&ctx)).
 		UserIDEq(gr.UserID).
+		OrderDescByID().
 		One(&ga)
 	if err != nil {
 		return herrors.New(err, "can't get github auth for user %d", gr.UserID)
