@@ -161,7 +161,7 @@ func getReposList(ctx context.C) error {
 		retRepo := returntypes.RepoInfo{
 			Name:        r.FullName,
 			IsAdmin:     r.IsAdmin,
-			IsActivated: ar != nil,
+			IsActivated: r.GithubID != 0 && ar != nil,
 			IsPrivate:   r.IsPrivate,
 			HookID:      hookID,
 		}
