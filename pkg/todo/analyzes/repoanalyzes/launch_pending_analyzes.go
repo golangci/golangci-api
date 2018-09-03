@@ -8,10 +8,11 @@ import (
 	"github.com/golangci/golangci-api/app/models"
 	"github.com/golangci/golangci-api/app/utils"
 	"github.com/golangci/golangci-api/pkg/todo/db"
-	"github.com/golangci/golangci-api/pkg/todo/errors"
+	apperrors "github.com/golangci/golangci-api/pkg/todo/errors"
 	"github.com/golangci/golangci-worker/app/analyze/analyzequeue"
 	"github.com/golangci/golangci-worker/app/analyze/analyzequeue/task"
 	"github.com/golangci/golib/server/context"
+	"github.com/pkg/errors"
 	uuid "github.com/satori/go.uuid"
 )
 
@@ -26,7 +27,7 @@ func launchPendingRepoAnalyzes() {
 	checkInterval := getDurationFromEnv("REPO_REANALYZE_CHECK_INTERVAL", 30*time.Second)
 	for range time.Tick(checkInterval) {
 		if err := launchPendingRepoAnalyzesIter(ctx); err != nil {
-			errors.Warnf(ctx, "Can't launch analyzes: %s", err)
+			apperrors.Warnf(ctx, "Can't launch analyzes: %s", err)
 			continue
 		}
 	}
@@ -43,7 +44,7 @@ func launchPendingRepoAnalyzesIter(ctx *context.C) error {
 
 	for _, as := range analysisStatuses {
 		if err := launchPendingRepoAnalysisChecked(ctx, &as); err != nil {
-			return err
+			apperrors.Warnf(ctx, "Can't launch pending analysis: %s", err)
 		}
 
 		time.Sleep(2 * time.Minute) // no more than 1 repo per 2 minutes
@@ -76,27 +77,43 @@ func launchRepoAnalysis(ctx *context.C, as *models.RepoAnalysisStatus) (err erro
 	}
 	defer finishTx(&err)
 
-	a := models.RepoAnalysis{
-		RepoAnalysisStatusID: as.ID,
-		AnalysisGUID:         uuid.NewV4().String(),
-		Status:               "sent_to_queue",
-		CommitSHA:            as.PendingCommitSHA,
-		ResultJSON:           []byte("{}"),
-		AttemptNumber:        1,
-		LintersVersion:       lintersVersion,
+	needSendToQueue := true
+	nExisting, err := models.NewRepoAnalysisQuerySet(db.Get(ctx)).
+		RepoAnalysisStatusIDEq(as.ID).CommitSHAEq(as.PendingCommitSHA).LintersVersionEq(lintersVersion).
+		Count()
+	if err != nil {
+		return errors.Wrap(err, "can't count existing repo analyzes")
 	}
-	if err = a.Create(db.Get(ctx)); err != nil {
-		return fmt.Errorf("can't create repo analysis: %s", err)
-	}
-
-	t := &task.RepoAnalysis{
-		Name:         strings.ToLower(as.Name),
-		AnalysisGUID: a.AnalysisGUID,
-		Branch:       as.DefaultBranch,
+	if nExisting != 0 {
+		// TODO: just fix version on sending to queue
+		apperrors.Warnf(ctx, "Can't create repo analysis because of "+
+			"race condition with frequent pushes and not fixed commit in worker: %#v", *as)
+		needSendToQueue = false
 	}
 
-	if err = analyzequeue.ScheduleRepoAnalysis(t); err != nil {
-		return fmt.Errorf("can't send repo for analysis into queue: %s", err)
+	if needSendToQueue {
+		a := models.RepoAnalysis{
+			RepoAnalysisStatusID: as.ID,
+			AnalysisGUID:         uuid.NewV4().String(),
+			Status:               "sent_to_queue",
+			CommitSHA:            as.PendingCommitSHA,
+			ResultJSON:           []byte("{}"),
+			AttemptNumber:        1,
+			LintersVersion:       lintersVersion,
+		}
+		if err = a.Create(db.Get(ctx)); err != nil {
+			return fmt.Errorf("can't create repo analysis: %s", err)
+		}
+
+		t := &task.RepoAnalysis{
+			Name:         strings.ToLower(as.Name),
+			AnalysisGUID: a.AnalysisGUID,
+			Branch:       as.DefaultBranch,
+		}
+
+		if err = analyzequeue.ScheduleRepoAnalysis(t); err != nil {
+			return fmt.Errorf("can't send repo for analysis into queue: %s", err)
+		}
 	}
 
 	n, err := models.NewRepoAnalysisStatusQuerySet(db.Get(ctx)).
@@ -107,7 +124,7 @@ func launchRepoAnalysis(ctx *context.C, as *models.RepoAnalysisStatus) (err erro
 		SetPendingCommitSHA("").
 		SetVersion(as.Version + 1).
 		SetLastAnalyzedAt(time.Now().UTC()).
-		SetLastAnalyzedLintersVersion(a.LintersVersion).
+		SetLastAnalyzedLintersVersion(lintersVersion).
 		UpdateNum()
 	if err != nil {
 		return fmt.Errorf("can't update repo analysis status after processing: %s", err)
