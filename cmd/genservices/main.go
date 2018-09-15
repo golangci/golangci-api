@@ -39,7 +39,7 @@ func make{{.Name}}Endpoint(svc Service, log logutil.Log) endpoint.Endpoint {
 				rc.Log.Errorf("Panic occured")
 				rc.Log.Infof("%s", debug.Stack())
 				resp = {{.Name}}Response{
-					Error: errors.New("panic occured"),
+					err: errors.New("panic occured"),
 				}
 				err = nil
 			}
@@ -105,12 +105,20 @@ func encode{{.Name}}Response(_ context.Context, w http.ResponseWriter, response 
 	w.Header().Add("Content-Type", "application/json; charset=UTF-8")
 
 	resp := response.({{.Name}}Response)
-	if resp.Error != nil {
-		err := transportutil.MakeError(resp.Error)
-		w.WriteHeader(err.HTTPCode)
+	wrappedResp := struct {
+		Error *transportutil.Error
+		{{.Name}}Response
+	}{
+		{{.Name}}Response: resp,
 	}
 
-	return json.NewEncoder(w).Encode(response)
+	if resp.err != nil {
+		terr := transportutil.MakeError(resp.err)
+		wrappedResp.Error = terr
+		w.WriteHeader(terr.HTTPCode)
+	}
+
+	return json.NewEncoder(w).Encode(wrappedResp)
 }
 {{end}}
 `
@@ -346,7 +354,7 @@ func (sg *serviceGenerator) generateForMethod(fn *ast.FuncType, method *ast.Fiel
 	reqDefElems = append(reqDefElems, sg.genDefinitionFromFields(fn.Params.List[1:])...)
 
 	respDefElems := []string{
-		"\tError error",
+		"\terr error",
 	}
 	if len(fn.Results.List) > 1 {
 		elems := sg.genDefinitionFromFields(fn.Results.List[:len(fn.Results.List)-1])

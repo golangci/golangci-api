@@ -1,8 +1,10 @@
 build:
 	go build -v ./app/cmd/...
 
-gen:
+gen: gen_services
 	go generate ./...
+
+gen_services:
 	go run cmd/genservices/main.go
 
 run_dev:

@@ -64,12 +64,20 @@ func encodeGetStatusResponse(_ context.Context, w http.ResponseWriter, response 
 	w.Header().Add("Content-Type", "application/json; charset=UTF-8")
 
 	resp := response.(GetStatusResponse)
-	if resp.Error != nil {
-		err := transportutil.MakeError(resp.Error)
-		w.WriteHeader(err.HTTPCode)
+	wrappedResp := struct {
+		Error *transportutil.Error
+		GetStatusResponse
+	}{
+		GetStatusResponse: resp,
 	}
 
-	return json.NewEncoder(w).Encode(response)
+	if resp.err != nil {
+		terr := transportutil.MakeError(resp.err)
+		wrappedResp.Error = terr
+		w.WriteHeader(terr.HTTPCode)
+	}
+
+	return json.NewEncoder(w).Encode(wrappedResp)
 }
 
 func decodeGetRequest(_ context.Context, r *http.Request) (interface{}, error) {
@@ -85,12 +93,20 @@ func encodeGetResponse(_ context.Context, w http.ResponseWriter, response interf
 	w.Header().Add("Content-Type", "application/json; charset=UTF-8")
 
 	resp := response.(GetResponse)
-	if resp.Error != nil {
-		err := transportutil.MakeError(resp.Error)
-		w.WriteHeader(err.HTTPCode)
+	wrappedResp := struct {
+		Error *transportutil.Error
+		GetResponse
+	}{
+		GetResponse: resp,
 	}
 
-	return json.NewEncoder(w).Encode(response)
+	if resp.err != nil {
+		terr := transportutil.MakeError(resp.err)
+		wrappedResp.Error = terr
+		w.WriteHeader(terr.HTTPCode)
+	}
+
+	return json.NewEncoder(w).Encode(wrappedResp)
 }
 
 func decodeUpdateRequest(_ context.Context, r *http.Request) (interface{}, error) {
@@ -106,10 +122,18 @@ func encodeUpdateResponse(_ context.Context, w http.ResponseWriter, response int
 	w.Header().Add("Content-Type", "application/json; charset=UTF-8")
 
 	resp := response.(UpdateResponse)
-	if resp.Error != nil {
-		err := transportutil.MakeError(resp.Error)
-		w.WriteHeader(err.HTTPCode)
+	wrappedResp := struct {
+		Error *transportutil.Error
+		UpdateResponse
+	}{
+		UpdateResponse: resp,
 	}
 
-	return json.NewEncoder(w).Encode(response)
+	if resp.err != nil {
+		terr := transportutil.MakeError(resp.err)
+		wrappedResp.Error = terr
+		w.WriteHeader(terr.HTTPCode)
+	}
+
+	return json.NewEncoder(w).Encode(wrappedResp)
 }

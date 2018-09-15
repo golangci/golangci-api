@@ -13,6 +13,7 @@ type Status struct {
 	GithubRepoName     string
 	NextAnalysisStatus string `json:",omitempty"`
 	IsPreparing        bool   `json:",omitempty"`
+	RepoIsNotConnected bool   `json:",omitempty"`
 }
 
 type Context struct {
@@ -62,6 +63,12 @@ func (s BasicService) GetStatus(rc *request.Context, repo *request.Repo) (*Statu
 					GithubRepoName: repoName,
 				}, nil
 			}
+
+			rc.Log.Warnf("no connected repo for report of %s: maybe direct access by URL", repoName)
+			return &Status{
+				RepoIsNotConnected: true,
+				GithubRepoName:     repoName,
+			}, nil
 		}
 
 		return nil, errors.Wrapf(err, "can't get repo analysis status for %s", repoName)

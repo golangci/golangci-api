@@ -18,7 +18,7 @@ type GetStatusRequest struct {
 }
 
 type GetStatusResponse struct {
-	Error error
+	err error
 	*Status
 }
 
@@ -31,7 +31,7 @@ func makeGetStatusEndpoint(svc Service, log logutil.Log) endpoint.Endpoint {
 				rc.Log.Errorf("Panic occured")
 				rc.Log.Infof("%s", debug.Stack())
 				resp = GetStatusResponse{
-					Error: errors.New("panic occured"),
+					err: errors.New("panic occured"),
 				}
 				err = nil
 			}
@@ -55,7 +55,7 @@ type GetRequest struct {
 }
 
 type GetResponse struct {
-	Error error
+	err error
 	*models.RepoAnalysis
 }
 
@@ -68,7 +68,7 @@ func makeGetEndpoint(svc Service, log logutil.Log) endpoint.Endpoint {
 				rc.Log.Errorf("Panic occured")
 				rc.Log.Infof("%s", debug.Stack())
 				resp = GetResponse{
-					Error: errors.New("panic occured"),
+					err: errors.New("panic occured"),
 				}
 				err = nil
 			}
@@ -93,7 +93,7 @@ type UpdateRequest struct {
 }
 
 type UpdateResponse struct {
-	Error error
+	err error
 }
 
 func makeUpdateEndpoint(svc Service, log logutil.Log) endpoint.Endpoint {
@@ -105,7 +105,7 @@ func makeUpdateEndpoint(svc Service, log logutil.Log) endpoint.Endpoint {
 				rc.Log.Errorf("Panic occured")
 				rc.Log.Infof("%s", debug.Stack())
 				resp = UpdateResponse{
-					Error: errors.New("panic occured"),
+					err: errors.New("panic occured"),
 				}
 				err = nil
 			}
