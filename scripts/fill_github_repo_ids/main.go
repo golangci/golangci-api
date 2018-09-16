@@ -25,8 +25,8 @@ func main() {
 func fillRepoIDs() error {
 	ctx := utils.NewBackgroundContext()
 
-	var repos []models.GithubRepo
-	if err := models.NewGithubRepoQuerySet(db.Get(ctx)).GithubIDEq(0).All(&repos); err != nil {
+	var repos []models.Repo
+	if err := models.NewRepoQuerySet(db.Get(ctx)).GithubIDEq(0).All(&repos); err != nil {
 		return fmt.Errorf("can't fetch all github repos: %s", err)
 	}
 
@@ -44,7 +44,7 @@ func fillRepoIDs() error {
 	return nil
 }
 
-func updateRepo(ctx *context.C, repo *models.GithubRepo) error {
+func updateRepo(ctx *context.C, repo *models.Repo) error {
 	gc, _, err := ghtodo.GetClientForUser(ctx, repo.UserID)
 	if err != nil {
 		return fmt.Errorf("can't get github client: %s", err)
@@ -58,7 +58,7 @@ func updateRepo(ctx *context.C, repo *models.GithubRepo) error {
 		ctx.L.Warnf("Used fallback for repo %s fetching", repo)
 	}
 
-	err = models.NewGithubRepoQuerySet(db.Get(ctx)).IDEq(repo.ID).GetUpdater().
+	err = models.NewRepoQuerySet(db.Get(ctx)).IDEq(repo.ID).GetUpdater().
 		SetGithubID(gr.GetID()).Update()
 	if err != nil {
 		return fmt.Errorf("can't update github repo %#v id to %d: %s", repo, gr.GetID(), err)
@@ -68,7 +68,7 @@ func updateRepo(ctx *context.C, repo *models.GithubRepo) error {
 	return nil
 }
 
-func getRepoByFallback(ctx *context.C, repo *models.GithubRepo) (*gh.Repository, error) {
+func getRepoByFallback(ctx *context.C, repo *models.Repo) (*gh.Repository, error) {
 	fallbackAccessToken := os.Getenv("GITHUB_FALLBACK_ACCESS_TOKEN")
 	if fallbackAccessToken == "" {
 		return nil, errors.New("no fallback github access token")

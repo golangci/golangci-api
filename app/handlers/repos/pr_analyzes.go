@@ -47,8 +47,8 @@ func getAnalysisState(ctx context.C) error {
 	}
 
 	repoName := fmt.Sprintf("%s/%s", ctx.URLVar("owner"), ctx.URLVar("name"))
-	var repo models.GithubRepo
-	err = models.NewGithubRepoQuerySet(db.Get(&ctx)).
+	var repo models.Repo
+	err = models.NewRepoQuerySet(db.Get(&ctx)).
 		NameEq(repoName).
 		One(&repo)
 	if err != nil {
@@ -69,8 +69,8 @@ func getAnalysisState(ctx context.C) error {
 
 func handlePRAnalysisState(ctx context.C) error {
 	repoName := fmt.Sprintf("%s/%s", ctx.URLVar("owner"), ctx.URLVar("name"))
-	var repo models.GithubRepo
-	err := models.NewGithubRepoQuerySet(db.Get(&ctx)).
+	var repo models.Repo
+	err := models.NewRepoQuerySet(db.Get(&ctx)).
 		NameEq(repoName).
 		One(&repo)
 	if err != nil {

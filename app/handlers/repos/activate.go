@@ -21,7 +21,7 @@ func changeRepo(ctx context.C) error {
 	repoOwner := ctx.URLVar("repoOwner")
 	repoName := ctx.URLVar("repoName")
 
-	var gr *models.GithubRepo
+	var gr *models.Repo
 	var activate = ctx.R.Method == http.MethodPut
 	switch ctx.R.Method {
 	case http.MethodPut:

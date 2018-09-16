@@ -139,9 +139,9 @@ func sendWebhookPayload(repoName, event, hookID string, isProd bool, payload int
 	return nil
 }
 
-func getOrCreateRepo(repoName string) (*models.GithubRepo, error) {
-	var repo models.GithubRepo
-	err := models.NewGithubRepoQuerySet(database.GetDB()).NameEq(repoName).One(&repo)
+func getOrCreateRepo(repoName string) (*models.Repo, error) {
+	var repo models.Repo
+	err := models.NewRepoQuerySet(database.GetDB()).NameEq(repoName).One(&repo)
 	if err == nil {
 		return &repo, nil
 	}

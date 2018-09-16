@@ -5,14 +5,15 @@ import (
 	"os"
 	"strings"
 	"sync"
-	"time"
+
+	redisapi "github.com/golangci/golangci-api/pkg/db/redis"
+	"github.com/golangci/golangci-shared/pkg/config"
+	"github.com/golangci/golangci-shared/pkg/logutil"
 
 	"github.com/golangci/golib/server/context"
 	redistore "gopkg.in/boj/redistore.v1"
 
-	"github.com/garyburd/redigo/redis"
 	"github.com/gorilla/sessions"
-	log "github.com/sirupsen/logrus"
 )
 
 var primaryStore *redistore.RediStore
@@ -21,22 +22,13 @@ var primaryStoreOnce sync.Once
 const sessionCookieName = "s"
 
 func CreateStore(maxAge int) *redistore.RediStore {
-	redisURL := os.Getenv("REDIS_URL")
-	if redisURL == "" {
-		panic("Environment variable REDIS_URL isn't set")
+	log := logutil.NewStderrLog("create sess store")
+	pool, err := redisapi.GetPool(config.NewEnvConfig(log))
+	if err != nil {
+		log.Fatalf("Can't get redis pool: %s", err)
 	}
 
-	store, err := redistore.NewRediStoreWithPool(&redis.Pool{
-		MaxIdle:     10,
-		IdleTimeout: 240 * time.Second,
-		TestOnBorrow: func(c redis.Conn, t time.Time) error {
-			_, pingErr := c.Do("PING")
-			return pingErr
-		},
-		Dial: func() (redis.Conn, error) {
-			return redis.DialURL(redisURL)
-		},
-	}, []byte(os.Getenv("SESSION_SECRET")))
+	store, err := redistore.NewRediStoreWithPool(pool, []byte(os.Getenv("SESSION_SECRET")))
 	if err != nil {
 		log.Fatalf("Can't create redis session store: %s", err)
 	}

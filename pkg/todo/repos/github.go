@@ -18,19 +18,19 @@ import (
 	"github.com/jinzhu/gorm"
 )
 
-func DeactivateRepo(ctx *context.C, owner, repo string) (*models.GithubRepo, error) {
+func DeactivateRepo(ctx *context.C, owner, repo string) (*models.Repo, error) {
 	gc, _, err := github.GetClient(ctx)
 	if err != nil {
 		return nil, herrors.New(err, "can't get github client")
 	}
 
-	var gr models.GithubRepo
-	err = models.NewGithubRepoQuerySet(db.Get(ctx)).
+	var gr models.Repo
+	err = models.NewRepoQuerySet(db.Get(ctx)).
 		NameEq(strings.ToLower(fmt.Sprintf("%s/%s", owner, repo))).
 		One(&gr)
 	if err != nil {
 		if err == gorm.ErrRecordNotFound { // Race condition: double deactivation request
-			return &models.GithubRepo{}, nil
+			return &models.Repo{}, nil
 		}
 
 		return nil, fmt.Errorf("can't get repo %s/%s: %s", owner, repo, err)
@@ -60,12 +60,12 @@ func GetWebhookURLPathForRepo(name, hookID string) string {
 	return fmt.Sprintf("/v1/repos/%s/hooks/%s", name, hookID)
 }
 
-func ActivateRepo(ctx *context.C, ga *models.GithubAuth, owner, repo string) (*models.GithubRepo, error) {
+func ActivateRepo(ctx *context.C, ga *models.GithubAuth, owner, repo string) (*models.Repo, error) {
 	origRepoName := fmt.Sprintf("%s/%s", owner, repo)
 	repoName := strings.ToLower(origRepoName)
 
-	var gr models.GithubRepo
-	err := models.NewGithubRepoQuerySet(db.Get(ctx)).NameEq(repoName).One(&gr) // TODO: match by id here
+	var gr models.Repo
+	err := models.NewRepoQuerySet(db.Get(ctx)).NameEq(repoName).One(&gr) // TODO: match by id here
 	if err == nil {
 		ctx.L.Infof("user attempts to activate repo twice")
 		return &gr, nil
@@ -81,7 +81,7 @@ func ActivateRepo(ctx *context.C, ga *models.GithubAuth, owner, repo string) (*m
 		return nil, fmt.Errorf("can't generate hook id: %s", err)
 	}
 
-	gr = models.GithubRepo{
+	gr = models.Repo{
 		UserID:      ga.UserID,
 		Name:        repoName,
 		DisplayName: origRepoName,
@@ -124,7 +124,7 @@ func DeactivateAll(ctx *context.C) error {
 	}
 
 	// TODO: remove all hooks
-	err = models.NewGithubRepoQuerySet(db.Get(ctx)).
+	err = models.NewRepoQuerySet(db.Get(ctx)).
 		UserIDEq(userID).Delete()
 	if err != nil {
 		return fmt.Errorf("can't delete all repos of user %d: %s", userID, err)

@@ -22,6 +22,7 @@ func initServer() {
 	serverOnce.Do(func() {
 		app := app.NewApp()
 		app.RegisterHandlers()
+		app.RunMigrations()
 		server = httptest.NewServer(handlers.GetRoot())
 	})
 }
