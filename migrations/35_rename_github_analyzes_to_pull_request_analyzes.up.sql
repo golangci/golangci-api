@@ -1,0 +1,2 @@
+ALTER TABLE github_analyzes RENAME TO pull_request_analyzes;
+ALTER SEQUENCE github_analyzes_id_seq RENAME TO pull_request_analyzes_id_seq;

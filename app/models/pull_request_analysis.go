@@ -4,10 +4,10 @@ import (
 	"github.com/jinzhu/gorm"
 )
 
-//go:generate goqueryset -in github_analysis.go
+//go:generate goqueryset -in pull_request_analysis.go
 
 //gen:qs
-type GithubAnalysis struct {
+type PullRequestAnalysis struct {
 	gorm.Model
 
 	GithubRepo              Repo
@@ -23,6 +23,6 @@ type GithubAnalysis struct {
 	ResultJSON []byte
 }
 
-func (GithubAnalysis) TableName() string {
-	return "github_analyzes"
+func (PullRequestAnalysis) TableName() string {
+	return "pull_request_analyzes"
 }

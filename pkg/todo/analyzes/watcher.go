@@ -33,8 +33,8 @@ func watch() {
 }
 
 func CheckStaleAnalyzes(ctx *context.C, taskProcessingTimeout time.Duration) (int, error) {
-	var analyzes []models.GithubAnalysis
-	err := models.NewGithubAnalysisQuerySet(db.Get(ctx)).
+	var analyzes []models.PullRequestAnalysis
+	err := models.NewPullRequestAnalysisQuerySet(db.Get(ctx)).
 		StatusIn("sent_to_queue", "processing").
 		CreatedAtLt(time.Now().Add(-taskProcessingTimeout)).
 		PreloadGithubRepo().
@@ -58,7 +58,7 @@ func CheckStaleAnalyzes(ctx *context.C, taskProcessingTimeout time.Duration) (in
 	return len(analyzes), nil
 }
 
-func getGithubContextForAnalysis(ctx *context.C, analysis models.GithubAnalysis) (*github.Context, error) {
+func getGithubContextForAnalysis(ctx *context.C, analysis models.PullRequestAnalysis) (*github.Context, error) {
 	if analysis.GithubRepo.UserID == 0 {
 		return nil, fmt.Errorf("no github repo: %+v", analysis.GithubRepo)
 	}
@@ -87,7 +87,7 @@ func getGithubContextForAnalysis(ctx *context.C, analysis models.GithubAnalysis)
 	}, nil
 }
 
-func setGithubStatus(ctx *context.C, analysis models.GithubAnalysis) error {
+func setGithubStatus(ctx *context.C, analysis models.PullRequestAnalysis) error {
 	githubContext, err := getGithubContextForAnalysis(ctx, analysis)
 	if err != nil {
 		return err
@@ -111,13 +111,13 @@ func setGithubStatus(ctx *context.C, analysis models.GithubAnalysis) error {
 	return nil
 }
 
-func updateStaleAnalysis(ctx *context.C, analysis models.GithubAnalysis) error {
+func updateStaleAnalysis(ctx *context.C, analysis models.PullRequestAnalysis) error {
 	if err := setGithubStatus(ctx, analysis); err != nil {
 		return err
 	}
 
 	analysis.Status = "forced_stale"
-	if err := analysis.Update(db.Get(ctx), models.GithubAnalysisDBSchema.Status); err != nil {
+	if err := analysis.Update(db.Get(ctx), models.PullRequestAnalysisDBSchema.Status); err != nil {
 		return fmt.Errorf("can't update stale analysis: %s", err)
 	}
 

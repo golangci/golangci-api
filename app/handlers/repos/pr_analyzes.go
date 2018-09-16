@@ -38,8 +38,8 @@ func handleAnalysisState(ctx context.C) error {
 
 func getAnalysisState(ctx context.C) error {
 	analysisGUID := ctx.URLVar("analysisID")
-	var analysis models.GithubAnalysis
-	err := models.NewGithubAnalysisQuerySet(db.Get(&ctx)).
+	var analysis models.PullRequestAnalysis
+	err := models.NewPullRequestAnalysisQuerySet(db.Get(&ctx)).
 		GithubDeliveryGUIDEq(analysisGUID).
 		One(&analysis)
 	if err != nil {
@@ -82,8 +82,8 @@ func handlePRAnalysisState(ctx context.C) error {
 		return fmt.Errorf("invalid pr number %q: %s", ctx.URLVar("prNumber"), err)
 	}
 
-	var analysis models.GithubAnalysis
-	err = models.NewGithubAnalysisQuerySet(db.Get(&ctx)).
+	var analysis models.PullRequestAnalysis
+	err = models.NewPullRequestAnalysisQuerySet(db.Get(&ctx)).
 		GithubPullRequestNumberEq(prNumber).
 		GithubRepoIDEq(repo.ID).
 		OrderDescByID(). // get last
@@ -112,8 +112,8 @@ func updateAnalysisState(ctx context.C) error {
 	}
 
 	analysisGUID := ctx.URLVar("analysisID")
-	var analysis models.GithubAnalysis
-	err := models.NewGithubAnalysisQuerySet(db.Get(&ctx)).
+	var analysis models.PullRequestAnalysis
+	err := models.NewPullRequestAnalysisQuerySet(db.Get(&ctx)).
 		GithubDeliveryGUIDEq(analysisGUID).
 		One(&analysis)
 	if err != nil {
@@ -129,9 +129,9 @@ func updateAnalysisState(ctx context.C) error {
 	}
 
 	err = analysis.Update(db.Get(&ctx),
-		models.GithubAnalysisDBSchema.Status,
-		models.GithubAnalysisDBSchema.ReportedIssuesCount,
-		models.GithubAnalysisDBSchema.ResultJSON)
+		models.PullRequestAnalysisDBSchema.Status,
+		models.PullRequestAnalysisDBSchema.ReportedIssuesCount,
+		models.PullRequestAnalysisDBSchema.ResultJSON)
 	if err != nil {
 		return herrors.New(err, "can't update pr analysis state for analytis %#v", analysis)
 	}
