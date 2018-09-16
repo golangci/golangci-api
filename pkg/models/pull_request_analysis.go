@@ -10,10 +10,11 @@ import (
 type PullRequestAnalysis struct {
 	gorm.Model
 
-	GithubRepo              Repo
-	GithubRepoID            uint
-	GithubPullRequestNumber int
-	GithubDeliveryGUID      string
+	Repo              Repo
+	RepoID            uint
+	PullRequestNumber int
+
+	GithubDeliveryGUID string
 
 	CommitSHA string
 

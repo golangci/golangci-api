@@ -6,8 +6,8 @@ import (
 	"log"
 	"os"
 
-	"github.com/golangci/golangci-api/app/models"
 	"github.com/golangci/golangci-api/app/utils"
+	"github.com/golangci/golangci-api/pkg/models"
 	"github.com/golangci/golangci-api/pkg/todo/db"
 	"github.com/golangci/golangci-worker/app/lib/github"
 	"github.com/golangci/golib/server/context"

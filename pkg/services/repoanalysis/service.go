@@ -1,7 +1,7 @@
 package repoanalysis
 
 import (
-	"github.com/golangci/golangci-api/app/models"
+	"github.com/golangci/golangci-api/pkg/models"
 	"github.com/golangci/golangci-api/pkg/request"
 	"github.com/golangci/golangci-shared/pkg/logutil"
 	"github.com/jinzhu/gorm"

@@ -1,0 +1,2 @@
+ALTER TABLE pull_request_analyzes RENAME repo_id to github_repo_id;
+ALTER TABLE pull_request_analyzes RENAME pull_request_number to github_pull_request_number;

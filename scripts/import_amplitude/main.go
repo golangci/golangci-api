@@ -10,7 +10,7 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/golangci/golangci-api/app/models"
+	"github.com/golangci/golangci-api/pkg/models"
 	"github.com/golangci/golangci-api/pkg/shared"
 	"github.com/golangci/golib/server/database"
 	"github.com/jinzhu/gorm"
@@ -116,9 +116,9 @@ func storeEvent(event *Event) error {
 			CreatedAt: et,
 			UpdatedAt: et,
 		},
-		GithubRepoID:            gr.ID,
-		GithubPullRequestNumber: event.EventProperties.PRNumber,
-		GithubDeliveryGUID:      fmt.Sprintf("fake_%s", uuid.NewV4().String()),
+		RepoID:             gr.ID,
+		PullRequestNumber:  event.EventProperties.PRNumber,
+		GithubDeliveryGUID: fmt.Sprintf("fake_%s", uuid.NewV4().String()),
 
 		Status:              status,
 		ReportedIssuesCount: event.EventProperties.TotalIssues,

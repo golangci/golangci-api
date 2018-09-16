@@ -5,8 +5,8 @@ import (
 	"time"
 
 	"github.com/golangci/golangci-api/app/handlers"
-	"github.com/golangci/golangci-api/app/models"
 	"github.com/golangci/golangci-api/app/returntypes"
+	"github.com/golangci/golangci-api/pkg/models"
 	"github.com/golangci/golangci-api/pkg/todo/auth/user"
 	"github.com/golangci/golangci-api/pkg/todo/cache"
 	"github.com/golangci/golangci-api/pkg/todo/db"
