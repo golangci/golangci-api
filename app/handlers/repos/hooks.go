@@ -6,7 +6,7 @@ import (
 	"strings"
 
 	"github.com/golangci/golangci-api/app/handlers"
-	"github.com/golangci/golangci-api/app/models"
+	"github.com/golangci/golangci-api/pkg/models"
 	"github.com/golangci/golangci-api/pkg/todo/analyzes/repoanalyzes"
 	"github.com/golangci/golangci-api/pkg/todo/db"
 	"github.com/golangci/golangci-api/pkg/todo/errors"
@@ -65,10 +65,10 @@ func createAnalysis(ctx context.C, pr *gh.PullRequest, gr *models.Repo) (*models
 	}
 
 	analysis := models.PullRequestAnalysis{
-		GithubRepoID:            gr.ID,
-		GithubPullRequestNumber: pr.GetNumber(),
-		GithubDeliveryGUID:      guid,
-		CommitSHA:               pr.GetHead().GetSHA(),
+		RepoID:             gr.ID,
+		PullRequestNumber:  pr.GetNumber(),
+		GithubDeliveryGUID: guid,
+		CommitSHA:          pr.GetHead().GetSHA(),
 
 		Status:     "sent_to_queue",
 		ResultJSON: []byte("{}"),
@@ -135,7 +135,7 @@ func receivePullRequestWebhook(ctx context.C) error {
 			Name:  strings.ToLower(ctx.URLVar("name")),
 		},
 		GithubAccessToken: taskAccessToken,
-		PullRequestNumber: analysis.GithubPullRequestNumber,
+		PullRequestNumber: analysis.PullRequestNumber,
 	}
 	t := &task.PRAnalysis{
 		Context:      githubCtx,

@@ -7,7 +7,7 @@ import (
 	"strconv"
 
 	"github.com/golangci/golangci-api/app/handlers"
-	"github.com/golangci/golangci-api/app/models"
+	"github.com/golangci/golangci-api/pkg/models"
 	"github.com/golangci/golangci-api/pkg/todo/db"
 	"github.com/golangci/golib/server/context"
 	"github.com/golangci/golib/server/handlers/herrors"
@@ -61,7 +61,7 @@ func getAnalysisState(ctx context.C) error {
 		ReportedIssuesCount:     analysis.ReportedIssuesCount,
 		ResultJSON:              analysis.ResultJSON,
 		CommitSHA:               analysis.CommitSHA,
-		GithubPullRequestNumber: analysis.GithubPullRequestNumber,
+		GithubPullRequestNumber: analysis.PullRequestNumber,
 		GithubRepoName:          repo.Name,
 	})
 	return nil
@@ -84,8 +84,8 @@ func handlePRAnalysisState(ctx context.C) error {
 
 	var analysis models.PullRequestAnalysis
 	err = models.NewPullRequestAnalysisQuerySet(db.Get(&ctx)).
-		GithubPullRequestNumberEq(prNumber).
-		GithubRepoIDEq(repo.ID).
+		PullRequestNumberEq(prNumber).
+		RepoIDEq(repo.ID).
 		OrderDescByID(). // get last
 		Limit(1).
 		One(&analysis)
@@ -99,7 +99,7 @@ func handlePRAnalysisState(ctx context.C) error {
 		ReportedIssuesCount:     analysis.ReportedIssuesCount,
 		ResultJSON:              analysis.ResultJSON,
 		CommitSHA:               analysis.CommitSHA,
-		GithubPullRequestNumber: analysis.GithubPullRequestNumber,
+		GithubPullRequestNumber: analysis.PullRequestNumber,
 		GithubRepoName:          repo.Name,
 	})
 	return nil

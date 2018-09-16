@@ -5,8 +5,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/golangci/golangci-api/app/models"
 	"github.com/golangci/golangci-api/app/utils"
+	"github.com/golangci/golangci-api/pkg/models"
 	"github.com/golangci/golangci-api/pkg/todo/db"
 	"github.com/golangci/golangci-api/pkg/todo/errors"
 	"github.com/golangci/golangci-worker/app/lib/github"
@@ -37,7 +37,7 @@ func CheckStaleAnalyzes(ctx *context.C, taskProcessingTimeout time.Duration) (in
 	err := models.NewPullRequestAnalysisQuerySet(db.Get(ctx)).
 		StatusIn("sent_to_queue", "processing").
 		CreatedAtLt(time.Now().Add(-taskProcessingTimeout)).
-		PreloadGithubRepo().
+		PreloadRepo().
 		All(&analyzes)
 	if err != nil {
 		return 0, fmt.Errorf("can't get github analyzes: %s", err)
@@ -59,22 +59,22 @@ func CheckStaleAnalyzes(ctx *context.C, taskProcessingTimeout time.Duration) (in
 }
 
 func getGithubContextForAnalysis(ctx *context.C, analysis models.PullRequestAnalysis) (*github.Context, error) {
-	if analysis.GithubRepo.UserID == 0 {
-		return nil, fmt.Errorf("no github repo: %+v", analysis.GithubRepo)
+	if analysis.Repo.UserID == 0 {
+		return nil, fmt.Errorf("no github repo: %+v", analysis.Repo)
 	}
 
 	var ga models.GithubAuth
 	err := models.NewGithubAuthQuerySet(db.Get(ctx)).
-		UserIDEq(analysis.GithubRepo.UserID).
+		UserIDEq(analysis.Repo.UserID).
 		One(&ga)
 	if err != nil {
-		return nil, fmt.Errorf("can't get github auth for user %d: %s", analysis.GithubRepo.UserID, err)
+		return nil, fmt.Errorf("can't get github auth for user %d: %s", analysis.Repo.UserID, err)
 	}
 
-	parts := strings.SplitN(analysis.GithubRepo.Name, "/", 2)
+	parts := strings.SplitN(analysis.Repo.Name, "/", 2)
 	repoOwner, repoName := parts[0], parts[1]
 	if repoOwner == "" || repoName == "" {
-		return nil, fmt.Errorf("invalid repo name: %s", analysis.GithubRepo.Name)
+		return nil, fmt.Errorf("invalid repo name: %s", analysis.Repo.Name)
 	}
 
 	return &github.Context{
@@ -83,7 +83,7 @@ func getGithubContextForAnalysis(ctx *context.C, analysis models.PullRequestAnal
 			Name:  repoName,
 		},
 		GithubAccessToken: ga.AccessToken,
-		PullRequestNumber: analysis.GithubPullRequestNumber,
+		PullRequestNumber: analysis.PullRequestNumber,
 	}, nil
 }
 

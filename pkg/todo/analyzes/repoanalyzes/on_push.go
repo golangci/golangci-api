@@ -6,7 +6,7 @@ import (
 
 	"github.com/jinzhu/gorm"
 
-	"github.com/golangci/golangci-api/app/models"
+	"github.com/golangci/golangci-api/pkg/models"
 	"github.com/golangci/golangci-api/pkg/todo/db"
 	"github.com/golangci/golangci-api/pkg/todo/github"
 	"github.com/golangci/golib/server/context"

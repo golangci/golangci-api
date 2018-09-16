@@ -7,9 +7,9 @@ import (
 	"time"
 
 	"github.com/golang/mock/gomock"
-	"github.com/golangci/golangci-api/app/models"
 	"github.com/golangci/golangci-api/app/test/sharedtest"
 	"github.com/golangci/golangci-api/app/utils"
+	"github.com/golangci/golangci-api/pkg/models"
 	"github.com/golangci/golangci-api/pkg/todo/analyzes"
 	"github.com/golangci/golangci-api/pkg/todo/db"
 	"github.com/golangci/golangci-worker/app/lib/github"
