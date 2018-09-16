@@ -113,15 +113,15 @@ func fetchGithubReposFromGithub(ctx *context.C, client *gh.Client, maxPageNumber
 	return allRepos, nil
 }
 
-func getActivatedRepos(ctx *context.C) (map[int]*models.GithubRepo, error) {
+func getActivatedRepos(ctx *context.C) (map[int]*models.Repo, error) {
 	startedAt := time.Now()
 
-	var repos []models.GithubRepo
-	if err := models.NewGithubRepoQuerySet(db.Get(ctx)).All(&repos); err != nil {
+	var repos []models.Repo
+	if err := models.NewRepoQuerySet(db.Get(ctx)).All(&repos); err != nil {
 		return nil, fmt.Errorf("can't select activated repos from db: %s", err)
 	}
 
-	ret := map[int]*models.GithubRepo{}
+	ret := map[int]*models.Repo{}
 	for _, r := range repos {
 		ret[r.GithubID] = &r
 	}

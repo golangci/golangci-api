@@ -98,8 +98,8 @@ func importEvent(eventJSON string) error {
 }
 
 func storeEvent(event *Event) error {
-	var gr models.GithubRepo
-	err := models.NewGithubRepoQuerySet(database.GetDB().Unscoped()).
+	var gr models.Repo
+	err := models.NewRepoQuerySet(database.GetDB().Unscoped()).
 		NameEq(event.EventProperties.RepoName).
 		One(&gr)
 	if err != nil {

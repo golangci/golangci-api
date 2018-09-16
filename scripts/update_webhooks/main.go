@@ -22,8 +22,8 @@ func main() {
 func updateAllWebhooks() error {
 	ctx := utils.NewBackgroundContext()
 
-	var repos []models.GithubRepo
-	if err := models.NewGithubRepoQuerySet(db.Get(ctx)).All(&repos); err != nil {
+	var repos []models.Repo
+	if err := models.NewRepoQuerySet(db.Get(ctx)).All(&repos); err != nil {
 		return fmt.Errorf("can't fetch all repos: %s", err)
 	}
 
@@ -39,7 +39,7 @@ func updateAllWebhooks() error {
 	return nil
 }
 
-func updateRepoWebhook(ctx *context.C, repo *models.GithubRepo) error {
+func updateRepoWebhook(ctx *context.C, repo *models.Repo) error {
 	var ga models.GithubAuth
 	err := models.NewGithubAuthQuerySet(db.Get(ctx)).
 		UserIDEq(repo.UserID).

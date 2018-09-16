@@ -41,10 +41,10 @@ func getPullRequestWebhookPayload(ctx context.C) (*gh.PullRequestEvent, error) {
 	return &payload, nil
 }
 
-func fetchGithubRepo(ctx context.C) (*models.GithubRepo, error) {
-	var gr models.GithubRepo
+func fetchGithubRepo(ctx context.C) (*models.Repo, error) {
+	var gr models.Repo
 	hookID := ctx.URLVar("hookID")
-	err := models.NewGithubRepoQuerySet(db.Get(&ctx)).
+	err := models.NewRepoQuerySet(db.Get(&ctx)).
 		HookIDEq(hookID).
 		One(&gr)
 	if err != nil {
@@ -58,7 +58,7 @@ func fetchGithubRepo(ctx context.C) (*models.GithubRepo, error) {
 	return &gr, nil
 }
 
-func createAnalysis(ctx context.C, pr *gh.PullRequest, gr *models.GithubRepo) (*models.GithubAnalysis, error) {
+func createAnalysis(ctx context.C, pr *gh.PullRequest, gr *models.Repo) (*models.GithubAnalysis, error) {
 	guid := ctx.R.Header.Get("X-GitHub-Delivery")
 	if guid == "" {
 		return nil, herrors.New400Errorf("delivery without GUID")

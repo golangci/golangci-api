@@ -2,11 +2,15 @@ package app
 
 import (
 	"fmt"
-	"log"
 	"net/http"
 	"os"
 
+	"github.com/golangci/golangci-api/pkg/db/redis"
+
+	"gopkg.in/redsync.v1"
+
 	"github.com/golangci/golangci-api/app/handlers"
+	"github.com/golangci/golangci-api/app/utils"
 	"github.com/golangci/golangci-shared/pkg/apperrors"
 
 	"github.com/golangci/golib/server/handlers/manager"
@@ -14,6 +18,7 @@ import (
 
 	"strings"
 
+	"github.com/golangci/golangci-api/pkg/db/migrations"
 	"github.com/golangci/golangci-api/pkg/services/repoanalysis"
 	"github.com/golangci/golangci-shared/pkg/config"
 	"github.com/golangci/golangci-shared/pkg/logutil"
@@ -28,10 +33,11 @@ type services struct {
 }
 
 type App struct {
-	cfg        config.Config
-	log        logutil.Log
-	errTracker apperrors.Tracker
-	services   *services
+	cfg              config.Config
+	log              logutil.Log
+	errTracker       apperrors.Tracker
+	services         *services
+	migrationsRunner *migrations.Runner
 }
 
 func NewApp() *App {
@@ -42,9 +48,14 @@ func NewApp() *App {
 
 	errTracker := apperrors.GetTracker(cfg, slog)
 
-	db, err := getDB(cfg)
+	dbConnString, err := getDBConnString(cfg)
 	if err != nil {
-		log.Fatalf("can't get DB: %s", err)
+		slog.Fatalf("Can't get DB conn string: %s", err)
+	}
+
+	db, err := getDB(cfg, dbConnString)
+	if err != nil {
+		slog.Fatalf("Can't get DB: %s", err)
 	}
 
 	s := services{
@@ -53,11 +64,20 @@ func NewApp() *App {
 		},
 	}
 
+	redisPool, err := redis.GetPool(cfg)
+	if err != nil {
+		slog.Fatalf("Can't get redis pool: %s", err)
+	}
+	rs := redsync.New([]redsync.Pool{redisPool})
+	migrationsRunner := migrations.NewRunner(rs.NewMutex("migrations"), slog,
+		dbConnString, utils.GetProjectRoot())
+
 	return &App{
-		cfg:        cfg,
-		log:        slog,
-		errTracker: errTracker,
-		services:   &s,
+		cfg:              cfg,
+		log:              slog,
+		errTracker:       errTracker,
+		services:         &s,
+		migrationsRunner: migrationsRunner,
 	}
 }
 
@@ -67,7 +87,14 @@ func (a App) RegisterHandlers() {
 	})
 }
 
+func (a App) RunMigrations() {
+	if err := a.migrationsRunner.Run(); err != nil {
+		a.log.Fatalf("Can't run migrations: %s", err)
+	}
+}
+
 func (a App) RunForever() {
+	a.RunMigrations()
 	a.RegisterHandlers()
 	http.Handle("/", handlers.GetRoot())
 
@@ -79,16 +106,20 @@ func (a App) RunForever() {
 	}
 }
 
-func getDB(cfg config.Config) (*gorm.DB, error) {
+func getDBConnString(cfg config.Config) (string, error) {
 	dbURL := cfg.GetString("DATABASE_URL")
 	if dbURL == "" {
-		return nil, errors.New("no DATABASE_URL in config")
+		return "", errors.New("no DATABASE_URL in config")
 	}
 
 	dbURL = strings.Replace(dbURL, "postgresql", "postgres", 1)
-	adapter := strings.Split(dbURL, "://")[0]
+	return dbURL, nil
+}
 
-	db, err := gorm.Open(adapter, dbURL)
+func getDB(cfg config.Config, connString string) (*gorm.DB, error) {
+	adapter := strings.Split(connString, "://")[0]
+
+	db, err := gorm.Open(adapter, connString)
 	if err != nil {
 		return nil, errors.Wrap(err, "can't open db connection")
 	}

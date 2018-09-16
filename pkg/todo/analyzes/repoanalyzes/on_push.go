@@ -17,7 +17,7 @@ type RepoAnalysisStartState struct {
 	HeadCommitSHA string
 }
 
-func FetchStartStateForRepoAnalysis(ctx *context.C, repo *models.GithubRepo) (*RepoAnalysisStartState, error) {
+func FetchStartStateForRepoAnalysis(ctx *context.C, repo *models.Repo) (*RepoAnalysisStartState, error) {
 	gc, _, err := github.GetClientForUser(ctx, repo.UserID)
 	if err != nil {
 		return nil, fmt.Errorf("can't get github client: %s", err)
@@ -41,10 +41,9 @@ func FetchStartStateForRepoAnalysis(ctx *context.C, repo *models.GithubRepo) (*R
 }
 
 func OnRepoMasterUpdated(ctx *context.C, repoName, defaultBranch, commitSHA string) error {
+	repoName = strings.ToLower(repoName) // repoName is in original case
 	var as models.RepoAnalysisStatus
-	err := models.NewRepoAnalysisStatusQuerySet(db.Get(ctx)).
-		NameEq(strings.ToLower(repoName)). // repoName is in original case
-		One(&as)
+	err := models.NewRepoAnalysisStatusQuerySet(db.Get(ctx)).NameEq(repoName).One(&as)
 
 	if err != nil {
 		if err == gorm.ErrRecordNotFound {

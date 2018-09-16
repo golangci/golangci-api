@@ -48,8 +48,8 @@ func (nrl *NewReposLauncher) createNewAnalysisStatuses(ctx *context.C) error {
 		nrl.repoToStatus[strings.ToLower(as.Name)] = as
 	}
 
-	var githubRepos []models.GithubRepo
-	err = models.NewGithubRepoQuerySet(db.Get(ctx)).
+	var githubRepos []models.Repo
+	err = models.NewRepoQuerySet(db.Get(ctx)).
 		IDGt(nrl.LastGithubRepoID).
 		OrderDescByID().
 		All(&githubRepos)
@@ -75,7 +75,7 @@ func (nrl *NewReposLauncher) createNewAnalysisStatuses(ctx *context.C) error {
 	return nil
 }
 
-func (nrl *NewReposLauncher) createNewAnalysisStatusForRepo(ctx *context.C, repo *models.GithubRepo) error {
+func (nrl *NewReposLauncher) createNewAnalysisStatusForRepo(ctx *context.C, repo *models.Repo) error {
 	active := true
 	state, err := FetchStartStateForRepoAnalysis(ctx, repo)
 	if err != nil {

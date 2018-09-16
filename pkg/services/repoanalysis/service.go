@@ -56,7 +56,7 @@ func (s BasicService) GetStatus(rc *request.Context, repo *request.Repo) (*Statu
 	err := models.NewRepoAnalysisStatusQuerySet(s.DB).NameEq(repoName).One(&as)
 	if err != nil {
 		if err == gorm.ErrRecordNotFound {
-			n, _ := models.NewGithubRepoQuerySet(s.DB).NameEq(repoName).Count()
+			n, _ := models.NewRepoQuerySet(s.DB).NameEq(repoName).Count()
 			if n != 0 {
 				return &Status{
 					IsPreparing:    true,
