@@ -58,13 +58,13 @@ func fetchGithubRepo(ctx context.C) (*models.Repo, error) {
 	return &gr, nil
 }
 
-func createAnalysis(ctx context.C, pr *gh.PullRequest, gr *models.Repo) (*models.GithubAnalysis, error) {
+func createAnalysis(ctx context.C, pr *gh.PullRequest, gr *models.Repo) (*models.PullRequestAnalysis, error) {
 	guid := ctx.R.Header.Get("X-GitHub-Delivery")
 	if guid == "" {
 		return nil, herrors.New400Errorf("delivery without GUID")
 	}
 
-	analysis := models.GithubAnalysis{
+	analysis := models.PullRequestAnalysis{
 		GithubRepoID:            gr.ID,
 		GithubPullRequestNumber: pr.GetNumber(),
 		GithubDeliveryGUID:      guid,

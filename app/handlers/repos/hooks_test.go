@@ -43,7 +43,7 @@ func TestStaleAnalyzes(t *testing.T) {
 	r, _ := sharedtest.GetActivatedRepo(t)
 
 	ctx := utils.NewBackgroundContext()
-	err := models.NewGithubAnalysisQuerySet(db.Get(ctx)).Delete()
+	err := models.NewPullRequestAnalysisQuerySet(db.Get(ctx)).Delete()
 	assert.NoError(t, err)
 
 	r.ExpectWebhook("pull_request", getTestPREvent()).Status(http.StatusOK)

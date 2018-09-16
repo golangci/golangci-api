@@ -111,7 +111,7 @@ func storeEvent(event *Event) error {
 	if event.EventProperties.Status != "ok" {
 		status = "processed/failure"
 	}
-	ga := models.GithubAnalysis{
+	ga := models.PullRequestAnalysis{
 		Model: gorm.Model{
 			CreatedAt: et,
 			UpdatedAt: et,
