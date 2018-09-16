@@ -19,7 +19,8 @@ type Repo struct {
 	Name        string // lower-cased DisplayName to avoid case-sensitivity bugs
 	DisplayName string // original name of repo from github: original register is saved
 
-	HookID string
+	HookID   string
+	Provider string // github.com, gitlab.com etc
 
 	// GitHub specific
 	GithubHookID int
