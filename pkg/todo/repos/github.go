@@ -86,6 +86,7 @@ func ActivateRepo(ctx *context.C, ga *models.GithubAuth, owner, repo string) (*m
 		Name:        repoName,
 		DisplayName: origRepoName,
 		HookID:      hookID,
+		Provider:    "github.com",
 	}
 
 	web := "web"
