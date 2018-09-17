@@ -41,14 +41,14 @@ func getPullRequestWebhookPayload(ctx context.C) (*gh.PullRequestEvent, error) {
 	return &payload, nil
 }
 
-func fetchGithubRepo(ctx context.C) (*models.Repo, error) {
+func fetchRepo(ctx context.C) (*models.Repo, error) {
 	var gr models.Repo
 	hookID := ctx.URLVar("hookID")
 	err := models.NewRepoQuerySet(db.Get(&ctx)).
 		HookIDEq(hookID).
 		One(&gr)
 	if err != nil {
-		return nil, fmt.Errorf("can't get github repo with hook id %q: %s", hookID, err)
+		return nil, fmt.Errorf("can't get repo with hook id %q: %s", hookID, err)
 	}
 
 	if gr.Name != strings.ToLower(fmt.Sprintf("%s/%s", ctx.URLVar("owner"), ctx.URLVar("name"))) {
@@ -102,7 +102,7 @@ func receivePullRequestWebhook(ctx context.C) error {
 	}
 	ctx.L.Infof("Got webhook %+v", payload)
 
-	gr, err := fetchGithubRepo(ctx)
+	gr, err := fetchRepo(ctx)
 	if err != nil {
 		return err
 	}
@@ -182,19 +182,17 @@ func receivePushWebhook(ctx context.C) error {
 		return err
 	}
 
-	// it's important to no lowercase name here: otherwise will get go compilation error
-	repoName := payload.GetRepo().GetFullName()
-	if repoName == "" {
-		ctx.L.Infof("Got push webhook without repo info")
-		return nil
-	}
-
 	if payload.GetRepo().GetDefaultBranch() == "" {
 		errors.Warnf(&ctx, "Got push webhook without default branch: %+v, %+v",
 			payload.GetRepo(), *payload)
 	}
 
-	return repoanalyzes.OnRepoMasterUpdated(&ctx, repoName,
+	repo, err := fetchRepo(ctx)
+	if err != nil {
+		return err
+	}
+
+	return repoanalyzes.OnRepoMasterUpdated(&ctx, repo,
 		payload.GetRepo().GetDefaultBranch(), payload.GetHeadCommit().GetID())
 }
 

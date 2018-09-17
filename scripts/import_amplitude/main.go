@@ -103,7 +103,7 @@ func storeEvent(event *Event) error {
 		NameEq(event.EventProperties.RepoName).
 		One(&gr)
 	if err != nil {
-		return fmt.Errorf("can't find github repo %s: %s", event.EventProperties.RepoName, err)
+		return fmt.Errorf("can't find repo %s: %s", event.EventProperties.RepoName, err)
 	}
 
 	et := time.Time(event.EventTime)
@@ -126,7 +126,7 @@ func storeEvent(event *Event) error {
 	}
 
 	if err = ga.Create(database.GetDB()); err != nil {
-		return fmt.Errorf("can't create github analysis: %s", err)
+		return fmt.Errorf("can't create pull request analysis: %s", err)
 	}
 
 	log.Print(ga)

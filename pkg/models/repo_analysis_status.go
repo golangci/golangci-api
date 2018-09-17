@@ -12,7 +12,11 @@ import (
 type RepoAnalysisStatus struct {
 	gorm.Model
 
-	Name                       string
+	Repo   Repo
+	RepoID uint
+
+	Name string // TODO: remove
+
 	LastAnalyzedAt             time.Time
 	LastAnalyzedLintersVersion string
 

@@ -2,7 +2,6 @@ package repoanalyzes
 
 import (
 	"fmt"
-	"strings"
 
 	"github.com/jinzhu/gorm"
 
@@ -40,8 +39,8 @@ func FetchStartStateForRepoAnalysis(ctx *context.C, repo *models.Repo) (*RepoAna
 	}, nil
 }
 
-func OnRepoMasterUpdated(ctx *context.C, repoName, defaultBranch, commitSHA string) error {
-	repoName = strings.ToLower(repoName) // repoName is in original case
+func OnRepoMasterUpdated(ctx *context.C, repo *models.Repo, defaultBranch, commitSHA string) error {
+	repoName := repo.Name
 	var as models.RepoAnalysisStatus
 	err := models.NewRepoAnalysisStatusQuerySet(db.Get(ctx)).NameEq(repoName).One(&as)
 
@@ -50,6 +49,7 @@ func OnRepoMasterUpdated(ctx *context.C, repoName, defaultBranch, commitSHA stri
 			as = models.RepoAnalysisStatus{
 				Name:   repoName,
 				Active: true,
+				RepoID: repo.ID,
 			}
 			if err = as.Create(db.Get(ctx)); err != nil {
 				return fmt.Errorf("can't create repo analysis status %+v: %s", as, err)

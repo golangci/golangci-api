@@ -50,7 +50,7 @@ func DeactivateRepo(ctx *context.C, owner, repo string) (*models.Repo, error) {
 	// It's important to delete only after successful github hook deletion to prevent
 	// deletion of foreign repo
 	if err = gr.Delete(db.Get(ctx)); err != nil {
-		return nil, fmt.Errorf("can't delete github repo: %s", err)
+		return nil, fmt.Errorf("can't delete repo: %s", err)
 	}
 
 	return &gr, nil
@@ -112,7 +112,7 @@ func ActivateRepo(ctx *context.C, ga *models.GithubAuth, owner, repo string) (*m
 
 	gr.GithubHookID = rh.GetID()
 	if err := gr.Create(db.Get(ctx)); err != nil {
-		return nil, herrors.New(err, "can't create github repo")
+		return nil, herrors.New(err, "can't create repo")
 	}
 
 	return &gr, nil

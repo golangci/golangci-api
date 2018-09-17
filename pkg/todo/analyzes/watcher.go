@@ -60,7 +60,7 @@ func CheckStaleAnalyzes(ctx *context.C, taskProcessingTimeout time.Duration) (in
 
 func getGithubContextForAnalysis(ctx *context.C, analysis models.PullRequestAnalysis) (*github.Context, error) {
 	if analysis.Repo.UserID == 0 {
-		return nil, fmt.Errorf("no github repo: %+v", analysis.Repo)
+		return nil, fmt.Errorf("no repo: %+v", analysis.Repo)
 	}
 
 	var ga models.GithubAuth

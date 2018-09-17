@@ -61,7 +61,7 @@ func updateRepo(ctx *context.C, repo *models.Repo) error {
 	err = models.NewRepoQuerySet(db.Get(ctx)).IDEq(repo.ID).GetUpdater().
 		SetGithubID(gr.GetID()).Update()
 	if err != nil {
-		return fmt.Errorf("can't update github repo %#v id to %d: %s", repo, gr.GetID(), err)
+		return fmt.Errorf("can't update repo %#v id to %d: %s", repo, gr.GetID(), err)
 	}
 
 	repo.GithubID = gr.GetID()

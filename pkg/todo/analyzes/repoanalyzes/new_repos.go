@@ -91,6 +91,7 @@ func (nrl *NewReposLauncher) createNewAnalysisStatusForRepo(ctx *context.C, repo
 		PendingCommitSHA:  state.HeadCommitSHA,
 		HasPendingChanges: true,
 		Active:            active,
+		RepoID:            repo.ID,
 	}
 	if err = as.Create(db.Get(ctx)); err != nil {
 		return fmt.Errorf("can't create analysis status in db: %s", err)
