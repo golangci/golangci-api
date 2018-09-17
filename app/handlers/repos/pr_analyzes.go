@@ -43,7 +43,7 @@ func getAnalysisState(ctx context.C) error {
 		GithubDeliveryGUIDEq(analysisGUID).
 		One(&analysis)
 	if err != nil {
-		return db.Error(err, "can't get github analysis with guid %s", analysisGUID)
+		return db.Error(err, "can't get analysis with guid %s", analysisGUID)
 	}
 
 	repoName := fmt.Sprintf("%s/%s", ctx.URLVar("owner"), ctx.URLVar("name"))
@@ -52,7 +52,7 @@ func getAnalysisState(ctx context.C) error {
 		NameEq(repoName).
 		One(&repo)
 	if err != nil {
-		return db.Error(err, "can't get github repo %s", repoName)
+		return db.Error(err, "can't get repo %s", repoName)
 	}
 
 	ctx.ReturnJSON(State{
@@ -74,7 +74,7 @@ func handlePRAnalysisState(ctx context.C) error {
 		NameEq(repoName).
 		One(&repo)
 	if err != nil {
-		return db.Error(err, "can't get github repo %s", repoName)
+		return db.Error(err, "can't get repo %s", repoName)
 	}
 
 	prNumber, err := strconv.Atoi(ctx.URLVar("prNumber"))
@@ -90,7 +90,7 @@ func handlePRAnalysisState(ctx context.C) error {
 		Limit(1).
 		One(&analysis)
 	if err != nil {
-		return db.Error(err, "can't get github analysis with pr number %d and repo id %d", prNumber, repo.ID)
+		return db.Error(err, "can't get pull request analysis with number %d and repo id %d", prNumber, repo.ID)
 	}
 
 	ctx.ReturnJSON(State{
@@ -117,7 +117,7 @@ func updateAnalysisState(ctx context.C) error {
 		GithubDeliveryGUIDEq(analysisGUID).
 		One(&analysis)
 	if err != nil {
-		return herrors.New(err, "can't get github analysis with guid %s", analysisGUID)
+		return herrors.New(err, "can't get pull request analysis with guid %s", analysisGUID)
 	}
 
 	prevStatus := analysis.Status
