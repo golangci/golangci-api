@@ -2,7 +2,6 @@ package repoanalyzes
 
 import (
 	"fmt"
-	"strings"
 	"time"
 
 	"github.com/golangci/golangci-api/app/utils"
@@ -20,6 +19,7 @@ func reanalyzeByNewLinters() {
 	for range time.NewTicker(10 * time.Minute).C {
 		var analysisStatuses []models.RepoAnalysisStatus
 		err := models.NewRepoAnalysisStatusQuerySet(db.Get(ctx)).
+			PreloadRepo().
 			LastAnalyzedLintersVersionNe(lintersVersion).
 			HasPendingChangesEq(false).
 			ActiveEq(true).
@@ -33,12 +33,7 @@ func reanalyzeByNewLinters() {
 			break
 		}
 
-		if len(analysisStatuses) < 20 {
-			ctx.L.Infof("Fetched %d analysis statuses to reanalyze by new linters: %s",
-				len(analysisStatuses), analysisStatusesToString(analysisStatuses))
-		} else {
-			ctx.L.Infof("Fetched %d analysis statuses to reanalyze by new linters", len(analysisStatuses))
-		}
+		ctx.L.Infof("Fetched %d analysis statuses to reanalyze by new linters", len(analysisStatuses))
 
 		for _, as := range analysisStatuses {
 			analysisStatusesCh <- as
@@ -48,22 +43,13 @@ func reanalyzeByNewLinters() {
 	close(analysisStatusesCh)
 }
 
-func analysisStatusesToString(analysisStatuses []models.RepoAnalysisStatus) string {
-	var r []string
-	for _, as := range analysisStatuses {
-		r = append(r, as.Name)
-	}
-
-	return strings.Join(r, ", ")
-}
-
 func reanalyzeFromCh(ctx *context.C, analysisStatusesCh <-chan models.RepoAnalysisStatus) {
 	const avgAnalysisTime = time.Minute
 	const maxReanalyzeCapacity = 0.5
 	reanalyzeInterval := time.Duration(float64(avgAnalysisTime) / maxReanalyzeCapacity)
 
 	for as := range analysisStatusesCh {
-		ctx.L.Infof("Starting reanalyzing repo %s by new linters...", as.Name)
+		ctx.L.Infof("Starting reanalyzing repo %s by new linters...", as.Repo.Name)
 		if err := reanalyzeAnalysisByNewLinters(ctx, &as); err != nil {
 			errors.Warnf(ctx, "Can't reanalyze analysis status %#v: %s", as, err)
 		}
@@ -79,7 +65,7 @@ func reanalyzeAnalysisByNewLinters(ctx *context.C, as *models.RepoAnalysisStatus
 		OrderDescByID().
 		One(&a)
 	if err != nil {
-		return fmt.Errorf("can't fetch last repo analysis for %s: %s", as.Name, err)
+		return fmt.Errorf("can't fetch last repo analysis for %s: %s", as.Repo.Name, err)
 	}
 
 	if as.LastAnalyzedLintersVersion == "" {
@@ -109,6 +95,6 @@ func reanalyzeAnalysisByNewLinters(ctx *context.C, as *models.RepoAnalysisStatus
 	}
 
 	ctx.L.Infof("Marked repo %s for reanalysis by new linters: %s -> %s",
-		as.Name, as.LastAnalyzedLintersVersion, lintersVersion)
+		as.Repo.Name, as.LastAnalyzedLintersVersion, lintersVersion)
 	return nil
 }

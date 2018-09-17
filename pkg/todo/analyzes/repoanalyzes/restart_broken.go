@@ -3,7 +3,6 @@ package repoanalyzes
 import (
 	"fmt"
 	"math"
-	"strings"
 	"time"
 
 	"github.com/golangci/golangci-api/app/utils"
@@ -65,8 +64,15 @@ func restartBrokenRepoAnalyzesIter(ctx *context.C, repoAnalysisTimeout time.Dura
 		}
 
 		as := a.RepoAnalysisStatus
+
+		var repo models.Repo
+		err := models.NewRepoQuerySet(db.Get(ctx)).IDEq(as.RepoID).One(&repo)
+		if err != nil {
+			return fmt.Errorf("failed to fetch repo with id %d", as.RepoID)
+		}
+
 		t := &task.RepoAnalysis{
-			Name:         strings.ToLower(as.Name),
+			Name:         repo.Name,
 			AnalysisGUID: a.AnalysisGUID,
 			Branch:       as.DefaultBranch,
 		}
@@ -78,11 +84,11 @@ func restartBrokenRepoAnalyzesIter(ctx *context.C, repoAnalysisTimeout time.Dura
 		}
 
 		if err = analyzequeue.ScheduleRepoAnalysis(t); err != nil {
-			return fmt.Errorf("can't resend repo %s for analysis into queue: %s", as.Name, err)
+			return fmt.Errorf("can't resend repo %s for analysis into queue: %s", repo.Name, err)
 		}
 
 		errors.Warnf(ctx, "Restarted analysis for %s in status %s with %d-th attempt",
-			as.Name, a.Status, a.AttemptNumber)
+			repo.Name, a.Status, a.AttemptNumber)
 	}
 
 	return nil

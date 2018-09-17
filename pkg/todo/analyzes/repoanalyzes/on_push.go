@@ -42,12 +42,11 @@ func FetchStartStateForRepoAnalysis(ctx *context.C, repo *models.Repo) (*RepoAna
 func OnRepoMasterUpdated(ctx *context.C, repo *models.Repo, defaultBranch, commitSHA string) error {
 	repoName := repo.Name
 	var as models.RepoAnalysisStatus
-	err := models.NewRepoAnalysisStatusQuerySet(db.Get(ctx)).NameEq(repoName).One(&as)
+	err := models.NewRepoAnalysisStatusQuerySet(db.Get(ctx)).RepoIDEq(repo.ID).One(&as)
 
 	if err != nil {
 		if err == gorm.ErrRecordNotFound {
 			as = models.RepoAnalysisStatus{
-				Name:   repoName,
 				Active: true,
 				RepoID: repo.ID,
 			}

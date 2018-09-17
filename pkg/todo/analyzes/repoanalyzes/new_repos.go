@@ -2,7 +2,6 @@ package repoanalyzes
 
 import (
 	"fmt"
-	"strings"
 	"time"
 
 	"github.com/golangci/golangci-api/app/utils"
@@ -16,11 +15,11 @@ type NewReposLauncher struct {
 	LastGithubRepoID uint
 
 	LastRepoAnalysisStatusID uint
-	repoToStatus             map[string]models.RepoAnalysisStatus
+	repoToStatus             map[uint]models.RepoAnalysisStatus
 }
 
 func (nrl NewReposLauncher) Run() {
-	nrl.repoToStatus = map[string]models.RepoAnalysisStatus{}
+	nrl.repoToStatus = map[uint]models.RepoAnalysisStatus{}
 	ctx := utils.NewBackgroundContext()
 	checkInterval := getDurationFromEnv("NEW_REPOS_ANALYZES_LAUNCH_INTERVAL", 10*time.Second)
 
@@ -45,23 +44,23 @@ func (nrl *NewReposLauncher) createNewAnalysisStatuses(ctx *context.C) error {
 	}
 
 	for _, as := range analysisStatuses {
-		nrl.repoToStatus[strings.ToLower(as.Name)] = as
+		nrl.repoToStatus[as.RepoID] = as
 	}
 
-	var githubRepos []models.Repo
+	var repos []models.Repo
 	err = models.NewRepoQuerySet(db.Get(ctx)).
 		IDGt(nrl.LastGithubRepoID).
 		OrderDescByID().
-		All(&githubRepos)
+		All(&repos)
 	if err != nil {
 		return fmt.Errorf("can't get github repos: %s", err)
 	}
-	if len(githubRepos) != 0 {
-		nrl.LastGithubRepoID = githubRepos[0].ID
+	if len(repos) != 0 {
+		nrl.LastGithubRepoID = repos[0].ID
 	}
 
-	for _, repo := range githubRepos {
-		_, ok := nrl.repoToStatus[strings.ToLower(repo.Name)]
+	for _, repo := range repos {
+		_, ok := nrl.repoToStatus[repo.ID]
 		if ok {
 			continue
 		}
@@ -86,7 +85,6 @@ func (nrl *NewReposLauncher) createNewAnalysisStatusForRepo(ctx *context.C, repo
 	}
 
 	as := models.RepoAnalysisStatus{
-		Name:              repo.Name,
 		DefaultBranch:     state.DefaultBranch,
 		PendingCommitSHA:  state.HeadCommitSHA,
 		HasPendingChanges: true,

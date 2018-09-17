@@ -3,7 +3,6 @@ package main
 import (
 	"fmt"
 	"log"
-	"strings"
 
 	"github.com/golangci/golangci-api/app/utils"
 	"github.com/golangci/golangci-api/pkg/models"
@@ -48,7 +47,7 @@ func updateRepoDefaultBranch(ctx *context.C, repo *models.Repo) error {
 
 	var as models.RepoAnalysisStatus
 	err = models.NewRepoAnalysisStatusQuerySet(db.Get(ctx)).
-		NameEq(strings.ToLower(repo.Name)).
+		RepoIDEq(repo.ID).
 		One(&as)
 	if err != nil {
 		return fmt.Errorf("can't get repo analysis status for %s: %s", repo.Name, err)
@@ -59,7 +58,7 @@ func updateRepoDefaultBranch(ctx *context.C, repo *models.Repo) error {
 	}
 
 	err = models.NewRepoAnalysisStatusQuerySet(db.Get(ctx)).
-		NameEq(as.Name).
+		RepoIDEq(repo.ID).
 		GetUpdater().
 		SetDefaultBranch(state.DefaultBranch).
 		SetPendingCommitSHA(state.HeadCommitSHA).

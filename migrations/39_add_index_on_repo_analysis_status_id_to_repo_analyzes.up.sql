@@ -1,0 +1,1 @@
+CREATE INDEX repo_analyzes_repo_analysis_status_id_idx ON repo_analyzes(repo_analysis_status_id);
