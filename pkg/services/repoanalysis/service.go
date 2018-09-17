@@ -1,6 +1,8 @@
 package repoanalysis
 
 import (
+	"strings"
+
 	"github.com/golangci/golangci-api/pkg/models"
 	"github.com/golangci/golangci-api/pkg/request"
 	"github.com/golangci/golangci-shared/pkg/logutil"
@@ -49,29 +51,34 @@ func (s BasicService) isCompleteAnalysisStatus(status string) bool {
 	return status == "processed" || status == "error"
 }
 
-func (s BasicService) GetStatus(rc *request.Context, repo *request.Repo) (*Status, error) {
-	repoName := repo.FullName()
-
-	var as models.RepoAnalysisStatus
-	err := models.NewRepoAnalysisStatusQuerySet(s.DB).NameEq(repoName).One(&as)
+//nolint:gocyclo
+func (s BasicService) GetStatus(rc *request.Context, reqRepo *request.Repo) (*Status, error) {
+	var repo models.Repo
+	err := models.NewRepoQuerySet(s.DB).NameEq(strings.ToLower(reqRepo.FullName())).One(&repo)
 	if err != nil {
 		if err == gorm.ErrRecordNotFound {
-			n, _ := models.NewRepoQuerySet(s.DB).NameEq(repoName).Count()
-			if n != 0 {
-				return &Status{
-					IsPreparing:    true,
-					GithubRepoName: repoName,
-				}, nil
-			}
-
-			rc.Log.Warnf("no connected repo for report of %s: maybe direct access by URL", repoName)
+			rc.Log.Warnf("no connected repo for report of %s: maybe direct access by URL", reqRepo.FullName())
 			return &Status{
 				RepoIsNotConnected: true,
-				GithubRepoName:     repoName,
+				GithubRepoName:     reqRepo.FullName(),
 			}, nil
 		}
 
-		return nil, errors.Wrapf(err, "can't get repo analysis status for %s", repoName)
+		return nil, errors.Wrapf(err, "can't get repo for %s", reqRepo.FullName())
+	}
+
+	var as models.RepoAnalysisStatus
+	err = models.NewRepoAnalysisStatusQuerySet(s.DB).RepoIDEq(repo.ID).One(&as)
+	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return &Status{
+				IsPreparing:    true,
+				GithubRepoName: repo.DisplayName,
+			}, nil
+		}
+
+		return nil, errors.Wrapf(err, "can't get repo analysis status for %s and repo id %d",
+			reqRepo.FullName(), repo.ID)
 	}
 
 	var analyzes []models.RepoAnalysis
@@ -87,7 +94,7 @@ func (s BasicService) GetStatus(rc *request.Context, repo *request.Repo) (*Statu
 	if len(analyzes) == 0 {
 		return &Status{
 			IsPreparing:    true,
-			GithubRepoName: repoName,
+			GithubRepoName: repo.DisplayName,
 		}, nil
 	}
 
@@ -114,7 +121,7 @@ func (s BasicService) GetStatus(rc *request.Context, repo *request.Repo) (*Statu
 	lastCompleteAnalysis.RepoAnalysisStatus = as
 	return &Status{
 		RepoAnalysis:       lastCompleteAnalysis,
-		GithubRepoName:     repoName,
+		GithubRepoName:     repo.DisplayName,
 		NextAnalysisStatus: nextAnalysisStatus,
 	}, nil
 }

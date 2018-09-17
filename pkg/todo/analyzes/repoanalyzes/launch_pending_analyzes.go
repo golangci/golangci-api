@@ -2,7 +2,6 @@ package repoanalyzes
 
 import (
 	"fmt"
-	"strings"
 	"time"
 
 	"github.com/golangci/golangci-api/app/utils"
@@ -36,6 +35,7 @@ func launchPendingRepoAnalyzes() {
 func launchPendingRepoAnalyzesIter(ctx *context.C) error {
 	var analysisStatuses []models.RepoAnalysisStatus
 	err := models.NewRepoAnalysisStatusQuerySet(db.Get(ctx)).
+		PreloadRepo().
 		HasPendingChangesEq(true).
 		All(&analysisStatuses)
 	if err != nil {
@@ -65,7 +65,7 @@ func launchPendingRepoAnalysisChecked(ctx *context.C, as *models.RepoAnalysisSta
 		return fmt.Errorf("can't launch analysis %+v: %s", as, err)
 	}
 
-	ctx.L.Infof("Launched pending analysis for %s...", as.Name)
+	ctx.L.Infof("Launched pending analysis for %s...", as.Repo.Name)
 	return nil
 }
 
@@ -91,6 +91,10 @@ func launchRepoAnalysis(ctx *context.C, as *models.RepoAnalysisStatus) (err erro
 		needSendToQueue = false
 	}
 
+	if as.Repo.Name == "" {
+		return fmt.Errorf("empty repo name: %#v", as.Repo)
+	}
+
 	if needSendToQueue {
 		a := models.RepoAnalysis{
 			RepoAnalysisStatusID: as.ID,
@@ -106,7 +110,7 @@ func launchRepoAnalysis(ctx *context.C, as *models.RepoAnalysisStatus) (err erro
 		}
 
 		t := &task.RepoAnalysis{
-			Name:         strings.ToLower(as.Name),
+			Name:         as.Repo.Name,
 			AnalysisGUID: a.AnalysisGUID,
 			Branch:       as.DefaultBranch,
 		}
@@ -117,7 +121,7 @@ func launchRepoAnalysis(ctx *context.C, as *models.RepoAnalysisStatus) (err erro
 	}
 
 	n, err := models.NewRepoAnalysisStatusQuerySet(db.Get(ctx)).
-		NameEq(strings.ToLower(as.Name)).
+		IDEq(as.ID).
 		VersionEq(as.Version).
 		GetUpdater().
 		SetHasPendingChanges(false).

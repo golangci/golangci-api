@@ -15,8 +15,6 @@ type RepoAnalysisStatus struct {
 	Repo   Repo
 	RepoID uint
 
-	Name string // TODO: remove
-
 	LastAnalyzedAt             time.Time
 	LastAnalyzedLintersVersion string
 
