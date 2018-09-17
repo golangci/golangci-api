@@ -854,6 +854,7 @@
     "golang.org/x/oauth2",
     "golang.org/x/tools/go/loader",
     "gopkg.in/boj/redistore.v1",
+    "gopkg.in/redsync.v1",
   ]
   solver-name = "gps-cdcl"
   solver-version = 1
