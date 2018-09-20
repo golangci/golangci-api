@@ -56,8 +56,30 @@ func extractStructFields(sv reflect.Value) []structField {
 	return fields
 }
 
+func getURLParamName(rf reflect.StructField) string {
+	request := rf.Tag.Get("request")
+	if request == "" {
+		return ""
+	}
+
+	parts := strings.Split(request, ",")
+	if len(parts) != 2 {
+		panic("bad tag " + rf.Tag)
+	}
+
+	if parts[1] != "url" {
+		return ""
+	}
+
+	if parts[0] == "" {
+		return rf.Name
+	}
+
+	return parts[0]
+}
+
 func isURLParamField(rf reflect.StructField) bool {
-	return rf.Tag == `request:",url"` // TODO
+	return getURLParamName(rf) != ""
 }
 
 func decodeRequestField(f reflect.Value, r *http.Request) error {
@@ -104,10 +126,10 @@ func decodeRequestFieldFromURL(structFields []structField, r *http.Request) erro
 			return fmt.Errorf("invalid struct field of type %s: only string supported", sf.val.Kind())
 		}
 
-		urlParam := strings.ToLower(sf.rf.Name)
-		urlVar := mux.Vars(r)[urlParam]
+		urlParamName := getURLParamName(sf.rf)
+		urlVar := mux.Vars(r)[strings.ToLower(urlParamName)]
 		if urlVar == "" {
-			return fmt.Errorf("no url param %s", urlParam)
+			return fmt.Errorf("no url param %s", urlParamName)
 		}
 
 		sf.val.SetString(urlVar)

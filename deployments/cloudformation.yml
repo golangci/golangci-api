@@ -1,0 +1,48 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Transform: 'AWS::Serverless-2016-10-31'
+
+Resources: 
+  primaryQueue: 
+    Type: AWS::SQS::Queue
+    Properties: 
+      RedrivePolicy: 
+        deadLetterTargetArn: 
+          Fn::GetAtt: 
+            - "deadLetterPrimaryQueue"
+            - "Arn"
+        maxReceiveCount: 5
+      VisibilityTimeout: 60
+      ReceiveMessageWaitTimeSeconds: 20 # save costs on polling
+      KmsMasterKeyId: alias/aws/sqs
+      KmsDataKeyReusePeriodSeconds: 600
+      MessageRetentionPeriod: 345600 # 4d
+  deadLetterPrimaryQueue: 
+    Type: AWS::SQS::Queue
+    Properties:
+      VisibilityTimeout: 60
+      ReceiveMessageWaitTimeSeconds: 20 # save costs on polling
+      KmsMasterKeyId: alias/aws/sqs
+      KmsDataKeyReusePeriodSeconds: 600
+      MessageRetentionPeriod: 1209600 # 14d
+
+Outputs:
+  primaryQueueURL: 
+    Description: "URL of the primary queue"
+    Value: 
+      Ref: "primaryQueue"
+  primaryQueueARN: 
+    Description: "ARN of the primary queue"
+    Value: 
+      Fn::GetAtt: 
+        - "primaryQueue"
+        - "Arn"
+  deadLetterPrimaryQueueURL: 
+    Description: "URL of the dead letter for the primary queue"
+    Value: 
+      Ref: "deadLetterPrimaryQueue"
+  deadLetterPrimaryQueueARN: 
+    Description: "ARN of the dead letter for the primary queue"
+    Value: 
+      Fn::GetAtt: 
+        - "deadLetterPrimaryQueue"
+        - "Arn"

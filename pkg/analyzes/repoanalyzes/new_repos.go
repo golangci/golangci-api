@@ -76,12 +76,13 @@ func (nrl *NewReposLauncher) createNewAnalysisStatuses(ctx *context.C) error {
 
 func (nrl *NewReposLauncher) createNewAnalysisStatusForRepo(ctx *context.C, repo *models.Repo) error {
 	active := true
-	state, err := FetchStartStateForRepoAnalysis(ctx, repo)
+	f := NewGithubRepoStateFetcher(db.Get(ctx))
+	state, err := f.Fetch(ctx.Ctx, repo)
 	if err != nil {
 		active = false
 		errors.Warnf(ctx, "Create analysis for the new repo: mark repo as inactive: "+
 			"can't fetch initial state for repo %s: %s", repo.Name, err)
-		state = &RepoAnalysisStartState{}
+		state = &GithubRepoState{}
 	}
 
 	as := models.RepoAnalysisStatus{

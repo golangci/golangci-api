@@ -5,7 +5,12 @@ import (
 	"net/http"
 	"os"
 
+	"github.com/aws/aws-sdk-go/aws"
+
+	"github.com/aws/aws-sdk-go/aws/session"
+	repoanalyzeslib "github.com/golangci/golangci-api/pkg/analyzes/repoanalyzes"
 	"github.com/golangci/golangci-api/pkg/db/redis"
+	"github.com/golangci/golangci-api/pkg/workers/primaryqueue/repoanalyzes"
 
 	"gopkg.in/redsync.v1"
 
@@ -25,20 +30,34 @@ import (
 	"github.com/jinzhu/gorm"
 	"github.com/pkg/errors"
 
+	"github.com/golangci/golangci-api/pkg/queue/aws/consumer"
+	"github.com/golangci/golangci-api/pkg/queue/aws/sqs"
+	"github.com/golangci/golangci-api/pkg/queue/consumers"
+	"github.com/golangci/golangci-api/pkg/queue/producers"
 	_ "github.com/mattes/migrate/database/postgres" // must be first
 )
 
-type services struct {
+type appServices struct {
 	repoanalysis repoanalysis.Service
+}
+
+type queues struct {
+	primarySQS *sqs.Queue
 }
 
 type App struct {
 	cfg              config.Config
 	log              logutil.Log
+	trackedLog       logutil.Log
 	errTracker       apperrors.Tracker
-	services         *services
+	db               *gorm.DB
 	migrationsRunner *migrations.Runner
+	services         appServices
+	awsSess          *session.Session
+	queues           queues
 }
+
+const visibilityTimeoutSec = 60 // must be in sync with cloudformation.yml
 
 func NewApp() *App {
 	slog := logutil.NewStderrLog("golangci-api")
@@ -47,6 +66,7 @@ func NewApp() *App {
 	cfg := config.NewEnvConfig(slog)
 
 	errTracker := apperrors.GetTracker(cfg, slog)
+	trackedLog := apperrors.WrapLogWithTracker(slog, nil, errTracker)
 
 	dbConnString, err := getDBConnString(cfg)
 	if err != nil {
@@ -58,7 +78,7 @@ func NewApp() *App {
 		slog.Fatalf("Can't get DB: %s", err)
 	}
 
-	s := services{
+	s := appServices{
 		repoanalysis: repoanalysis.BasicService{
 			DB: db,
 		},
@@ -69,15 +89,35 @@ func NewApp() *App {
 		slog.Fatalf("Can't get redis pool: %s", err)
 	}
 	rs := redsync.New([]redsync.Pool{redisPool})
-	migrationsRunner := migrations.NewRunner(rs.NewMutex("migrations"), slog,
+	migrationsRunner := migrations.NewRunner(rs.NewMutex("migrations"), trackedLog,
 		dbConnString, utils.GetProjectRoot())
+
+	awsCfg := aws.NewConfig()
+	endpoint := cfg.GetString("SQS_ENDPOINT")
+	if endpoint != "" {
+		awsCfg = awsCfg.WithEndpoint(endpoint)
+	}
+	awsSess, err := session.NewSession(awsCfg)
+	if err != nil {
+		// TODO
+		trackedLog.Errorf("Can't make aws session: %s", err)
+	}
+
+	primarySQS := sqs.NewQueue(cfg.GetString("SQS_PRIMARY_QUEUE_URL"),
+		awsSess, trackedLog, visibilityTimeoutSec)
 
 	return &App{
 		cfg:              cfg,
 		log:              slog,
+		trackedLog:       trackedLog,
 		errTracker:       errTracker,
-		services:         &s,
+		db:               db,
 		migrationsRunner: migrationsRunner,
+		services:         s,
+		awsSess:          awsSess,
+		queues: queues{
+			primarySQS: primarySQS,
+		},
 	}
 }
 
@@ -93,9 +133,44 @@ func (a App) RunMigrations() {
 	}
 }
 
+func (a App) RunConsumers() {
+	if a.queues.primarySQS == nil {
+		return // TODO
+	}
+
+	primaryQueueConsumerMultiplexer := consumers.NewMultiplexer()
+
+	grsf := repoanalyzeslib.NewGithubRepoStateFetcher(a.db)
+	repoanalyzesCreatorConsumer := repoanalyzes.NewCreatorConsumer(a.trackedLog, a.db, grsf)
+	if err := repoanalyzesCreatorConsumer.Register(primaryQueueConsumerMultiplexer); err != nil {
+		a.log.Fatalf("Failed to register repoanalyzes creator consumer: %s", err)
+	}
+
+	primaryQueueConsumer := consumer.NewSQS(a.trackedLog, a.cfg, a.queues.primarySQS,
+		primaryQueueConsumerMultiplexer, "primary", visibilityTimeoutSec)
+
+	go primaryQueueConsumer.Run()
+}
+
+func (a App) RunProducers() {
+	if a.queues.primarySQS == nil {
+		return // TODO
+	}
+
+	primaryQueueProducerMultiplexer := producers.NewMultiplexer(a.queues.primarySQS)
+
+	repoanalyzesCreatorProducer := repoanalyzes.CreatorProducer{}
+	if err := repoanalyzesCreatorProducer.Register(primaryQueueProducerMultiplexer); err != nil {
+		a.log.Fatalf("Failed to register repoanalyzes creator producer: %s", err)
+	}
+}
+
 func (a App) RunForever() {
 	a.RunMigrations()
 	a.RegisterHandlers()
+	a.RunConsumers()
+	a.RunProducers()
+
 	http.Handle("/", handlers.GetRoot())
 
 	addr := fmt.Sprintf(":%d", a.cfg.GetInt("port", 3000))

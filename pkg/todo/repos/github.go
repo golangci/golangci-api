@@ -119,7 +119,7 @@ func ActivateRepo(ctx *context.C, ga *models.GithubAuth, owner, repo string) (*m
 }
 
 func DeactivateAll(ctx *context.C) error {
-	userID, err := user.GetCurrentID(ctx)
+	userID, err := user.GetCurrentID(ctx.R)
 	if err != nil {
 		return fmt.Errorf("can't get current user id: %s", err)
 	}

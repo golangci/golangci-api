@@ -14,7 +14,7 @@ import (
 )
 
 func logout(ctx context.C) error {
-	if err := sess.Remove(&ctx); err != nil {
+	if err := sess.Remove(ctx.R, ctx.W); err != nil {
 		return herrors.New(err, "can't remove session")
 	}
 

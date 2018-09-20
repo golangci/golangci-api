@@ -139,7 +139,7 @@ func LoginGithub(ctx *context.C, gu *goth.User) (err error) {
 		}
 	}
 
-	if err := sess.WriteOneValue(ctx, userIDSessKey, u.ID); err != nil {
+	if err := sess.WriteOneValue(ctx.R, ctx.W, userIDSessKey, u.ID); err != nil {
 		return fmt.Errorf("can't save user id to session: %s", err)
 	}
 

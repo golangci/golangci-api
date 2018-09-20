@@ -2,13 +2,16 @@ package user
 
 import (
 	gocontext "context"
+
 	"fmt"
+	"net/http"
 
 	"github.com/golangci/golangci-api/pkg/models"
 	"github.com/golangci/golangci-api/pkg/todo/auth/sess"
 	"github.com/golangci/golangci-api/pkg/todo/db"
 	"github.com/golangci/golib/server/context"
 	"github.com/golangci/golib/server/handlers/herrors"
+	"github.com/pkg/errors"
 
 	"github.com/jinzhu/gorm"
 )
@@ -20,12 +23,12 @@ var githubAuthCtxKey userCtxKeyType = "githubAuth"
 
 var ErrNotAuthorized = herrors.New403Errorf("user isn't authorized")
 
-func GetCurrentID(ctx *context.C) (uint, error) {
-	if ctx.R == nil { // background, no request
-		return 0, fmt.Errorf("no user for background processing")
+func GetCurrentID(httpReq *http.Request) (uint, error) {
+	if httpReq == nil { // background, no request
+		return 0, errors.New("no user for background processing")
 	}
 
-	userIDi, err := sess.GetValue(ctx, userIDSessKey)
+	userIDi, err := sess.GetValue(httpReq, userIDSessKey)
 	if err != nil {
 		return 0, err
 	}
@@ -44,7 +47,7 @@ func GetCurrent(ctx *context.C) (*models.User, error) {
 		return &user, nil
 	}
 
-	userID, err := GetCurrentID(ctx)
+	userID, err := GetCurrentID(ctx.R)
 	if err != nil {
 		return nil, err
 	}
@@ -70,7 +73,7 @@ func GetGithubAuth(ctx *context.C) (*models.GithubAuth, error) {
 		return a, nil
 	}
 
-	userID, err := GetCurrentID(ctx)
+	userID, err := GetCurrentID(ctx.R)
 	if err != nil {
 		return nil, err
 	}
@@ -88,10 +91,35 @@ func GetGithubAuthForUser(ctx *context.C, userID uint) (*models.GithubAuth, erro
 	var ga models.GithubAuth
 	err := models.NewGithubAuthQuerySet(db.Get(ctx)).
 		UserIDEq(userID).
-		OrderDescByID().
 		One(&ga)
 	if err != nil {
 		return nil, herrors.New(err, "can't get github auth for user %d", userID)
+	}
+
+	return &ga, nil
+}
+
+func GetGithubAuthV2(db *gorm.DB, httpReq *http.Request) (*models.GithubAuth, error) {
+	userID, err := GetCurrentID(httpReq)
+	if err != nil {
+		return nil, err
+	}
+
+	ga, err := GetGithubAuthForUserV2(db, userID)
+	if err != nil {
+		return nil, err
+	}
+
+	return ga, nil
+}
+
+func GetGithubAuthForUserV2(db *gorm.DB, userID uint) (*models.GithubAuth, error) {
+	var ga models.GithubAuth
+	err := models.NewGithubAuthQuerySet(db).
+		UserIDEq(userID).
+		One(&ga)
+	if err != nil {
+		return nil, errors.Wrapf(err, "can't get github auth for user %d", userID)
 	}
 
 	return &ga, nil

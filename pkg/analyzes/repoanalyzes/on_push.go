@@ -7,37 +7,8 @@ import (
 
 	"github.com/golangci/golangci-api/pkg/models"
 	"github.com/golangci/golangci-api/pkg/todo/db"
-	"github.com/golangci/golangci-api/pkg/todo/github"
 	"github.com/golangci/golib/server/context"
 )
-
-type RepoAnalysisStartState struct {
-	DefaultBranch string
-	HeadCommitSHA string
-}
-
-func FetchStartStateForRepoAnalysis(ctx *context.C, repo *models.Repo) (*RepoAnalysisStartState, error) {
-	gc, _, err := github.GetClientForUser(ctx, repo.UserID)
-	if err != nil {
-		return nil, fmt.Errorf("can't get github client: %s", err)
-	}
-
-	gr, _, err := gc.Repositories.Get(ctx.Ctx, repo.Owner(), repo.Repo())
-	if err != nil {
-		return nil, fmt.Errorf("can't get repo %s from github: %s", repo.Name, err)
-	}
-
-	defaultBranch := gr.GetDefaultBranch()
-	grb, _, err := gc.Repositories.GetBranch(ctx.Ctx, repo.Owner(), repo.Repo(), defaultBranch)
-	if err != nil {
-		return nil, fmt.Errorf("can't get github branch %s info: %s", defaultBranch, err)
-	}
-
-	return &RepoAnalysisStartState{
-		DefaultBranch: defaultBranch,
-		HeadCommitSHA: grb.GetCommit().GetSHA(),
-	}, nil
-}
 
 func OnRepoMasterUpdated(ctx *context.C, repo *models.Repo, defaultBranch, commitSHA string) error {
 	repoName := repo.Name

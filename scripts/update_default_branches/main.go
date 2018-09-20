@@ -5,8 +5,8 @@ import (
 	"log"
 
 	"github.com/golangci/golangci-api/app/utils"
+	"github.com/golangci/golangci-api/pkg/analyzes/repoanalyzes"
 	"github.com/golangci/golangci-api/pkg/models"
-	"github.com/golangci/golangci-api/pkg/todo/analyzes/repoanalyzes"
 	"github.com/golangci/golangci-api/pkg/todo/db"
 	"github.com/golangci/golib/server/context"
 	_ "github.com/mattes/migrate/database/postgres" // pg
@@ -40,7 +40,8 @@ func updateAllBranches() error {
 }
 
 func updateRepoDefaultBranch(ctx *context.C, repo *models.Repo) error {
-	state, err := repoanalyzes.FetchStartStateForRepoAnalysis(ctx, repo)
+	grsf := repoanalyzes.NewGithubRepoStateFetcher(db.Get(ctx))
+	state, err := grsf.Fetch(ctx.Ctx, repo)
 	if err != nil {
 		return err
 	}
@@ -54,7 +55,7 @@ func updateRepoDefaultBranch(ctx *context.C, repo *models.Repo) error {
 	}
 
 	if as.DefaultBranch != state.DefaultBranch {
-		logrus.Infof("Changing %s default branch: %s -> %s", as.DefaultBranch, state.DefaultBranch)
+		logrus.Infof("Changing %s default branch: %s -> %s", repo, as.DefaultBranch, state.DefaultBranch)
 	}
 
 	err = models.NewRepoAnalysisStatusQuerySet(db.Get(ctx)).

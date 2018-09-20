@@ -2,7 +2,6 @@ package errors
 
 import (
 	"fmt"
-	"os"
 
 	"github.com/golangci/golangci-shared/pkg/apperrors"
 	"github.com/golangci/golangci-shared/pkg/config"
@@ -10,7 +9,6 @@ import (
 
 	"github.com/golangci/golangci-api/pkg/todo/auth/user"
 	"github.com/golangci/golib/server/context"
-	"github.com/stvp/rollbar"
 )
 
 func Warnf(ctx *context.C, format string, args ...interface{}) {
@@ -47,15 +45,5 @@ func track(ctx *context.C, err error, level string) {
 		ctx.L.Errorf("%s: %+v", err, u)
 	} else {
 		ctx.L.Warnf("%s: %+v", err, u)
-	}
-}
-
-func init() {
-	rollbar.Token = os.Getenv("ROLLBAR_API_TOKEN")
-	goEnv := os.Getenv("GO_ENV")
-	if goEnv == "prod" {
-		rollbar.Environment = "production"
-	} else {
-		rollbar.Environment = "development"
 	}
 }
