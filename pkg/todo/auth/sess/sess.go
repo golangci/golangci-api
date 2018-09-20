@@ -2,6 +2,7 @@ package sess
 
 import (
 	"fmt"
+	"net/http"
 	"os"
 	"strings"
 	"sync"
@@ -9,8 +10,8 @@ import (
 	redisapi "github.com/golangci/golangci-api/pkg/db/redis"
 	"github.com/golangci/golangci-shared/pkg/config"
 	"github.com/golangci/golangci-shared/pkg/logutil"
+	"github.com/pkg/errors"
 
-	"github.com/golangci/golib/server/context"
 	redistore "gopkg.in/boj/redistore.v1"
 
 	"github.com/gorilla/sessions"
@@ -47,15 +48,15 @@ func CreateStore(maxAge int) *redistore.RediStore {
 	return store
 }
 
-func Get(ctx *context.C) (*sessions.Session, error) {
+func Get(httpReq *http.Request) (*sessions.Session, error) {
 	primaryStoreOnce.Do(func() {
 		primaryStore = CreateStore(90 * 24 * 3600) // 90 days
 	})
-	return primaryStore.Get(ctx.R, sessionCookieName)
+	return primaryStore.Get(httpReq, sessionCookieName)
 }
 
-func GetValue(ctx *context.C, key string) (interface{}, error) {
-	s, err := Get(ctx)
+func GetValue(httpReq *http.Request, key string) (interface{}, error) {
+	s, err := Get(httpReq)
 	if err != nil {
 		return nil, fmt.Errorf("can't get session: %s", err)
 	}
@@ -63,30 +64,30 @@ func GetValue(ctx *context.C, key string) (interface{}, error) {
 	return s.Values[key], nil
 }
 
-func WriteOneValue(ctx *context.C, k string, v interface{}) error {
-	s, err := Get(ctx)
+func WriteOneValue(httpReq *http.Request, httpWriter http.ResponseWriter, k string, v interface{}) error {
+	s, err := Get(httpReq)
 	if err != nil {
 		return fmt.Errorf("can't get session for request: %s", err)
 	}
 
 	s.Values[k] = v
-	if err := s.Save(ctx.R, ctx.W); err != nil {
+	if err := s.Save(httpReq, httpWriter); err != nil {
 		return fmt.Errorf("can't save session changes by key %q: %s", k, err)
 	}
 
 	return nil
 }
 
-func Remove(ctx *context.C) error {
-	s, err := Get(ctx)
+func Remove(httpReq *http.Request, httpWriter http.ResponseWriter) error {
+	s, err := Get(httpReq)
 	if err != nil {
-		return fmt.Errorf("can't get session for request: %s", err)
+		return errors.Wrap(err, "can't get session for request")
 	}
 
 	s.Options.MaxAge = -1
 	s.Values = make(map[interface{}]interface{})
-	if err = s.Save(ctx.R, ctx.W); err != nil {
-		return fmt.Errorf("could not delete user session: %s", err)
+	if err = s.Save(httpReq, httpWriter); err != nil {
+		return errors.Wrap(err, "could not delete user session")
 	}
 
 	return nil

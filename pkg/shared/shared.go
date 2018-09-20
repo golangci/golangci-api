@@ -5,8 +5,8 @@ import (
 
 	_ "github.com/mattes/migrate/database/postgres" // must be first
 
-	"github.com/golangci/golangci-api/pkg/todo/analyzes"
-	"github.com/golangci/golangci-api/pkg/todo/analyzes/repoanalyzes"
+	"github.com/golangci/golangci-api/pkg/analyzes"
+	"github.com/golangci/golangci-api/pkg/analyzes/repoanalyzes"
 	"github.com/golangci/golangci-worker/app/lib/queue"
 
 	log "github.com/sirupsen/logrus"

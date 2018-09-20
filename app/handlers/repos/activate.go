@@ -51,4 +51,5 @@ func changeRepo(ctx context.C) error {
 
 func init() {
 	handlers.Register("/v1/repos/{repoOwner}/{repoName}", changeRepo)
+	handlers.Register("/v1/repos/github.com/{repoOwner}/{repoName}", changeRepo)
 }

@@ -24,3 +24,21 @@ func (r Repo) String() string {
 func (r Repo) FillLogContext(lctx logutil.Context) {
 	lctx["repo"] = r.String()
 }
+
+type BodyRepo struct {
+	Provider string
+	Owner    string
+	Name     string
+}
+
+func (r BodyRepo) FullName() string {
+	return strings.ToLower(fmt.Sprintf("%s/%s", r.Owner, r.Name))
+}
+
+func (r BodyRepo) String() string {
+	return fmt.Sprintf("%s/%s", r.Provider, r.FullName())
+}
+
+func (r BodyRepo) FillLogContext(lctx logutil.Context) {
+	lctx["repo"] = r.String()
+}

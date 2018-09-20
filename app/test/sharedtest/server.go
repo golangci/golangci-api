@@ -23,6 +23,8 @@ func initServer() {
 		app := app.NewApp()
 		app.RegisterHandlers()
 		app.RunMigrations()
+		app.RunConsumers()
+		app.RunProducers()
 		server = httptest.NewServer(handlers.GetRoot())
 	})
 }

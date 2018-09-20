@@ -6,8 +6,8 @@ import (
 	"strings"
 
 	"github.com/golangci/golangci-api/app/handlers"
+	"github.com/golangci/golangci-api/pkg/analyzes/repoanalyzes"
 	"github.com/golangci/golangci-api/pkg/models"
-	"github.com/golangci/golangci-api/pkg/todo/analyzes/repoanalyzes"
 	"github.com/golangci/golangci-api/pkg/todo/db"
 	"github.com/golangci/golangci-api/pkg/todo/errors"
 	"github.com/golangci/golangci-worker/app/analyze/analyzequeue"

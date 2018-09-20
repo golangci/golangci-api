@@ -27,7 +27,7 @@ type ShortRepoInfo struct {
 }
 
 func fetchGithubReposCached(ctx *context.C, client *gh.Client, maxPageNumber int) ([]ShortRepoInfo, error) {
-	userID, err := user.GetCurrentID(ctx)
+	userID, err := user.GetCurrentID(ctx.R)
 	if err != nil {
 		return nil, err
 	}
