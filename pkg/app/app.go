@@ -92,7 +92,7 @@ func NewApp() *App {
 	migrationsRunner := migrations.NewRunner(rs.NewMutex("migrations"), trackedLog,
 		dbConnString, utils.GetProjectRoot())
 
-	awsCfg := aws.NewConfig()
+	awsCfg := aws.NewConfig().WithRegion("us-east-1")
 	endpoint := cfg.GetString("SQS_ENDPOINT")
 	if endpoint != "" {
 		awsCfg = awsCfg.WithEndpoint(endpoint)
