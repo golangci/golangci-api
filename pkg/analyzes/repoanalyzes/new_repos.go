@@ -53,7 +53,7 @@ func (nrl *NewReposLauncher) createNewAnalysisStatuses(ctx *context.C) error {
 		OrderDescByID().
 		All(&repos)
 	if err != nil {
-		return fmt.Errorf("can't get github repos: %s", err)
+		return fmt.Errorf("can't get repos: %s", err)
 	}
 	if len(repos) != 0 {
 		nrl.LastGithubRepoID = repos[0].ID

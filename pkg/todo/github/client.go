@@ -18,9 +18,9 @@ import (
 var GetClient = getClient
 
 func getClient(ctx *context.C) (*gh.Client, bool, error) {
-	ga, err := user.GetGithubAuth(ctx)
+	ga, err := user.GetAuth(ctx)
 	if err != nil {
-		return nil, false, herrors.New(err, "can't get current github auth")
+		return nil, false, herrors.New(err, "can't get current auth")
 	}
 
 	at := ga.AccessToken
@@ -45,9 +45,9 @@ func getClient(ctx *context.C) (*gh.Client, bool, error) {
 }
 
 func GetClientV2(ctx gocontext.Context, db *gorm.DB, httpReq *http.Request) (*gh.Client, bool, error) {
-	ga, err := user.GetGithubAuthV2(db, httpReq)
+	ga, err := user.GetAuthV2(db, httpReq)
 	if err != nil {
-		return nil, false, errors.Wrap(err, "can't get current github auth")
+		return nil, false, errors.Wrap(err, "can't get current auth")
 	}
 
 	at := ga.AccessToken
@@ -72,9 +72,9 @@ func GetClientV2(ctx gocontext.Context, db *gorm.DB, httpReq *http.Request) (*gh
 }
 
 func GetClientForUser(ctx *context.C, userID uint) (*gh.Client, bool, error) {
-	ga, err := user.GetGithubAuthForUser(ctx, userID)
+	ga, err := user.GetAuthForUser(ctx, userID)
 	if err != nil {
-		return nil, false, herrors.New(err, "can't get user %d github auth", userID)
+		return nil, false, herrors.New(err, "can't get user %d auth", userID)
 	}
 
 	at := ga.AccessToken
@@ -99,13 +99,13 @@ func GetClientForUser(ctx *context.C, userID uint) (*gh.Client, bool, error) {
 }
 
 func GetClientForUserV2(ctx gocontext.Context, db *gorm.DB, userID uint) (*gh.Client, error) {
-	var ga models.GithubAuth
-	err := models.NewGithubAuthQuerySet(db).
+	var ga models.Auth
+	err := models.NewAuthQuerySet(db).
 		UserIDEq(userID).
 		OrderDescByID().
 		One(&ga)
 	if err != nil {
-		return nil, errors.Wrapf(err, "can't get github auth for user %d", userID)
+		return nil, errors.Wrapf(err, "can't get auth for user %d", userID)
 	}
 
 	accessToken := ga.AccessToken

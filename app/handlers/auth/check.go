@@ -13,7 +13,7 @@ func checkAuth(ctx context.C) error {
 		return err
 	}
 
-	ga, err := user.GetGithubAuth(&ctx)
+	ga, err := user.GetAuth(&ctx)
 	if err != nil {
 		return err
 	}

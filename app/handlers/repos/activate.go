@@ -13,9 +13,9 @@ import (
 )
 
 func changeRepo(ctx context.C) error {
-	ga, err := user.GetGithubAuth(&ctx)
+	ga, err := user.GetAuth(&ctx)
 	if err != nil {
-		return herrors.New(err, "can't get github auth")
+		return herrors.New(err, "can't get auth")
 	}
 
 	repoOwner := ctx.URLVar("repoOwner")

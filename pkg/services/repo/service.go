@@ -45,7 +45,7 @@ func (s BasicService) Create(rc *request.Context, reqRepo *request.BodyRepo) (*r
 	}
 
 	var repo models.Repo
-	if err = models.NewRepoQuerySet(s.DB).GithubIDEq(githubRepo.GetID()).One(&repo); err == nil {
+	if err = models.NewRepoQuerySet(s.DB).ProviderIDEq(githubRepo.GetID()).One(&repo); err == nil {
 		return nil, fmt.Errorf("attempt to activate already activated repo %s", repo.String())
 	}
 
@@ -54,9 +54,9 @@ func (s BasicService) Create(rc *request.Context, reqRepo *request.BodyRepo) (*r
 		return nil, errors.Wrap(err, "can't generate hook id")
 	}
 
-	ga, err := user.GetGithubAuthV2(s.DB, nil)
+	ga, err := user.GetAuthV2(s.DB, nil)
 	if err != nil {
-		return nil, errors.Wrap(err, "can't get current github auth")
+		return nil, errors.Wrap(err, "can't get current auth")
 	}
 
 	gr := models.Repo{
@@ -65,7 +65,7 @@ func (s BasicService) Create(rc *request.Context, reqRepo *request.BodyRepo) (*r
 		DisplayName: githubRepo.GetFullName(),
 		HookID:      hookID,
 		Provider:    "github.com",
-		GithubID:    githubRepo.GetID(),
+		ProviderID:  githubRepo.GetID(),
 	}
 
 	web := "web"
@@ -83,7 +83,7 @@ func (s BasicService) Create(rc *request.Context, reqRepo *request.BodyRepo) (*r
 		return nil, errors.Wrapf(err, "can't post hook %v to github", hook)
 	}
 
-	gr.GithubHookID = rh.GetID()
+	gr.ProviderHookID = rh.GetID()
 	if err := gr.Create(s.DB); err != nil {
 		return nil, errors.Wrap(err, "can't create repo")
 	}

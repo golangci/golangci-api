@@ -21,9 +21,9 @@ func postAnalyticsEvent(ctx context.C) error {
 		return herrors.New400Errorf("bad method %q", ctx.R.Method)
 	}
 
-	ga, err := user.GetGithubAuth(&ctx)
+	ga, err := user.GetAuth(&ctx)
 	if err != nil {
-		return herrors.New(err, "can't get current github auth")
+		return herrors.New(err, "can't get current auth")
 	}
 
 	var ev analyticsEvent

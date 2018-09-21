@@ -26,11 +26,11 @@ func fillRepoIDs() error {
 	ctx := utils.NewBackgroundContext()
 
 	var repos []models.Repo
-	if err := models.NewRepoQuerySet(db.Get(ctx)).GithubIDEq(0).All(&repos); err != nil {
-		return fmt.Errorf("can't fetch all github repos: %s", err)
+	if err := models.NewRepoQuerySet(db.Get(ctx)).ProviderIDEq(0).All(&repos); err != nil {
+		return fmt.Errorf("can't fetch all repos: %s", err)
 	}
 
-	log.Printf("Got %d github repos to update", len(repos))
+	log.Printf("Got %d repos to update", len(repos))
 
 	for i, repo := range repos {
 		if err := updateRepo(ctx, &repo); err != nil {
@@ -38,7 +38,7 @@ func fillRepoIDs() error {
 			continue
 		}
 		log.Printf("#%d/%d: successfully updated repo id to %d",
-			i+1, len(repos), repo.GithubID)
+			i+1, len(repos), repo.ProviderID)
 	}
 
 	return nil
@@ -59,12 +59,12 @@ func updateRepo(ctx *context.C, repo *models.Repo) error {
 	}
 
 	err = models.NewRepoQuerySet(db.Get(ctx)).IDEq(repo.ID).GetUpdater().
-		SetGithubID(gr.GetID()).Update()
+		SetProviderID(gr.GetID()).Update()
 	if err != nil {
 		return fmt.Errorf("can't update repo %#v id to %d: %s", repo, gr.GetID(), err)
 	}
 
-	repo.GithubID = gr.GetID()
+	repo.ProviderID = gr.GetID()
 	return nil
 }
 

@@ -9,13 +9,13 @@ import (
 )
 
 func UnlinkGithub(ctx *context.C) error {
-	ga, err := GetGithubAuth(ctx)
+	ga, err := GetAuth(ctx)
 	if err != nil {
-		return herrors.New(err, "can't get github auth")
+		return herrors.New(err, "can't get auth")
 	}
 
 	if err = ga.Delete(db.Get(ctx).Unscoped()); err != nil {
-		return fmt.Errorf("can't delete github auth: %s", err)
+		return fmt.Errorf("can't delete auth: %s", err)
 	}
 
 	return nil

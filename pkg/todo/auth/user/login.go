@@ -1,6 +1,7 @@
 package user
 
 import (
+	"encoding/json"
 	"fmt"
 	"strconv"
 	"time"
@@ -20,17 +21,17 @@ const userIDSessKey = "UserID"
 func updateUserDataIfNeeded(ctx *context.C, u *models.User, gu *goth.User) error {
 	var fieldsToUpdate []models.UserDBSchemaField
 	if gu.Email != "" && u.Email != gu.Email {
-		ctx.L.Infof("Updating user %d email from %s to %s on github auth", u.ID, u.Email, gu.Email)
+		ctx.L.Infof("Updating user %d email from %s to %s on auth", u.ID, u.Email, gu.Email)
 		u.Email = gu.Email
 		fieldsToUpdate = append(fieldsToUpdate, models.UserDBSchema.Email)
 	}
 	if gu.Name != "" && u.Name != gu.Name {
-		ctx.L.Infof("Updating user %d name from %s to %s on github auth", u.ID, u.Name, gu.Name)
+		ctx.L.Infof("Updating user %d name from %s to %s on auth", u.ID, u.Name, gu.Name)
 		u.Name = gu.Name
 		fieldsToUpdate = append(fieldsToUpdate, models.UserDBSchema.Name)
 	}
 	if gu.AvatarURL != "" && u.AvatarURL != gu.AvatarURL {
-		ctx.L.Infof("Updating user %d avatar from %s to %s on github auth", u.ID, u.AvatarURL, gu.AvatarURL)
+		ctx.L.Infof("Updating user %d avatar from %s to %s on auth", u.ID, u.AvatarURL, gu.AvatarURL)
 		u.AvatarURL = gu.AvatarURL
 		fieldsToUpdate = append(fieldsToUpdate, models.UserDBSchema.AvatarURL)
 	}
@@ -45,15 +46,15 @@ func updateUserDataIfNeeded(ctx *context.C, u *models.User, gu *goth.User) error
 
 func getOrStoreUserInDB(ctx *context.C, gu *goth.User) (*models.User, uint, error) {
 	DB := db.Get(ctx)
-	var ga models.GithubAuth
-	githubUserID, err := strconv.ParseUint(gu.UserID, 10, 64)
+	var ga models.Auth
+	providerUserID, err := strconv.ParseUint(gu.UserID, 10, 64)
 	if err != nil {
 		return nil, 0, fmt.Errorf("can't parse github user id %q: %s", gu.UserID, err)
 	}
 
-	err = models.NewGithubAuthQuerySet(DB).GithubUserIDEq(githubUserID).OrderDescByID().One(&ga)
+	err = models.NewAuthQuerySet(DB).ProviderUserIDEq(providerUserID).OrderDescByID().One(&ga)
 	if err != nil && err != gorm.ErrRecordNotFound {
-		return nil, 0, fmt.Errorf("can't select github auth with github user id %d: %s", githubUserID, err)
+		return nil, 0, fmt.Errorf("can't select auth with provider user id %d: %s", providerUserID, err)
 	}
 
 	if err == gorm.ErrRecordNotFound { // new user, need create it
@@ -108,34 +109,39 @@ func LoginGithub(ctx *context.C, gu *goth.User) (err error) {
 		return err
 	}
 
-	githubUserID, err := strconv.ParseUint(gu.UserID, 10, 64)
+	providerUserID, err := strconv.ParseUint(gu.UserID, 10, 64)
 	if err != nil {
-		return errors.Wrapf(err, "can't parse github user id %s", gu.UserID)
+		return errors.Wrapf(err, "can't parse provider user id %s", gu.UserID)
 	}
 
-	ga := models.GithubAuth{
+	rawData, err := json.Marshal(gu.RawData)
+	if err != nil {
+		return errors.Wrap(err, "json marshal of raw data failed")
+	}
+
+	ga := models.Auth{
 		Model: gorm.Model{
 			ID: gaID,
 		},
-		RawData:      gu.RawData,
-		AccessToken:  gu.AccessToken,
-		UserID:       u.ID,
-		Login:        gu.NickName,
-		GithubUserID: githubUserID,
+		RawData:        rawData,
+		AccessToken:    gu.AccessToken,
+		UserID:         u.ID,
+		Login:          gu.NickName,
+		ProviderUserID: providerUserID,
 	}
 
 	DB := db.Get(ctx)
 
 	if gaID == 0 {
 		if err = ga.Create(DB); err != nil {
-			return fmt.Errorf("can't create github authorization %v: %s", u, err)
+			return fmt.Errorf("can't create authorization %v: %s", u, err)
 		}
 	} else {
-		err = ga.Update(DB, // TODO: save raw data
-			models.GithubAuthDBSchema.AccessToken, models.GithubAuthDBSchema.Login,
+		err = ga.Update(DB, models.AuthDBSchema.RawData,
+			models.AuthDBSchema.AccessToken, models.AuthDBSchema.Login,
 		)
 		if err != nil {
-			return fmt.Errorf("can't update github authorization %v: %s", u, err)
+			return fmt.Errorf("can't update authorization %v: %s", u, err)
 		}
 	}
 

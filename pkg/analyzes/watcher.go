@@ -63,12 +63,12 @@ func getGithubContextForAnalysis(ctx *context.C, analysis models.PullRequestAnal
 		return nil, fmt.Errorf("no repo: %+v", analysis.Repo)
 	}
 
-	var ga models.GithubAuth
-	err := models.NewGithubAuthQuerySet(db.Get(ctx)).
+	var ga models.Auth
+	err := models.NewAuthQuerySet(db.Get(ctx)).
 		UserIDEq(analysis.Repo.UserID).
 		One(&ga)
 	if err != nil {
-		return nil, fmt.Errorf("can't get github auth for user %d: %s", analysis.Repo.UserID, err)
+		return nil, fmt.Errorf("can't get auth for user %d: %s", analysis.Repo.UserID, err)
 	}
 
 	parts := strings.SplitN(analysis.Repo.Name, "/", 2)

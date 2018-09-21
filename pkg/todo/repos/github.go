@@ -36,14 +36,14 @@ func DeactivateRepo(ctx *context.C, owner, repo string) (*models.Repo, error) {
 		return nil, fmt.Errorf("can't get repo %s/%s: %s", owner, repo, err)
 	}
 
-	_, err = gc.Repositories.DeleteHook(ctx.Ctx, owner, repo, gr.GithubHookID)
+	_, err = gc.Repositories.DeleteHook(ctx.Ctx, owner, repo, gr.ProviderHookID)
 	if err != nil {
 		if er, ok := err.(*gh.ErrorResponse); ok && er.Response.StatusCode == http.StatusNotFound {
 			ctx.L.Warnf("Webhook or repo for %#v was deleted by user: deactivating repo without deleting webhook",
 				repo)
 		} else {
-			return nil, fmt.Errorf("can't delete hook %d from github repo %s/%s: %s",
-				gr.GithubHookID, owner, repo, err)
+			return nil, fmt.Errorf("can't delete hook %d from repo %s/%s: %s",
+				gr.ProviderHookID, owner, repo, err)
 		}
 	}
 
@@ -60,7 +60,7 @@ func GetWebhookURLPathForRepo(name, hookID string) string {
 	return fmt.Sprintf("/v1/repos/%s/hooks/%s", name, hookID)
 }
 
-func ActivateRepo(ctx *context.C, ga *models.GithubAuth, owner, repo string) (*models.Repo, error) {
+func ActivateRepo(ctx *context.C, ga *models.Auth, owner, repo string) (*models.Repo, error) {
 	origRepoName := fmt.Sprintf("%s/%s", owner, repo)
 	repoName := strings.ToLower(origRepoName)
 
@@ -108,9 +108,9 @@ func ActivateRepo(ctx *context.C, ga *models.GithubAuth, owner, repo string) (*m
 	if err != nil {
 		return nil, fmt.Errorf("can't get repo %s/%s data: %s", owner, repo, err)
 	}
-	gr.GithubID = githubRepo.GetID()
+	gr.ProviderID = githubRepo.GetID()
 
-	gr.GithubHookID = rh.GetID()
+	gr.ProviderHookID = rh.GetID()
 	if err := gr.Create(db.Get(ctx)); err != nil {
 		return nil, herrors.New(err, "can't create repo")
 	}
@@ -135,9 +135,9 @@ func DeactivateAll(ctx *context.C) error {
 }
 
 func ArePrivateReposEnabledForUser(ctx *context.C) bool {
-	ga, err := user.GetGithubAuth(ctx)
+	ga, err := user.GetAuth(ctx)
 	if err != nil {
-		errors.Errorf(ctx, "Can't get current github auth: %s", err)
+		errors.Errorf(ctx, "Can't get current auth: %s", err)
 		return false
 	}
 
