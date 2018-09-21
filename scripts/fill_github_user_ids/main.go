@@ -24,12 +24,12 @@ func main() {
 func fillUserIDs() error {
 	ctx := utils.NewBackgroundContext()
 
-	var auths []models.GithubAuth
-	if err := models.NewGithubAuthQuerySet(db.Get(ctx)).GithubUserIDEq(0).All(&auths); err != nil {
-		return fmt.Errorf("can't fetch all github auths: %s", err)
+	var auths []models.Auth
+	if err := models.NewAuthQuerySet(db.Get(ctx)).ProviderUserIDEq(0).All(&auths); err != nil {
+		return fmt.Errorf("can't fetch all auths: %s", err)
 	}
 
-	log.Printf("Got %d github auths to update", len(auths))
+	log.Printf("Got %d auths to update", len(auths))
 
 	for i, ga := range auths {
 		if err := updateAuth(ctx, &ga); err != nil {
@@ -41,7 +41,7 @@ func fillUserIDs() error {
 	return nil
 }
 
-func updateAuth(ctx *context.C, ga *models.GithubAuth) error {
+func updateAuth(ctx *context.C, ga *models.Auth) error {
 	gc := github.Context{GithubAccessToken: ga.AccessToken}.GetClient(ctx.Ctx)
 	u, _, err := gc.Users.Get(ctx.Ctx, "")
 	if err != nil {
@@ -50,8 +50,8 @@ func updateAuth(ctx *context.C, ga *models.GithubAuth) error {
 		}
 	}
 
-	err = models.NewGithubAuthQuerySet(db.Get(ctx)).IDEq(ga.ID).GetUpdater().
-		SetGithubUserID(uint64(u.GetID())).Update()
+	err = models.NewAuthQuerySet(db.Get(ctx)).IDEq(ga.ID).GetUpdater().
+		SetProviderUserID(uint64(u.GetID())).Update()
 	if err != nil {
 		return fmt.Errorf("can't update github user id to %d: %s", u.ID, err)
 	}
@@ -59,7 +59,7 @@ func updateAuth(ctx *context.C, ga *models.GithubAuth) error {
 	return nil
 }
 
-func getUserByFallback(ctx *context.C, ga *models.GithubAuth) (*gh.User, error) {
+func getUserByFallback(ctx *context.C, ga *models.Auth) (*gh.User, error) {
 	fallbackAccessToken := os.Getenv("GITHUB_FALLBACK_ACCESS_TOKEN")
 	if fallbackAccessToken == "" {
 		return nil, errors.New("no fallback github access token")

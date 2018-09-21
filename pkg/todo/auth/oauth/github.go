@@ -6,7 +6,7 @@ import (
 	"github.com/markbates/goth/providers/github"
 )
 
-func GetPublicReposGithubAuthorizer(cbURL string) *Authorizer {
+func GetPublicReposAuthorizer(cbURL string) *Authorizer {
 	gh := github.New(
 		os.Getenv("GITHUB_KEY"),
 		os.Getenv("GITHUB_SECRET"),
@@ -24,7 +24,7 @@ func GetPublicReposGithubAuthorizer(cbURL string) *Authorizer {
 	}
 }
 
-func GetPrivateReposGithubAuthorizer(cbURL string) *Authorizer {
+func GetPrivateReposAuthorizer(cbURL string) *Authorizer {
 	gh := github.New(
 		os.Getenv("GITHUB_KEY"),
 		os.Getenv("GITHUB_SECRET"),

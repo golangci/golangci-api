@@ -123,7 +123,7 @@ func getActivatedRepos(ctx *context.C) (map[int]*models.Repo, error) {
 
 	ret := map[int]*models.Repo{}
 	for _, r := range repos {
-		ret[r.GithubID] = &r
+		ret[r.ProviderID] = &r
 	}
 
 	ctx.L.Infof("Built map of all %d activated repos for %s", len(ret), time.Since(startedAt))

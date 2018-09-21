@@ -19,12 +19,11 @@ type Repo struct {
 	Name        string // lower-cased DisplayName to avoid case-sensitivity bugs
 	DisplayName string // original name of repo from github: original register is saved
 
-	HookID   string
-	Provider string // github.com, gitlab.com etc
+	HookID string
 
-	// GitHub specific
-	GithubHookID int
-	GithubID     int // github repo id: use it (not name) as repo identifier because of repo renaming
+	Provider       string // github.com, gitlab.com etc
+	ProviderHookID int
+	ProviderID     int // provider repo id: use it (not name) as repo identifier because of repo renaming
 }
 
 func (r *Repo) Owner() string {

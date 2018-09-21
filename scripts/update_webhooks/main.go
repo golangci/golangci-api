@@ -40,16 +40,16 @@ func updateAllWebhooks() error {
 }
 
 func updateRepoWebhook(ctx *context.C, repo *models.Repo) error {
-	var ga models.GithubAuth
-	err := models.NewGithubAuthQuerySet(db.Get(ctx)).
+	var ga models.Auth
+	err := models.NewAuthQuerySet(db.Get(ctx)).
 		UserIDEq(repo.UserID).
 		One(&ga)
 	if err != nil {
-		return fmt.Errorf("can't get github auth for user %d", repo.UserID)
+		return fmt.Errorf("can't get auth for user %d", repo.UserID)
 	}
 
 	gc := github.Context{GithubAccessToken: ga.AccessToken}.GetClient(ctx.Ctx) // public repos only
-	_, _, err = gc.Repositories.EditHook(ctx.Ctx, repo.Owner(), repo.Repo(), repo.GithubHookID, &gh.Hook{
+	_, _, err = gc.Repositories.EditHook(ctx.Ctx, repo.Owner(), repo.Repo(), repo.ProviderHookID, &gh.Hook{
 		Events: []string{"push", "pull_request"},
 	})
 	if err != nil {

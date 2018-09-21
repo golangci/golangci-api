@@ -159,7 +159,7 @@ func getOrCreateRepo(repoName string) (*models.Repo, error) {
 
 	repo.Name = repoName
 	repo.UserID = u.ID
-	repo.GithubHookID = 1
+	repo.ProviderHookID = 1
 	repo.HookID = uuid.NewV4().String()[:32]
 	if err = repo.Create(database.GetDB()); err != nil {
 		return nil, fmt.Errorf("can't create repo %#v: %s", repo, err)

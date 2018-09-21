@@ -29,7 +29,7 @@ func githubLogin(ctx context.C) error {
 		return nil
 	}
 
-	a := oauth.GetPublicReposGithubAuthorizer(callbackURL)
+	a := oauth.GetPublicReposAuthorizer(callbackURL)
 	return a.RedirectToProvider(&ctx)
 }
 
@@ -40,7 +40,7 @@ func githubOAuthCallback(ctx context.C) error {
 		return githubPrivateOAuthCallback(ctx)
 	}
 
-	a := oauth.GetPublicReposGithubAuthorizer(callbackURL)
+	a := oauth.GetPublicReposAuthorizer(callbackURL)
 	gu, err := a.HandleProviderCallback(&ctx)
 	if err != nil {
 		return fmt.Errorf("can't complete github oauth: %s", err)
@@ -56,24 +56,24 @@ func githubOAuthCallback(ctx context.C) error {
 }
 
 func githubPrivateLogin(ctx context.C) error {
-	a := oauth.GetPrivateReposGithubAuthorizer(callbackURL)
+	a := oauth.GetPrivateReposAuthorizer(callbackURL)
 	return a.RedirectToProvider(&ctx)
 }
 
 func githubPrivateOAuthCallback(ctx context.C) error {
-	a := oauth.GetPrivateReposGithubAuthorizer(callbackURL)
+	a := oauth.GetPrivateReposAuthorizer(callbackURL)
 	gu, err := a.HandleProviderCallback(&ctx)
 	if err != nil {
 		return fmt.Errorf("can't complete github oauth: %s", err)
 	}
 
-	ga, err := user.GetGithubAuth(&ctx)
+	ga, err := user.GetAuth(&ctx)
 	if err != nil {
 		return err
 	}
 
 	ga.PrivateAccessToken = gu.AccessToken
-	if err := ga.Update(db.Get(&ctx), models.GithubAuthDBSchema.PrivateAccessToken); err != nil {
+	if err := ga.Update(db.Get(&ctx), models.AuthDBSchema.PrivateAccessToken); err != nil {
 		return fmt.Errorf("can't save access token: %s", err)
 	}
 
