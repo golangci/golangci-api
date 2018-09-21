@@ -6,9 +6,9 @@ import (
 
 	"github.com/golangci/golangci-api/app/handlers"
 	"github.com/golangci/golangci-api/app/returntypes"
+	"github.com/golangci/golangci-api/pkg/cache"
 	"github.com/golangci/golangci-api/pkg/models"
 	"github.com/golangci/golangci-api/pkg/todo/auth/user"
-	"github.com/golangci/golangci-api/pkg/todo/cache"
 	"github.com/golangci/golangci-api/pkg/todo/db"
 	"github.com/golangci/golangci-api/pkg/todo/errors"
 	"github.com/golangci/golangci-api/pkg/todo/github"
@@ -155,10 +155,14 @@ func getReposList(ctx context.C) error {
 	for _, r := range repos {
 		ar := activatedRepos[r.GithubID]
 		hookID := ""
+		var repoID uint
 		if ar != nil {
 			hookID = ar.HookID
+			repoID = ar.ID
 		}
+
 		retRepo := returntypes.RepoInfo{
+			ID:          repoID,
 			Name:        r.FullName,
 			IsAdmin:     r.IsAdmin,
 			IsActivated: r.GithubID != 0 && ar != nil,
@@ -181,6 +185,5 @@ func getReposList(ctx context.C) error {
 }
 
 func init() {
-	handlers.Register("/v1/repos", getReposList)
 	handlers.Register("/v1/repos/todo", getReposList)
 }

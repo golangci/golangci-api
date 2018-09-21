@@ -1,6 +1,7 @@
 package app
 
 import (
+	"database/sql"
 	"fmt"
 	"net/http"
 	"os"
@@ -8,9 +9,14 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 
 	"github.com/aws/aws-sdk-go/aws/session"
-	repoanalyzeslib "github.com/golangci/golangci-api/pkg/analyzes/repoanalyzes"
+	"github.com/golangci/golangci-api/pkg/app/hooks"
+	"github.com/golangci/golangci-api/pkg/cache"
+	"github.com/golangci/golangci-api/pkg/db/gormdb"
 	"github.com/golangci/golangci-api/pkg/db/redis"
-	"github.com/golangci/golangci-api/pkg/workers/primaryqueue/repoanalyzes"
+	"github.com/golangci/golangci-api/pkg/providers"
+	apisession "github.com/golangci/golangci-api/pkg/session"
+	"github.com/golangci/golangci-api/pkg/workers/primaryqueue"
+	"github.com/golangci/golangci-api/pkg/workers/primaryqueue/repos"
 
 	"gopkg.in/redsync.v1"
 
@@ -21,14 +27,12 @@ import (
 	"github.com/golangci/golib/server/handlers/manager"
 	"github.com/gorilla/mux"
 
-	"strings"
-
 	"github.com/golangci/golangci-api/pkg/db/migrations"
+	"github.com/golangci/golangci-api/pkg/services/repo"
 	"github.com/golangci/golangci-api/pkg/services/repoanalysis"
 	"github.com/golangci/golangci-shared/pkg/config"
 	"github.com/golangci/golangci-shared/pkg/logutil"
 	"github.com/jinzhu/gorm"
-	"github.com/pkg/errors"
 
 	"github.com/golangci/golangci-api/pkg/queue/aws/consumer"
 	"github.com/golangci/golangci-api/pkg/queue/aws/sqs"
@@ -39,6 +43,7 @@ import (
 
 type appServices struct {
 	repoanalysis repoanalysis.Service
+	repo         repo.Service
 }
 
 type queues struct {
@@ -50,15 +55,19 @@ type App struct {
 	log              logutil.Log
 	trackedLog       logutil.Log
 	errTracker       apperrors.Tracker
-	db               *gorm.DB
+	gormDB           *gorm.DB
+	sqlDB            *sql.DB
 	migrationsRunner *migrations.Runner
 	services         appServices
 	awsSess          *session.Session
 	queues           queues
+	sessFactory      *apisession.Factory
+	providerFactory  *providers.Factory
+	hooksInjector    *hooks.Injector
+	distLockFactory  *redsync.Redsync
 }
 
-const visibilityTimeoutSec = 60 // must be in sync with cloudformation.yml
-
+//nolint:gocyclo
 func NewApp() *App {
 	slog := logutil.NewStderrLog("golangci-api")
 	slog.SetLevel(logutil.LogLevelInfo)
@@ -68,20 +77,19 @@ func NewApp() *App {
 	errTracker := apperrors.GetTracker(cfg, slog)
 	trackedLog := apperrors.WrapLogWithTracker(slog, nil, errTracker)
 
-	dbConnString, err := getDBConnString(cfg)
+	dbConnString, err := gormdb.GetDBConnString(cfg)
 	if err != nil {
 		slog.Fatalf("Can't get DB conn string: %s", err)
 	}
 
-	db, err := getDB(cfg, dbConnString)
+	gormDB, err := gormdb.GetDB(cfg, dbConnString)
 	if err != nil {
 		slog.Fatalf("Can't get DB: %s", err)
 	}
 
-	s := appServices{
-		repoanalysis: repoanalysis.BasicService{
-			DB: db,
-		},
+	sqlDB, err := gormdb.GetSQLDB(cfg, dbConnString)
+	if err != nil {
+		slog.Fatalf("Can't get DB: %s", err)
 	}
 
 	redisPool, err := redis.GetPool(cfg)
@@ -93,28 +101,62 @@ func NewApp() *App {
 		dbConnString, utils.GetProjectRoot())
 
 	awsCfg := aws.NewConfig().WithRegion("us-east-1")
+	if cfg.GetBool("AWS_DEBUG", false) {
+		awsCfg = awsCfg.WithLogLevel(aws.LogDebugWithHTTPBody)
+	}
 	endpoint := cfg.GetString("SQS_ENDPOINT")
 	if endpoint != "" {
 		awsCfg = awsCfg.WithEndpoint(endpoint)
 	}
 	awsSess, err := session.NewSession(awsCfg)
 	if err != nil {
-		// TODO
-		trackedLog.Errorf("Can't make aws session: %s", err)
+		slog.Fatalf("Can't make aws session: %s", err)
 	}
 
 	primarySQS := sqs.NewQueue(cfg.GetString("SQS_PRIMARY_QUEUE_URL"),
-		awsSess, trackedLog, visibilityTimeoutSec)
+		awsSess, trackedLog, primaryqueue.VisibilityTimeoutSec)
+
+	sessFactory, err := apisession.NewFactory(redisPool, cfg)
+	if err != nil {
+		slog.Fatalf("Failed to make session factory: %s", err)
+	}
+
+	primaryQueueProducerMultiplexer := producers.NewMultiplexer(primarySQS)
+	createRepoQP := &repos.CreatorProducer{}
+	if err = createRepoQP.Register(primaryQueueProducerMultiplexer); err != nil {
+		slog.Fatalf("Failed to create 'create repo' producer: %s", err)
+	}
+	deleteRepoQP := &repos.DeleterProducer{}
+	if err = deleteRepoQP.Register(primaryQueueProducerMultiplexer); err != nil {
+		slog.Fatalf("Failed to create 'delete repo' producer: %s", err)
+	}
+	hooksInjector := &hooks.Injector{}
+	providerFactory := providers.NewFactory(hooksInjector, trackedLog)
+	s := appServices{
+		repoanalysis: repoanalysis.BasicService{},
+		repo: repo.BasicService{
+			Cfg:             cfg,
+			CreateQueue:     createRepoQP,
+			DeleteQueue:     deleteRepoQP,
+			ProviderFactory: providerFactory,
+			Cache:           cache.NewRedis(cfg.GetString("REDIS_URL") + "/1"),
+		},
+	}
 
 	return &App{
 		cfg:              cfg,
 		log:              slog,
 		trackedLog:       trackedLog,
 		errTracker:       errTracker,
-		db:               db,
+		gormDB:           gormDB,
+		sqlDB:            sqlDB,
 		migrationsRunner: migrationsRunner,
 		services:         s,
 		awsSess:          awsSess,
+		sessFactory:      sessFactory,
+		hooksInjector:    hooksInjector,
+		providerFactory:  providerFactory,
+		distLockFactory:  rs,
 		queues: queues{
 			primarySQS: primarySQS,
 		},
@@ -123,7 +165,8 @@ func NewApp() *App {
 
 func (a App) RegisterHandlers() {
 	manager.RegisterCallback(func(r *mux.Router) {
-		repoanalysis.RegisterHandlers(r, a.services.repoanalysis, a.log, a.errTracker)
+		repoanalysis.RegisterHandlers(r, a.services.repoanalysis, a.log, a.errTracker, a.gormDB, a.sessFactory)
+		repo.RegisterHandlers(r, a.services.repo, a.log, a.errTracker, a.gormDB, a.sessFactory)
 	})
 }
 
@@ -134,42 +177,27 @@ func (a App) RunMigrations() {
 }
 
 func (a App) RunConsumers() {
-	if a.queues.primarySQS == nil {
-		return // TODO
-	}
-
 	primaryQueueConsumerMultiplexer := consumers.NewMultiplexer()
 
-	grsf := repoanalyzeslib.NewGithubRepoStateFetcher(a.db)
-	repoanalyzesCreatorConsumer := repoanalyzes.NewCreatorConsumer(a.trackedLog, a.db, grsf)
-	if err := repoanalyzesCreatorConsumer.Register(primaryQueueConsumerMultiplexer); err != nil {
-		a.log.Fatalf("Failed to register repoanalyzes creator consumer: %s", err)
+	repoCreatorConsumer := repos.NewCreatorConsumer(a.trackedLog, a.sqlDB, a.cfg, a.providerFactory)
+	if err := repoCreatorConsumer.Register(primaryQueueConsumerMultiplexer, a.distLockFactory); err != nil {
+		a.log.Fatalf("Failed to register repo creator consumer: %s", err)
+	}
+	repoDeleterConsumer := repos.NewDeleterConsumer(a.trackedLog, a.sqlDB, a.cfg, a.providerFactory)
+	if err := repoDeleterConsumer.Register(primaryQueueConsumerMultiplexer, a.distLockFactory); err != nil {
+		a.log.Fatalf("Failed to register repo deleter consumer: %s", err)
 	}
 
 	primaryQueueConsumer := consumer.NewSQS(a.trackedLog, a.cfg, a.queues.primarySQS,
-		primaryQueueConsumerMultiplexer, "primary", visibilityTimeoutSec)
+		primaryQueueConsumerMultiplexer, "primary", primaryqueue.VisibilityTimeoutSec)
 
 	go primaryQueueConsumer.Run()
-}
-
-func (a App) RunProducers() {
-	if a.queues.primarySQS == nil {
-		return // TODO
-	}
-
-	primaryQueueProducerMultiplexer := producers.NewMultiplexer(a.queues.primarySQS)
-
-	repoanalyzesCreatorProducer := repoanalyzes.CreatorProducer{}
-	if err := repoanalyzesCreatorProducer.Register(primaryQueueProducerMultiplexer); err != nil {
-		a.log.Fatalf("Failed to register repoanalyzes creator producer: %s", err)
-	}
 }
 
 func (a App) RunForever() {
 	a.RunMigrations()
 	a.RegisterHandlers()
 	a.RunConsumers()
-	a.RunProducers()
 
 	http.Handle("/", handlers.GetRoot())
 
@@ -181,27 +209,6 @@ func (a App) RunForever() {
 	}
 }
 
-func getDBConnString(cfg config.Config) (string, error) {
-	dbURL := cfg.GetString("DATABASE_URL")
-	if dbURL == "" {
-		return "", errors.New("no DATABASE_URL in config")
-	}
-
-	dbURL = strings.Replace(dbURL, "postgresql", "postgres", 1)
-	return dbURL, nil
-}
-
-func getDB(cfg config.Config, connString string) (*gorm.DB, error) {
-	adapter := strings.Split(connString, "://")[0]
-
-	db, err := gorm.Open(adapter, connString)
-	if err != nil {
-		return nil, errors.Wrap(err, "can't open db connection")
-	}
-
-	if cfg.GetBool("DEBUG_DB", false) {
-		db = db.Debug()
-	}
-
-	return db, nil
+func (a App) GetHooksInjector() *hooks.Injector {
+	return a.hooksInjector
 }

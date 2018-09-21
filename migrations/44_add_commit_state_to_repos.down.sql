@@ -1,0 +1,1 @@
+ALTER TABLE repos DROP COLUMN commit_state;

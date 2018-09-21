@@ -7,7 +7,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/client"
 	"github.com/aws/aws-sdk-go/service/sqs"
-	"github.com/golangci/golangci-api/pkg/queue/producers"
+	"github.com/golangci/golangci-api/pkg/queue"
 	"github.com/golangci/golangci-shared/pkg/logutil"
 	"github.com/pkg/errors"
 )
@@ -32,22 +32,21 @@ func NewQueue(url string, sess client.ConfigProvider, log logutil.Log, visibilit
 	}
 }
 
-func (q Queue) Put(message producers.Message) error {
+func (q Queue) Put(message queue.Message) error {
 	body, err := json.Marshal(message)
 	if err != nil {
 		return errors.Wrap(err, "can't json marshal message")
 	}
 
 	res, err := q.sqsClient.SendMessage(&sqs.SendMessageInput{
-		MessageBody:            aws.String(string(body)),
-		MessageDeduplicationId: aws.String(message.DeduplicationID()),
-		QueueUrl:               aws.String(q.url),
+		MessageBody: aws.String(string(body)),
+		QueueUrl:    aws.String(q.url),
 	})
 	if err != nil {
-		return errors.Wrap(err, "can't send message to queue")
+		return errors.Wrapf(err, "can't send message to queue (%s)", res)
 	}
 
-	q.log.Infof("Sent message with id=%s to queue: %#v", res.MessageId, message)
+	q.log.Infof("Sent message with id=%s to queue: %#v", *res.MessageId, message)
 	return nil
 }
 
@@ -90,10 +89,12 @@ func (q Queue) Ack(receiptHandle string, receiveCount int, ok bool) error {
 			VisibilityTimeout: &delaySec,
 		})
 		if err != nil {
-			q.log.Warnf("Can't change message %s visibility for %d-th attempt to %ds: %s",
-				receiptHandle, receiveCount, delaySec, err)
+			return errors.Wrapf(err, "can't change message %s visibility for %d-th attempt to %ds",
+				receiptHandle, receiveCount, delaySec)
 		}
 
+		q.log.Infof("Changed message %s visibility for %d-th attempt to %ds",
+			receiptHandle, receiveCount, delaySec)
 		return nil
 	}
 
@@ -106,5 +107,7 @@ func (q Queue) Ack(receiptHandle string, receiveCount int, ok bool) error {
 		return errors.Wrapf(err, "can't delete message %s from queue", receiptHandle)
 	}
 
+	q.log.Infof("Deleted message %s from queue after succeeded consuming on %d-th attempt",
+		receiptHandle, receiveCount)
 	return nil
 }

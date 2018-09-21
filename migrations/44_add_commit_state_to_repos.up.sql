@@ -1,0 +1,1 @@
+ALTER TABLE repos ADD COLUMN commit_state VARCHAR(64) NOT NULL DEFAULT 'done';

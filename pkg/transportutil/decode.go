@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"reflect"
+	"strconv"
 	"strings"
 
 	"github.com/gorilla/mux"
@@ -63,12 +64,12 @@ func getURLParamName(rf reflect.StructField) string {
 	}
 
 	parts := strings.Split(request, ",")
-	if len(parts) != 2 {
+	if len(parts) != 3 {
 		panic("bad tag " + rf.Tag)
 	}
 
 	if parts[1] != "url" {
-		return ""
+		panic("bad tag parts[1] " + rf.Tag)
 	}
 
 	if parts[0] == "" {
@@ -76,6 +77,28 @@ func getURLParamName(rf reflect.StructField) string {
 	}
 
 	return parts[0]
+}
+
+func isRequiredURLParam(rf reflect.StructField) bool {
+	request := rf.Tag.Get("request")
+	if request == "" {
+		return false
+	}
+
+	parts := strings.Split(request, ",")
+	if len(parts) != 3 {
+		panic("bad tag " + rf.Tag)
+	}
+
+	if parts[2] == "" || parts[2] == "required" {
+		return true
+	}
+
+	if parts[2] == "optional" {
+		return false
+	}
+
+	panic("bad tag required field " + rf.Tag)
 }
 
 func isURLParamField(rf reflect.StructField) bool {
@@ -122,17 +145,37 @@ func decodeRequestField(f reflect.Value, r *http.Request) error {
 
 func decodeRequestFieldFromURL(structFields []structField, r *http.Request) error {
 	for _, sf := range structFields {
-		if sf.val.Kind() != reflect.String {
-			return fmt.Errorf("invalid struct field of type %s: only string supported", sf.val.Kind())
-		}
-
 		urlParamName := getURLParamName(sf.rf)
-		urlVar := mux.Vars(r)[strings.ToLower(urlParamName)]
+		urlParamName = strings.ToLower(urlParamName)
+		vars := mux.Vars(r)
+		urlVar := vars[urlParamName]
 		if urlVar == "" {
-			return fmt.Errorf("no url param %s", urlParamName)
+			if isRequiredURLParam(sf.rf) {
+				return fmt.Errorf("no url param %s, all params are %#v", urlParamName, vars)
+			}
+			return nil
 		}
 
-		sf.val.SetString(urlVar)
+		if err := decodeRequestParamFromString(sf.val, urlVar); err != nil {
+			return fmt.Errorf("failed to decode url param %s with value %q: %s", urlParamName, urlVar, err)
+		}
+	}
+
+	return nil
+}
+
+func decodeRequestParamFromString(param reflect.Value, s string) error {
+	switch param.Kind() {
+	case reflect.String:
+		param.SetString(s)
+	case reflect.Uint:
+		v, err := strconv.ParseUint(s, 10, 32)
+		if err != nil {
+			return fmt.Errorf("can't parse number from %q: %s", s, err)
+		}
+		param.SetUint(v)
+	default:
+		return fmt.Errorf("unsupported type %s", param.Kind())
 	}
 
 	return nil

@@ -2,6 +2,7 @@ package transportutil
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/go-kit/kit/log"
 	"github.com/golangci/golangci-shared/pkg/logutil"
@@ -18,7 +19,10 @@ type errorLog struct {
 }
 
 func (el errorLog) Log(values ...interface{}) error {
-	s := fmt.Sprint(values...)
-	el.sourceLogger.Errorf("gokit transport error: %s", s)
+	parts := []string{}
+	for _, v := range values {
+		parts = append(parts, fmt.Sprint(v))
+	}
+	el.sourceLogger.Errorf("gokit transport error: %s", strings.Join(parts, ","))
 	return nil
 }

@@ -94,7 +94,7 @@ func (c SQS) onReceiveMessage(ctx context.Context, message *awssqs.Message) erro
 	if err != nil {
 		c.log.Warnf("Consumer failed: %s", err)
 	}
-	handledOk := err == nil
+	handledOk := err == nil || errors.Cause(err) == consumers.ErrPermanent
 
 	receiveCount := 0
 	receiveCountStrPtr := message.Attributes[awssqs.MessageSystemAttributeNameApproximateReceiveCount]

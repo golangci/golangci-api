@@ -34,27 +34,25 @@ func (p updateRepoPayload) FillLogContext(lctx logutil.Context) {}
 
 type Service interface {
 	//url:/v1/repos/{provider}/{owner}/{name}/repoanalyzes
-	GetStatus(rc *request.Context, repo *request.Repo) (*Status, error)
+	GetStatus(rc *request.AnonymousContext, repo *request.Repo) (*Status, error)
 
 	//url:/v1/repos/{provider}/{owner}/{name}/repoanalyzes/{analysisguid}
-	Get(rc *request.Context, rac *Context) (*models.RepoAnalysis, error)
+	Get(rc *request.AnonymousContext, rac *Context) (*models.RepoAnalysis, error)
 
 	//url:/v1/repos/{provider}/{owner}/{name}/repoanalyzes/{analysisguid} method:PUT
-	Update(rc *request.Context, rac *Context, update *updateRepoPayload) error
+	Update(rc *request.AnonymousContext, rac *Context, update *updateRepoPayload) error
 }
 
-type BasicService struct {
-	DB *gorm.DB
-}
+type BasicService struct{}
 
 func (s BasicService) isCompleteAnalysisStatus(status string) bool {
 	return status == "processed" || status == "error"
 }
 
 //nolint:gocyclo
-func (s BasicService) GetStatus(rc *request.Context, reqRepo *request.Repo) (*Status, error) {
+func (s BasicService) GetStatus(rc *request.AnonymousContext, reqRepo *request.Repo) (*Status, error) {
 	var repo models.Repo
-	err := models.NewRepoQuerySet(s.DB).NameEq(strings.ToLower(reqRepo.FullName())).One(&repo)
+	err := models.NewRepoQuerySet(rc.DB).NameEq(strings.ToLower(reqRepo.FullName())).One(&repo)
 	if err != nil {
 		if err == gorm.ErrRecordNotFound {
 			rc.Log.Warnf("no connected repo for report of %s: maybe direct access by URL", reqRepo.FullName())
@@ -68,7 +66,7 @@ func (s BasicService) GetStatus(rc *request.Context, reqRepo *request.Repo) (*St
 	}
 
 	var as models.RepoAnalysisStatus
-	err = models.NewRepoAnalysisStatusQuerySet(s.DB).RepoIDEq(repo.ID).One(&as)
+	err = models.NewRepoAnalysisStatusQuerySet(rc.DB).RepoIDEq(repo.ID).One(&as)
 	if err != nil {
 		if err == gorm.ErrRecordNotFound {
 			return &Status{
@@ -82,7 +80,7 @@ func (s BasicService) GetStatus(rc *request.Context, reqRepo *request.Repo) (*St
 	}
 
 	var analyzes []models.RepoAnalysis
-	err = models.NewRepoAnalysisQuerySet(s.DB).
+	err = models.NewRepoAnalysisQuerySet(rc.DB).
 		RepoAnalysisStatusIDEq(as.ID).
 		OrderDescByID(). // get last
 		Limit(2).
@@ -126,9 +124,9 @@ func (s BasicService) GetStatus(rc *request.Context, reqRepo *request.Repo) (*St
 	}, nil
 }
 
-func (s BasicService) Get(rc *request.Context, rac *Context) (*models.RepoAnalysis, error) {
+func (s BasicService) Get(rc *request.AnonymousContext, rac *Context) (*models.RepoAnalysis, error) {
 	var analysis models.RepoAnalysis
-	err := models.NewRepoAnalysisQuerySet(s.DB).
+	err := models.NewRepoAnalysisQuerySet(rc.DB).
 		AnalysisGUIDEq(rac.AnalysisGUID).
 		One(&analysis)
 	if err != nil {
@@ -138,9 +136,9 @@ func (s BasicService) Get(rc *request.Context, rac *Context) (*models.RepoAnalys
 	return &analysis, nil
 }
 
-func (s BasicService) Update(rc *request.Context, rac *Context, update *updateRepoPayload) error {
+func (s BasicService) Update(rc *request.AnonymousContext, rac *Context, update *updateRepoPayload) error {
 	var analysis models.RepoAnalysis
-	err := models.NewRepoAnalysisQuerySet(s.DB).
+	err := models.NewRepoAnalysisQuerySet(rc.DB).
 		AnalysisGUIDEq(rac.AnalysisGUID).
 		One(&analysis)
 	if err != nil {
@@ -153,7 +151,7 @@ func (s BasicService) Update(rc *request.Context, rac *Context, update *updateRe
 	if analysis.ResultJSON == nil {
 		analysis.ResultJSON = []byte("{}")
 	}
-	err = analysis.Update(s.DB,
+	err = analysis.Update(rc.DB,
 		models.RepoAnalysisDBSchema.Status,
 		models.RepoAnalysisDBSchema.ResultJSON)
 	if err != nil {

@@ -127,6 +127,7 @@ func LoginGithub(ctx *context.C, gu *goth.User) (err error) {
 		AccessToken:    gu.AccessToken,
 		UserID:         u.ID,
 		Login:          gu.NickName,
+		Provider:       "github.com",
 		ProviderUserID: providerUserID,
 	}
 

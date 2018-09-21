@@ -19,25 +19,29 @@ import (
 )
 
 type FakeGithubServerConfig struct {
-	AuthHandler       http.HandlerFunc
-	TokenHandler      http.HandlerFunc
-	ProfileHandler    http.HandlerFunc
-	GetRepoHandler    http.HandlerFunc
-	EmailHandler      http.HandlerFunc
-	ListReposHandler  http.HandlerFunc
-	AddHookHandler    http.HandlerFunc
-	DeleteHookHandler http.HandlerFunc
+	AuthHandler          http.HandlerFunc
+	TokenHandler         http.HandlerFunc
+	ProfileHandler       http.HandlerFunc
+	GetRepoHandler       http.HandlerFunc
+	ListRepoHooksHandler http.HandlerFunc
+	GetBranchHandler     http.HandlerFunc
+	EmailHandler         http.HandlerFunc
+	ListReposHandler     http.HandlerFunc
+	AddHookHandler       http.HandlerFunc
+	DeleteHookHandler    http.HandlerFunc
 }
 
 var FakeGithubCfg = FakeGithubServerConfig{
-	AuthHandler:       authHandler,
-	TokenHandler:      tokenHandler,
-	ProfileHandler:    profileHandler,
-	GetRepoHandler:    getRepoHandler,
-	EmailHandler:      emailHandler,
-	ListReposHandler:  listReposHandler,
-	AddHookHandler:    addHookHandler,
-	DeleteHookHandler: deleteHookHandler,
+	AuthHandler:          authHandler,
+	TokenHandler:         tokenHandler,
+	ProfileHandler:       profileHandler,
+	GetRepoHandler:       getRepoHandler,
+	ListRepoHooksHandler: listRepoHooksHandler,
+	GetBranchHandler:     getBranchHandler,
+	EmailHandler:         emailHandler,
+	ListReposHandler:     listReposHandler,
+	AddHookHandler:       addHookHandler,
+	DeleteHookHandler:    deleteHookHandler,
 }
 var fakeGithubServer *httptest.Server
 var fakeGithubServerOnce sync.Once
@@ -55,9 +59,11 @@ func initFakeGithubServer() {
 	r.HandleFunc(tokenURL, FakeGithubCfg.TokenHandler)
 	r.HandleFunc(profileURL, wrapF(&FakeGithubCfg.ProfileHandler))
 	r.HandleFunc("/repos/{owner}/{repo}", FakeGithubCfg.GetRepoHandler)
+	r.Methods("GET").Path("/repos/{owner}/{repo}/hooks").HandlerFunc(FakeGithubCfg.ListRepoHooksHandler)
+	r.Methods("POST").Path("/repos/{owner}/{repo}/hooks").HandlerFunc(FakeGithubCfg.AddHookHandler)
+	r.HandleFunc("/repos/{owner}/{repo}/branches/{branch}", FakeGithubCfg.GetBranchHandler)
 	r.HandleFunc(emailURL, FakeGithubCfg.EmailHandler)
 	r.HandleFunc("/user/repos", FakeGithubCfg.ListReposHandler)
-	r.HandleFunc("/repos/{owner}/{repo}/hooks", FakeGithubCfg.AddHookHandler)
 	r.HandleFunc("/repos/{owner}/{repo}/hooks/{hookID}", FakeGithubCfg.DeleteHookHandler)
 
 	fakeGithubServer = httptest.NewServer(r)
@@ -115,6 +121,17 @@ func profileHandler(w http.ResponseWriter, r *http.Request) {
 
 func getRepoHandler(w http.ResponseWriter, r *http.Request) {
 	fileName := strings.ToLower(filepath.Join("get_repo", mux.Vars(r)["owner"], mux.Vars(r)["repo"]))
+	sendFakeGithubJSON(fileName, w)
+}
+
+func listRepoHooksHandler(w http.ResponseWriter, r *http.Request) {
+	fileName := strings.ToLower(filepath.Join("get_repo_hooks", mux.Vars(r)["owner"], mux.Vars(r)["repo"]))
+	sendFakeGithubJSON(fileName, w)
+}
+
+func getBranchHandler(w http.ResponseWriter, r *http.Request) {
+	v := mux.Vars(r)
+	fileName := strings.ToLower(filepath.Join("get_branch", v["owner"], v["repo"], v["branch"]))
 	sendFakeGithubJSON(fileName, w)
 }
 

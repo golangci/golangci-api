@@ -7,25 +7,72 @@ import (
 	"net/http"
 
 	httptransport "github.com/go-kit/kit/transport/http"
+	"github.com/golangci/golangci-api/pkg/session"
 	"github.com/golangci/golangci-api/pkg/transportutil"
 	"github.com/golangci/golangci-shared/pkg/apperrors"
 	"github.com/golangci/golangci-shared/pkg/logutil"
 	"github.com/gorilla/mux"
+	"github.com/jinzhu/gorm"
 	"github.com/pkg/errors"
 )
 
-func RegisterHandlers(r *mux.Router, svc Service, log logutil.Log, et apperrors.Tracker) {
+func RegisterHandlers(r *mux.Router, svc Service, log logutil.Log, et apperrors.Tracker, db *gorm.DB, sf *session.Factory) {
 
 	hCreate := httptransport.NewServer(
 		makeCreateEndpoint(svc, log),
 		decodeCreateRequest,
 		encodeCreateResponse,
-		httptransport.ServerBefore(transportutil.MakeStoreRequestContext(log, et)),
+
+		httptransport.ServerBefore(transportutil.MakeStoreAuthorizedRequestContext(log, et, db, sf)),
+		httptransport.ServerAfter(transportutil.FinalizeSession),
+
 		httptransport.ServerFinalizer(transportutil.FinalizeRequest),
 		httptransport.ServerErrorEncoder(transportutil.EncodeError),
 		httptransport.ServerErrorLogger(transportutil.AdaptErrorLogger(log)),
 	)
 	r.Methods("POST").Path("/v1/repos").Handler(hCreate)
+
+	hGet := httptransport.NewServer(
+		makeGetEndpoint(svc, log),
+		decodeGetRequest,
+		encodeGetResponse,
+
+		httptransport.ServerBefore(transportutil.MakeStoreAuthorizedRequestContext(log, et, db, sf)),
+		httptransport.ServerAfter(transportutil.FinalizeSession),
+
+		httptransport.ServerFinalizer(transportutil.FinalizeRequest),
+		httptransport.ServerErrorEncoder(transportutil.EncodeError),
+		httptransport.ServerErrorLogger(transportutil.AdaptErrorLogger(log)),
+	)
+	r.Methods("GET").Path("/v1/repos/{repoid}").Handler(hGet)
+
+	hDelete := httptransport.NewServer(
+		makeDeleteEndpoint(svc, log),
+		decodeDeleteRequest,
+		encodeDeleteResponse,
+
+		httptransport.ServerBefore(transportutil.MakeStoreAuthorizedRequestContext(log, et, db, sf)),
+		httptransport.ServerAfter(transportutil.FinalizeSession),
+
+		httptransport.ServerFinalizer(transportutil.FinalizeRequest),
+		httptransport.ServerErrorEncoder(transportutil.EncodeError),
+		httptransport.ServerErrorLogger(transportutil.AdaptErrorLogger(log)),
+	)
+	r.Methods("DELETE").Path("/v1/repos/{repoid}").Handler(hDelete)
+
+	hList := httptransport.NewServer(
+		makeListEndpoint(svc, log),
+		decodeListRequest,
+		encodeListResponse,
+
+		httptransport.ServerBefore(transportutil.MakeStoreAuthorizedRequestContext(log, et, db, sf)),
+		httptransport.ServerAfter(transportutil.FinalizeSession),
+
+		httptransport.ServerFinalizer(transportutil.FinalizeRequest),
+		httptransport.ServerErrorEncoder(transportutil.EncodeError),
+		httptransport.ServerErrorLogger(transportutil.AdaptErrorLogger(log)),
+	)
+	r.Methods("GET").Path("/v1/repos").Handler(hList)
 
 }
 
@@ -38,8 +85,17 @@ func decodeCreateRequest(_ context.Context, r *http.Request) (interface{}, error
 	return request, nil
 }
 
-func encodeCreateResponse(_ context.Context, w http.ResponseWriter, response interface{}) error {
+func encodeCreateResponse(ctx context.Context, w http.ResponseWriter, response interface{}) error {
 	w.Header().Add("Content-Type", "application/json; charset=UTF-8")
+	if err := transportutil.GetContextError(ctx); err != nil {
+		wrappedResp := struct {
+			Error *transportutil.Error
+		}{
+			Error: transportutil.MakeError(err),
+		}
+		w.WriteHeader(wrappedResp.Error.HTTPCode)
+		return json.NewEncoder(w).Encode(wrappedResp)
+	}
 
 	resp := response.(CreateResponse)
 	wrappedResp := struct {
@@ -47,6 +103,120 @@ func encodeCreateResponse(_ context.Context, w http.ResponseWriter, response int
 		CreateResponse
 	}{
 		CreateResponse: resp,
+	}
+
+	if resp.err != nil {
+		terr := transportutil.MakeError(resp.err)
+		wrappedResp.Error = terr
+		w.WriteHeader(terr.HTTPCode)
+	}
+
+	return json.NewEncoder(w).Encode(wrappedResp)
+}
+
+func decodeGetRequest(_ context.Context, r *http.Request) (interface{}, error) {
+	var request GetRequest
+	if err := transportutil.DecodeRequest(&request, r); err != nil {
+		return nil, errors.Wrap(err, "can't decode request")
+	}
+
+	return request, nil
+}
+
+func encodeGetResponse(ctx context.Context, w http.ResponseWriter, response interface{}) error {
+	w.Header().Add("Content-Type", "application/json; charset=UTF-8")
+	if err := transportutil.GetContextError(ctx); err != nil {
+		wrappedResp := struct {
+			Error *transportutil.Error
+		}{
+			Error: transportutil.MakeError(err),
+		}
+		w.WriteHeader(wrappedResp.Error.HTTPCode)
+		return json.NewEncoder(w).Encode(wrappedResp)
+	}
+
+	resp := response.(GetResponse)
+	wrappedResp := struct {
+		Error *transportutil.Error
+		GetResponse
+	}{
+		GetResponse: resp,
+	}
+
+	if resp.err != nil {
+		terr := transportutil.MakeError(resp.err)
+		wrappedResp.Error = terr
+		w.WriteHeader(terr.HTTPCode)
+	}
+
+	return json.NewEncoder(w).Encode(wrappedResp)
+}
+
+func decodeDeleteRequest(_ context.Context, r *http.Request) (interface{}, error) {
+	var request DeleteRequest
+	if err := transportutil.DecodeRequest(&request, r); err != nil {
+		return nil, errors.Wrap(err, "can't decode request")
+	}
+
+	return request, nil
+}
+
+func encodeDeleteResponse(ctx context.Context, w http.ResponseWriter, response interface{}) error {
+	w.Header().Add("Content-Type", "application/json; charset=UTF-8")
+	if err := transportutil.GetContextError(ctx); err != nil {
+		wrappedResp := struct {
+			Error *transportutil.Error
+		}{
+			Error: transportutil.MakeError(err),
+		}
+		w.WriteHeader(wrappedResp.Error.HTTPCode)
+		return json.NewEncoder(w).Encode(wrappedResp)
+	}
+
+	resp := response.(DeleteResponse)
+	wrappedResp := struct {
+		Error *transportutil.Error
+		DeleteResponse
+	}{
+		DeleteResponse: resp,
+	}
+
+	if resp.err != nil {
+		terr := transportutil.MakeError(resp.err)
+		wrappedResp.Error = terr
+		w.WriteHeader(terr.HTTPCode)
+	}
+
+	return json.NewEncoder(w).Encode(wrappedResp)
+}
+
+func decodeListRequest(_ context.Context, r *http.Request) (interface{}, error) {
+	var request ListRequest
+	if err := transportutil.DecodeRequest(&request, r); err != nil {
+		return nil, errors.Wrap(err, "can't decode request")
+	}
+
+	return request, nil
+}
+
+func encodeListResponse(ctx context.Context, w http.ResponseWriter, response interface{}) error {
+	w.Header().Add("Content-Type", "application/json; charset=UTF-8")
+	if err := transportutil.GetContextError(ctx); err != nil {
+		wrappedResp := struct {
+			Error *transportutil.Error
+		}{
+			Error: transportutil.MakeError(err),
+		}
+		w.WriteHeader(wrappedResp.Error.HTTPCode)
+		return json.NewEncoder(w).Encode(wrappedResp)
+	}
+
+	resp := response.(ListResponse)
+	wrappedResp := struct {
+		Error *transportutil.Error
+		ListResponse
+	}{
+		ListResponse: resp,
 	}
 
 	if resp.err != nil {

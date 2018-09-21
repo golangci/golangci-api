@@ -1,6 +1,8 @@
 package models
 
 import (
+	"fmt"
+
 	"github.com/jinzhu/gorm"
 )
 
@@ -20,4 +22,9 @@ type Auth struct {
 	ProviderUserID uint64
 
 	Login string
+}
+
+func (a Auth) GoString() string {
+	return fmt.Sprintf("{ID: %d, UserID: %d, Login: %s, Provider: %s}",
+		a.ID, a.UserID, a.Login, a.Provider)
 }

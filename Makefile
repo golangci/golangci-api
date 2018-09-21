@@ -7,6 +7,13 @@ gen: gen_services
 gen_services:
 	go run cmd/genservices/main.go
 
+run_env:
+	SERVICES=sqs localstack start --docker
+
+prepare_env:
+	awslocal sqs create-queue --queue-name primary
+	awslocal sqs list-queues
+
 run_dev:
 	godotenv go run cmd/golangci-api/main.go
 
@@ -28,4 +35,4 @@ deploy_lambda: build_lambda
 	aws s3 cp ./sqsLambdaConsumer.zip s3://golangci-lambda-functions/
 
 deploy_cloudformation:
-	aws cloudformation deploy --template ./deployments/cloudformation.yml --region us-east-1 --capabilities CAPABILITY_IAM --stack-name golangci
+	aws cloudformation deploy --template ./deployments/cloudformation.yml --region us-east-1 --capabilities CAPABILITY_IAM CAPABILITY_NAMED_IAM --stack-name golangci

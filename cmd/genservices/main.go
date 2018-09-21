@@ -31,19 +31,27 @@ type {{.Name}}Response struct {
 }
 
 func make{{.Name}}Endpoint(svc Service, log logutil.Log) endpoint.Endpoint {
-	return func(ctx context.Context, request interface{}) (resp interface{}, err error) {
-		req := request.({{.Name}}Request)
-		rc := endpointutil.RequestContext(ctx)
+	return func(ctx context.Context, reqObj interface{}) (resp interface{}, err error) {
+		req := reqObj.({{.Name}}Request)
+
+		reqLogger := log
 		defer func() {
 			if rerr := recover(); rerr != nil {
-				rc.Log.Errorf("Panic occured")
-				rc.Log.Infof("%s", debug.Stack())
+				reqLogger.Errorf("Panic occured")
+				reqLogger.Infof("%s", debug.Stack())
 				resp = {{.Name}}Response{
 					err: errors.New("panic occured"),
 				}
 				err = nil
 			}
 		}()
+
+		if err := endpointutil.Error(ctx); err != nil {
+			// error occurred during request context creation 
+			return nil, errors.Wrap(err, "got pre-endpoint error")
+		}
+		rc := endpointutil.RequestContext(ctx).(*request.{{if .Authorized}}Authorized{{else}}Anonymous{{end}}Context)
+		reqLogger = rc.Log
 
 		{{range .ArgsToFillLctx}}{{.}}.FillLogContext(rc.Lctx)
 		{{end}}
@@ -75,13 +83,18 @@ package {{.PkgName}}
 
 import httptransport "github.com/go-kit/kit/transport/http"
 
-func RegisterHandlers(r *mux.Router, svc Service, log logutil.Log, et apperrors.Tracker) {
+func RegisterHandlers(r *mux.Router, svc Service, log logutil.Log, et apperrors.Tracker, db *gorm.DB, sf *session.Factory) {
 	{{range .ServiceMethods}}
 		h{{.Name}} := httptransport.NewServer(
 			make{{.Name}}Endpoint(svc, log),
 			decode{{.Name}}Request,
 			encode{{.Name}}Response,
-			httptransport.ServerBefore(transportutil.MakeStoreRequestContext(log, et)),
+			{{if .Authorized}}
+			httptransport.ServerBefore(transportutil.MakeStoreAuthorizedRequestContext(log, et, db, sf)),
+			httptransport.ServerAfter(transportutil.FinalizeSession),
+			{{else}}
+			httptransport.ServerBefore(transportutil.MakeStoreAnonymousRequestContext(log, et, db)),
+			{{end}}
 			httptransport.ServerFinalizer(transportutil.FinalizeRequest),
 			httptransport.ServerErrorEncoder(transportutil.EncodeError),
 			httptransport.ServerErrorLogger(transportutil.AdaptErrorLogger(log)),
@@ -101,8 +114,17 @@ func decode{{.Name}}Request(_ context.Context, r *http.Request) (interface{}, er
 	return request, nil
 }
 
-func encode{{.Name}}Response(_ context.Context, w http.ResponseWriter, response interface{}) error {
+func encode{{.Name}}Response(ctx context.Context, w http.ResponseWriter, response interface{}) error {
 	w.Header().Add("Content-Type", "application/json; charset=UTF-8")
+	if err := transportutil.GetContextError(ctx); err != nil {
+		wrappedResp := struct {
+			Error *transportutil.Error
+		}{
+			Error: transportutil.MakeError(err),
+		}
+		w.WriteHeader(wrappedResp.Error.HTTPCode)
+		return json.NewEncoder(w).Encode(wrappedResp)
+	}
 
 	resp := response.({{.Name}}Response)
 	wrappedResp := struct {
@@ -333,7 +355,8 @@ func parseServiceMethodComment(doc string) map[string]string {
 }
 
 func (sg *serviceGenerator) generateForMethod(fn *ast.FuncType, method *ast.Field) (map[string]interface{}, error) {
-	if err := sg.checkMethod(fn); err != nil {
+	isAuthorized, err := sg.checkMethod(fn)
+	if err != nil {
 		return nil, err
 	}
 
@@ -381,44 +404,52 @@ func (sg *serviceGenerator) generateForMethod(fn *ast.FuncType, method *ast.Fiel
 		"CallArgs":       strings.Join(callArgs, ", "),
 		"ArgsToFillLctx": argsToFillLctx,
 		"HasRetVal":      fn.Results.NumFields() == 2, // value and error
+		"Authorized":     isAuthorized,
 	}
 	return ctx, nil
 }
 
-func (sg serviceGenerator) checkMethod(fn *ast.FuncType) error {
+//nolint:gocyclo
+func (sg serviceGenerator) checkMethod(fn *ast.FuncType) (bool, error) {
 	res := fn.Results
 	if res.NumFields() == 0 || res.NumFields() > 2 {
-		return fmt.Errorf("unsupported return values count: %d", res.NumFields())
+		return false, fmt.Errorf("unsupported return values count: %d", res.NumFields())
 	}
 
 	lastRet := res.List[res.NumFields()-1]
 	if err := checkIsIdentWithName(lastRet.Type, "error"); err != nil {
-		return errors.Wrap(err, "invalid last return value type")
+		return false, errors.Wrap(err, "invalid last return value type")
 	}
 
 	args := fn.Params
 	if args.NumFields() == 0 {
-		return fmt.Errorf("unsupported args count: %d", args.NumFields())
+		return false, fmt.Errorf("unsupported args count: %d", args.NumFields())
 	}
 
 	firstArg := args.List[0]
 	firstArgStarExpr, ok := firstArg.Type.(*ast.StarExpr)
 	if !ok {
-		return fmt.Errorf("invalid first arg value type %#v, star expr expected", firstArg.Type)
+		return false, fmt.Errorf("invalid first arg value type %#v, star expr expected", firstArg.Type)
 	}
 
 	firstArgSE, ok := firstArgStarExpr.X.(*ast.SelectorExpr)
 	if !ok {
-		return fmt.Errorf("invalid first arg value type %#v, selector expr expected", firstArgStarExpr.X)
+		return false, fmt.Errorf("invalid first arg value type %#v, selector expr expected", firstArgStarExpr.X)
 	}
 
-	if firstArgSE.Sel.Name != "Context" {
-		return fmt.Errorf("invalid first arg value type %#v, context.Context expected", firstArgSE.Sel.Name)
+	var isAuthorized bool
+	switch firstArgSE.Sel.Name {
+	case "AnonymousContext":
+		break
+	case "AuthorizedContext":
+		isAuthorized = true
+	default:
+		return false, fmt.Errorf("invalid first arg value type %#v", firstArgSE.Sel.Name)
 	}
 
 	if err := checkIsIdentWithName(firstArgSE.X, "request"); err != nil {
-		return errors.Wrap(err, "invalid first arg selector type")
+		return false, errors.Wrap(err, "invalid first arg selector type")
 	}
 
-	return nil
+	return isAuthorized, nil
 }

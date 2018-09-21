@@ -3,11 +3,15 @@ package sharedtest
 import (
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
+	"strings"
 	"testing"
+	"time"
 
 	"github.com/gavv/httpexpect"
 	"github.com/golangci/golangci-api/app/returntypes"
+	"github.com/golangci/golangci-api/pkg/request"
 	"github.com/golangci/golangci-api/pkg/todo/repos"
 	"github.com/satori/go.uuid"
 )
@@ -62,6 +66,7 @@ func (u *User) WerePrivateReposFetched() bool {
 
 func (r *Repo) updateFromResponse(resp *httpexpect.Response) {
 	respStr := resp.Body().Raw()
+	log.Printf("TEST: response: %s", respStr)
 	ret := make(map[string]returntypes.RepoInfo)
 	r.u.A.NoError(json.Unmarshal([]byte(respStr), &ret))
 	r.u.A.NotNil(ret["repo"])
@@ -69,12 +74,42 @@ func (r *Repo) updateFromResponse(resp *httpexpect.Response) {
 }
 
 func (r *Repo) activateExpectStatus(status int) {
+	np := strings.Split(r.Name, "/")
 	r.updateFromResponse(
 		r.u.E.
-			PUT(fmt.Sprintf("/v1/repos/%s", r.Name)).
+			POST("/v1/repos").
+			WithJSON(request.BodyRepo{
+				Provider: "github.com",
+				Owner:    np[0],
+				Name:     np[1],
+			}).
 			Expect().
 			Status(status),
 	)
+
+	if status != http.StatusOK {
+		return
+	}
+
+	if r.RepoInfo.IsCreating {
+		r.u.A.False(r.RepoInfo.IsDeleting)
+
+		for i := 0; i < 5; i++ {
+			r.updateFromResponse(
+				r.u.E.
+					GET(fmt.Sprintf("/v1/repos/%d", r.RepoInfo.ID)).
+					Expect().
+					Status(http.StatusOK),
+			)
+			if !r.RepoInfo.IsCreating {
+				break
+			}
+			time.Sleep(time.Second)
+		}
+	}
+	r.u.A.False(r.RepoInfo.IsCreating)
+	r.u.A.False(r.RepoInfo.IsDeleting)
+	r.u.A.True(r.RepoInfo.IsActivated)
 }
 
 func (r *Repo) Activate() {
@@ -88,10 +123,31 @@ func (r *Repo) ActivateFail() {
 func (r *Repo) Deactivate() {
 	r.updateFromResponse(
 		r.u.E.
-			DELETE(fmt.Sprintf("/v1/repos/%s", r.Name)).
+			DELETE(fmt.Sprintf("/v1/repos/%d", r.ID)).
 			Expect().
 			Status(http.StatusOK),
 	)
+
+	if r.RepoInfo.IsDeleting {
+		r.u.A.False(r.RepoInfo.IsCreating)
+
+		for i := 0; i < 5; i++ {
+			r.updateFromResponse(
+				r.u.E.
+					GET(fmt.Sprintf("/v1/repos/%d", r.RepoInfo.ID)).
+					Expect().
+					Status(http.StatusOK),
+			)
+			if !r.RepoInfo.IsDeleting {
+				break
+			}
+			time.Sleep(time.Second)
+		}
+	}
+
+	r.u.A.False(r.RepoInfo.IsDeleting)
+	r.u.A.False(r.RepoInfo.IsCreating)
+	r.u.A.False(r.RepoInfo.IsActivated)
 }
 
 func (r Repo) ExpectWebhook(eventType string, payload interface{}) *httpexpect.Response {
@@ -107,6 +163,7 @@ func (r Repo) ExpectWebhook(eventType string, payload interface{}) *httpexpect.R
 func GetDeactivatedRepo(t *testing.T) (*Repo, *User) {
 	u := StubLogin(t)
 	r := u.Repos()[0]
+	log.Printf("r is %#v", r)
 	if r.IsActivated {
 		r.Deactivate()
 	}
