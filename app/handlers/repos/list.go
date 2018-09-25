@@ -182,4 +182,5 @@ func getReposList(ctx context.C) error {
 
 func init() {
 	handlers.Register("/v1/repos", getReposList)
+	handlers.Register("/v1/repos/todo", getReposList)
 }
