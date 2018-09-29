@@ -40,16 +40,16 @@ Resources:
         maxReceiveCount: 5
       VisibilityTimeout: 60
       ReceiveMessageWaitTimeSeconds: 20 # save costs on polling
-      KmsMasterKeyId: alias/aws/sqs
-      KmsDataKeyReusePeriodSeconds: 600
+      # KmsMasterKeyId: alias/aws/sqs
+      # KmsDataKeyReusePeriodSeconds: 600
       MessageRetentionPeriod: 345600 # 4d
   deadLetterPrimaryQueue: 
     Type: AWS::SQS::Queue
     Properties:
       VisibilityTimeout: 60
       ReceiveMessageWaitTimeSeconds: 20 # save costs on polling
-      KmsMasterKeyId: alias/aws/sqs
-      KmsDataKeyReusePeriodSeconds: 600
+      # KmsMasterKeyId: alias/aws/sqs
+      # KmsDataKeyReusePeriodSeconds: 600
       MessageRetentionPeriod: 1209600 # 14d
   testPrimaryQueue: 
     Type: AWS::SQS::Queue
@@ -59,16 +59,16 @@ Resources:
         maxReceiveCount: 5
       VisibilityTimeout: 60
       ReceiveMessageWaitTimeSeconds: 20 # save costs on polling
-      KmsMasterKeyId: alias/aws/sqs
-      KmsDataKeyReusePeriodSeconds: 600
+      # KmsMasterKeyId: alias/aws/sqs
+      # KmsDataKeyReusePeriodSeconds: 600
       MessageRetentionPeriod: 345600 # 4d
   testDeadLetterPrimaryQueue: 
     Type: AWS::SQS::Queue
     Properties:
       VisibilityTimeout: 60
       ReceiveMessageWaitTimeSeconds: 20 # save costs on polling
-      KmsMasterKeyId: alias/aws/sqs
-      KmsDataKeyReusePeriodSeconds: 600
+      # KmsMasterKeyId: alias/aws/sqs
+      # KmsDataKeyReusePeriodSeconds: 600
       MessageRetentionPeriod: 1209600 # 14d
 
 Outputs:

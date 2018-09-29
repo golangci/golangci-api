@@ -20,7 +20,7 @@ type WrappedRepoInfo struct {
 type RepoListResponse struct {
 	Repos                   []RepoInfo `json:"repos"`
 	PrivateRepos            []RepoInfo `json:"privateRepos"`
-	PrivateReposWereFetched bool
+	PrivateReposWereFetched bool       `json:"privateReposWereFetched"`
 }
 
 type AuthorizedUser struct {

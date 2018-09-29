@@ -158,7 +158,7 @@ func (p Github) ListRepoHooks(ctx context.Context, owner, repo string) ([]provid
 func (p Github) GetBranch(ctx context.Context, owner, repo, branch string) (*provider.Branch, error) {
 	grb, _, err := p.client(ctx).Repositories.GetBranch(ctx, owner, repo, branch)
 	if err != nil {
-		return nil, errors.Wrapf(err, "can't get github branch %s", branch)
+		return nil, p.unwrapError(err)
 	}
 
 	return &provider.Branch{
@@ -169,7 +169,7 @@ func (p Github) GetBranch(ctx context.Context, owner, repo, branch string) (*pro
 func (p Github) DeleteRepoHook(ctx context.Context, owner, repo string, hookID int) error {
 	_, err := p.client(ctx).Repositories.DeleteHook(ctx, owner, repo, hookID)
 	if err != nil {
-		return errors.Wrapf(err, "failed to delete hook by id %d", hookID)
+		return p.unwrapError(err)
 	}
 
 	return nil
@@ -188,7 +188,7 @@ func (p Github) ListRepos(ctx context.Context, cfg *provider.ListReposConfig) ([
 	for {
 		pageRepos, resp, err := p.client(ctx).Repositories.List(ctx, "", &opts)
 		if err != nil {
-			return nil, errors.Wrap(err, "can't get repos list")
+			return nil, p.unwrapError(err)
 		}
 
 		for _, r := range pageRepos {

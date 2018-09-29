@@ -3,6 +3,7 @@ package sqs
 import (
 	"encoding/json"
 	"fmt"
+	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/client"
@@ -33,6 +34,7 @@ func NewQueue(url string, sess client.ConfigProvider, log logutil.Log, visibilit
 }
 
 func (q Queue) Put(message queue.Message) error {
+	startedAt := time.Now()
 	body, err := json.Marshal(message)
 	if err != nil {
 		return errors.Wrap(err, "can't json marshal message")
@@ -46,7 +48,7 @@ func (q Queue) Put(message queue.Message) error {
 		return errors.Wrapf(err, "can't send message to queue (%s)", res)
 	}
 
-	q.log.Infof("Sent message with id=%s to queue: %#v", *res.MessageId, message)
+	q.log.Infof("Sent message with id=%s to queue for %s: %#v", *res.MessageId, time.Since(startedAt), message)
 	return nil
 }
 

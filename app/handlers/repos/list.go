@@ -113,7 +113,7 @@ func fetchGithubReposFromGithub(ctx *context.C, client *gh.Client, maxPageNumber
 	return allRepos, nil
 }
 
-func getActivatedRepos(ctx *context.C) (map[int]*models.Repo, error) {
+func getActivatedRepos(ctx *context.C) (map[int]models.Repo, error) {
 	startedAt := time.Now()
 
 	var repos []models.Repo
@@ -121,9 +121,9 @@ func getActivatedRepos(ctx *context.C) (map[int]*models.Repo, error) {
 		return nil, fmt.Errorf("can't select activated repos from db: %s", err)
 	}
 
-	ret := map[int]*models.Repo{}
+	ret := map[int]models.Repo{}
 	for _, r := range repos {
-		ret[r.ProviderID] = &r
+		ret[r.ProviderID] = r
 	}
 
 	ctx.L.Infof("Built map of all %d activated repos for %s", len(ret), time.Since(startedAt))
@@ -153,10 +153,10 @@ func getReposList(ctx context.C) error {
 	retRepos := []returntypes.RepoInfo{}
 	retPrivateRepos := []returntypes.RepoInfo{}
 	for _, r := range repos {
-		ar := activatedRepos[r.GithubID]
+		ar, ok := activatedRepos[r.GithubID]
 		hookID := ""
 		var repoID uint
-		if ar != nil {
+		if ok {
 			hookID = ar.HookID
 			repoID = ar.ID
 		}
@@ -165,7 +165,7 @@ func getReposList(ctx context.C) error {
 			ID:          repoID,
 			Name:        r.FullName,
 			IsAdmin:     r.IsAdmin,
-			IsActivated: r.GithubID != 0 && ar != nil,
+			IsActivated: r.GithubID != 0 && ok,
 			IsPrivate:   r.IsPrivate,
 			HookID:      hookID,
 		}

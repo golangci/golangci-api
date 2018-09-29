@@ -15,7 +15,7 @@ jobs:
 
       - run: curl https://raw.githubusercontent.com/golang/dep/master/install.sh | sh
       - run: dep ensure -v
-      - run: go get github.com/golangci/golangci-lint/cmd/golangci-lint
+      - run: curl -sfL https://install.goreleaser.com/github.com/golangci/golangci-lint.sh | bash -s -- -b $GOPATH/bin
       - run: echo 'REDIS_URL="redis://localhost:6379"' >.env
       - run: echo 'DATABASE_URL="postgresql://postgres:test@localhost:5432/api_prod?sslmode=disable"' >.env.test
       - run:

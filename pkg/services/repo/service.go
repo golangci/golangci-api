@@ -268,7 +268,7 @@ func (s BasicService) List(rc *request.AuthorizedContext, req *listRequest) (*re
 			IsPrivate: pr.IsPrivate,
 		}
 
-		if ar := activatedRepos[pr.ID]; pr.ID != 0 && ar != nil {
+		if ar, ok := activatedRepos[pr.ID]; pr.ID != 0 && ok {
 			retRepo.ID = ar.ID
 			retRepo.HookID = ar.HookID
 			retRepo.IsActivated = true // activated by ANY user
@@ -346,7 +346,7 @@ func (s BasicService) fetchProviderReposFromProvider(rc *request.AuthorizedConte
 	return repos, nil
 }
 
-func (s BasicService) getActivatedRepos(rc *request.AuthorizedContext) (map[int]*models.Repo, error) {
+func (s BasicService) getActivatedRepos(rc *request.AuthorizedContext) (map[int]models.Repo, error) {
 	startedAt := time.Now()
 
 	var repos []models.Repo
@@ -354,9 +354,9 @@ func (s BasicService) getActivatedRepos(rc *request.AuthorizedContext) (map[int]
 		return nil, errors.Wrap(err, "can't select activated repos from db")
 	}
 
-	ret := map[int]*models.Repo{}
+	ret := map[int]models.Repo{}
 	for _, r := range repos {
-		ret[r.ProviderID] = &r
+		ret[r.ProviderID] = r
 	}
 
 	rc.Log.Infof("Built map of all %d activated repos for %s", len(ret), time.Since(startedAt))

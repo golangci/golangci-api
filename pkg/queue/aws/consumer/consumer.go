@@ -60,7 +60,6 @@ func (c SQS) poll() {
 	}
 
 	if message == nil {
-		c.log.Infof("No messages")
 		time.Sleep(time.Second)
 		return
 	}
@@ -70,13 +69,14 @@ func (c SQS) poll() {
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 
+	startedAt := time.Now()
 	if err = c.onReceiveMessage(ctx, message); err != nil {
 		c.log.Errorf("Failed to process received message %#v: %s", message, err)
 		time.Sleep(time.Second)
 		return
 	}
 
-	c.log.Infof("Polling: processed message %#v", message)
+	c.log.Infof("Polling: processed message %#v for %s", message, time.Since(startedAt))
 }
 
 func (c SQS) runPolling() {
