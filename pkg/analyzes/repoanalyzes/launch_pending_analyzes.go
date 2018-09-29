@@ -34,8 +34,7 @@ func launchPendingRepoAnalyzes() {
 
 func launchPendingRepoAnalyzesIter(ctx *context.C) error {
 	var analysisStatuses []models.RepoAnalysisStatus
-	err := models.NewRepoAnalysisStatusQuerySet(db.Get(ctx)).
-		PreloadRepo().
+	err := models.NewRepoAnalysisStatusQuerySet(db.Get(ctx).Unscoped()).
 		HasPendingChangesEq(true).
 		All(&analysisStatuses)
 	if err != nil {
@@ -69,6 +68,7 @@ func launchPendingRepoAnalysisChecked(ctx *context.C, as *models.RepoAnalysisSta
 	return nil
 }
 
+//nolint:gocyclo
 func launchRepoAnalysis(ctx *context.C, as *models.RepoAnalysisStatus) (err error) {
 	var finishTx db.FinishTxFunc
 	finishTx, err = db.BeginTx(ctx)
@@ -89,6 +89,11 @@ func launchRepoAnalysis(ctx *context.C, as *models.RepoAnalysisStatus) (err erro
 		apperrors.Warnf(ctx, "Can't create repo analysis because of "+
 			"race condition with frequent pushes and not fixed commit in worker: %#v", *as)
 		needSendToQueue = false
+	}
+
+	// use Unscoped to fetch deleted repos
+	if err = models.NewRepoQuerySet(db.Get(ctx).Unscoped()).IDEq(as.RepoID).One(&as.Repo); err != nil {
+		return errors.Wrapf(err, "failed to fetch repo with id %d", as.RepoID)
 	}
 
 	if as.Repo.Name == "" {
