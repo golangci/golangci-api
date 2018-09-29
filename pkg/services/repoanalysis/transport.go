@@ -7,20 +7,24 @@ import (
 	"net/http"
 
 	httptransport "github.com/go-kit/kit/transport/http"
+	"github.com/golangci/golangci-api/pkg/session"
 	"github.com/golangci/golangci-api/pkg/transportutil"
 	"github.com/golangci/golangci-shared/pkg/apperrors"
 	"github.com/golangci/golangci-shared/pkg/logutil"
 	"github.com/gorilla/mux"
+	"github.com/jinzhu/gorm"
 	"github.com/pkg/errors"
 )
 
-func RegisterHandlers(r *mux.Router, svc Service, log logutil.Log, et apperrors.Tracker) {
+func RegisterHandlers(r *mux.Router, svc Service, log logutil.Log, et apperrors.Tracker, db *gorm.DB, sf *session.Factory) {
 
 	hGetStatus := httptransport.NewServer(
 		makeGetStatusEndpoint(svc, log),
 		decodeGetStatusRequest,
 		encodeGetStatusResponse,
-		httptransport.ServerBefore(transportutil.MakeStoreRequestContext(log, et)),
+
+		httptransport.ServerBefore(transportutil.MakeStoreAnonymousRequestContext(log, et, db)),
+
 		httptransport.ServerFinalizer(transportutil.FinalizeRequest),
 		httptransport.ServerErrorEncoder(transportutil.EncodeError),
 		httptransport.ServerErrorLogger(transportutil.AdaptErrorLogger(log)),
@@ -31,7 +35,9 @@ func RegisterHandlers(r *mux.Router, svc Service, log logutil.Log, et apperrors.
 		makeGetEndpoint(svc, log),
 		decodeGetRequest,
 		encodeGetResponse,
-		httptransport.ServerBefore(transportutil.MakeStoreRequestContext(log, et)),
+
+		httptransport.ServerBefore(transportutil.MakeStoreAnonymousRequestContext(log, et, db)),
+
 		httptransport.ServerFinalizer(transportutil.FinalizeRequest),
 		httptransport.ServerErrorEncoder(transportutil.EncodeError),
 		httptransport.ServerErrorLogger(transportutil.AdaptErrorLogger(log)),
@@ -42,7 +48,9 @@ func RegisterHandlers(r *mux.Router, svc Service, log logutil.Log, et apperrors.
 		makeUpdateEndpoint(svc, log),
 		decodeUpdateRequest,
 		encodeUpdateResponse,
-		httptransport.ServerBefore(transportutil.MakeStoreRequestContext(log, et)),
+
+		httptransport.ServerBefore(transportutil.MakeStoreAnonymousRequestContext(log, et, db)),
+
 		httptransport.ServerFinalizer(transportutil.FinalizeRequest),
 		httptransport.ServerErrorEncoder(transportutil.EncodeError),
 		httptransport.ServerErrorLogger(transportutil.AdaptErrorLogger(log)),
@@ -60,8 +68,17 @@ func decodeGetStatusRequest(_ context.Context, r *http.Request) (interface{}, er
 	return request, nil
 }
 
-func encodeGetStatusResponse(_ context.Context, w http.ResponseWriter, response interface{}) error {
+func encodeGetStatusResponse(ctx context.Context, w http.ResponseWriter, response interface{}) error {
 	w.Header().Add("Content-Type", "application/json; charset=UTF-8")
+	if err := transportutil.GetContextError(ctx); err != nil {
+		wrappedResp := struct {
+			Error *transportutil.Error
+		}{
+			Error: transportutil.MakeError(err),
+		}
+		w.WriteHeader(wrappedResp.Error.HTTPCode)
+		return json.NewEncoder(w).Encode(wrappedResp)
+	}
 
 	resp := response.(GetStatusResponse)
 	wrappedResp := struct {
@@ -89,8 +106,17 @@ func decodeGetRequest(_ context.Context, r *http.Request) (interface{}, error) {
 	return request, nil
 }
 
-func encodeGetResponse(_ context.Context, w http.ResponseWriter, response interface{}) error {
+func encodeGetResponse(ctx context.Context, w http.ResponseWriter, response interface{}) error {
 	w.Header().Add("Content-Type", "application/json; charset=UTF-8")
+	if err := transportutil.GetContextError(ctx); err != nil {
+		wrappedResp := struct {
+			Error *transportutil.Error
+		}{
+			Error: transportutil.MakeError(err),
+		}
+		w.WriteHeader(wrappedResp.Error.HTTPCode)
+		return json.NewEncoder(w).Encode(wrappedResp)
+	}
 
 	resp := response.(GetResponse)
 	wrappedResp := struct {
@@ -118,8 +144,17 @@ func decodeUpdateRequest(_ context.Context, r *http.Request) (interface{}, error
 	return request, nil
 }
 
-func encodeUpdateResponse(_ context.Context, w http.ResponseWriter, response interface{}) error {
+func encodeUpdateResponse(ctx context.Context, w http.ResponseWriter, response interface{}) error {
 	w.Header().Add("Content-Type", "application/json; charset=UTF-8")
+	if err := transportutil.GetContextError(ctx); err != nil {
+		wrappedResp := struct {
+			Error *transportutil.Error
+		}{
+			Error: transportutil.MakeError(err),
+		}
+		w.WriteHeader(wrappedResp.Error.HTTPCode)
+		return json.NewEncoder(w).Encode(wrappedResp)
+	}
 
 	resp := response.(UpdateResponse)
 	wrappedResp := struct {

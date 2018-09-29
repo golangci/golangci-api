@@ -1,0 +1,93 @@
+[
+  {
+    "type": "Repository",
+    "id": 1,
+    "name": "web",
+    "active": true,
+    "events": [
+      "commit_comment",
+      "create",
+      "delete",
+      "fork",
+      "gollum",
+      "issues",
+      "issue_comment",
+      "member",
+      "public",
+      "pull_request",
+      "pull_request_review_comment",
+      "push",
+      "release",
+      "status",
+      "team_add",
+      "watch"
+    ],
+    "config": {
+      "content-type": "form",
+      "content_type": "form",
+      "insecure_ssl": "0",
+      "secret": "********",
+      "url": "https://circleci.com/hooks/github"
+    },
+    "updated_at": "2018-09-02T13:37:55Z",
+    "created_at": "2018-06-26T20:02:08Z",
+    "url": "https://api.github.com/repos/golangci/golangci-api/hooks/1",
+    "test_url": "https://api.github.com/repos/golangci/golangci-api/hooks/1/test",
+    "ping_url": "https://api.github.com/repos/golangci/golangci-api/hooks/1/pings",
+    "last_response": {
+      "code": 200,
+      "status": "active",
+      "message": "OK"
+    }
+  },
+  {
+    "type": "Repository",
+    "id": 2,
+    "name": "web",
+    "active": true,
+    "events": [
+      "*"
+    ],
+    "config": {
+      "content_type": "json",
+      "insecure_ssl": "0",
+      "secret": "********",
+      "url": "https://kolkrabbi.heroku.com/hooks/github"
+    },
+    "updated_at": "2018-09-02T13:36:07Z",
+    "created_at": "2018-09-02T13:36:07Z",
+    "url": "https://api.github.com/repos/golangci/golangci-api/hooks/2",
+    "test_url": "https://api.github.com/repos/golangci/golangci-api/hooks/2/test",
+    "ping_url": "https://api.github.com/repos/golangci/golangci-api/hooks/2/pings",
+    "last_response": {
+      "code": 200,
+      "status": "active",
+      "message": "OK"
+    }
+  },
+  {
+    "type": "Repository",
+    "id": 3,
+    "name": "web",
+    "active": true,
+    "events": [
+      "pull_request",
+      "push"
+    ],
+    "config": {
+      "content_type": "json",
+      "url": "https://api.golangci.com/v1/repos/golangci/golangci-api/hooks/abcde",
+      "insecure_ssl": "0"
+    },
+    "updated_at": "2018-09-02T14:36:07Z",
+    "created_at": "2018-09-02T14:36:07Z",
+    "url": "https://api.github.com/repos/golangci/golangci-api/hooks/3",
+    "test_url": "https://api.github.com/repos/golangci/golangci-api/hooks/3/test",
+    "ping_url": "https://api.github.com/repos/golangci/golangci-api/hooks/3/pings",
+    "last_response": {
+      "code": 200,
+      "status": "active",
+      "message": "OK"
+    }
+  }
+]

@@ -8,7 +8,7 @@ import (
 
 	"github.com/golangci/golangci-api/app/handlers"
 	"github.com/golangci/golangci-api/app/utils"
-	"github.com/golangci/golangci-api/pkg/app"
+	appPkg "github.com/golangci/golangci-api/pkg/app"
 	"github.com/golangci/golangci-api/pkg/shared"
 	"github.com/joho/godotenv"
 )
@@ -17,14 +17,14 @@ var server *httptest.Server
 var serverOnce sync.Once
 
 var envLoadOnce sync.Once
+var app *appPkg.App
 
 func initServer() {
 	serverOnce.Do(func() {
-		app := app.NewApp()
+		app = appPkg.NewApp()
 		app.RegisterHandlers()
 		app.RunMigrations()
 		app.RunConsumers()
-		app.RunProducers()
 		server = httptest.NewServer(handlers.GetRoot())
 	})
 }

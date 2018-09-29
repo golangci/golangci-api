@@ -1,9 +1,7 @@
 package producers
 
-type Message interface {
-	DeduplicationID() string
-}
+import "github.com/golangci/golangci-api/pkg/queue"
 
 type Queue interface {
-	Put(message Message) error
+	Put(message queue.Message) error
 }

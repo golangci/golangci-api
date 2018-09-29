@@ -9,12 +9,12 @@ import (
 
 	"github.com/gavv/httpexpect"
 	"github.com/golangci/golangci-api/app/returntypes"
-	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 type User struct {
 	returntypes.AuthorizedUser
-	A *assert.Assertions
+	A *require.Assertions
 	E *httpexpect.Expect
 	t *testing.T
 }
@@ -66,12 +66,12 @@ func StubLogin(t *testing.T) *User {
 		Raw()
 
 	userResp := make(map[string]*User)
-	assert.NoError(t, json.Unmarshal([]byte(checkBody), &userResp))
+	require.NoError(t, json.Unmarshal([]byte(checkBody), &userResp))
 	user := userResp["user"]
-	assert.NotNil(t, user)
-	assert.NotZero(t, user.ID)
+	require.NotNil(t, user)
+	require.NotZero(t, user.ID)
 
-	user.A = assert.New(t)
+	user.A = require.New(t)
 	user.E = e
 	user.t = t
 	return user

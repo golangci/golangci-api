@@ -1,15 +1,42 @@
 AWSTemplateFormatVersion: "2010-09-09"
 Transform: 'AWS::Serverless-2016-10-31'
 
-Resources: 
+Resources:
+  golangciProdUser:
+    Type: AWS::IAM::User
+    Properties: 
+      Policies:
+        - PolicyName: GolangciProdAccess
+          PolicyDocument:
+            Statement:
+                - Effect: Allow
+                  Action: ["sqs:SendMessage", "sqs:ReceiveMessage", "sqs:ChangeMessageVisibility", "sqs:DeleteMessage"]
+                  Resource: !GetAtt primaryQueue.Arn
+      UserName: golangciProdUser
+  golangciTestUser:
+    Type: AWS::IAM::User
+    Properties: 
+      Policies:
+        - PolicyName: GolangciTestAccess
+          PolicyDocument:
+            Statement:
+                - Effect: Allow
+                  Action: ["sqs:SendMessage", "sqs:ReceiveMessage", "sqs:ChangeMessageVisibility", "sqs:DeleteMessage"]
+                  Resource: !GetAtt testPrimaryQueue.Arn
+      UserName: golangciTestUser
+  golangciProdUserKeys:
+    Type: AWS::IAM::AccessKey
+    Properties:
+      UserName: !Ref golangciProdUser
+  golangciTestUserKeys:
+    Type: AWS::IAM::AccessKey
+    Properties:
+      UserName: !Ref golangciTestUser
   primaryQueue: 
     Type: AWS::SQS::Queue
     Properties: 
       RedrivePolicy: 
-        deadLetterTargetArn: 
-          Fn::GetAtt: 
-            - "deadLetterPrimaryQueue"
-            - "Arn"
+        deadLetterTargetArn: !GetAtt deadLetterPrimaryQueue.Arn
         maxReceiveCount: 5
       VisibilityTimeout: 60
       ReceiveMessageWaitTimeSeconds: 20 # save costs on polling
@@ -24,25 +51,52 @@ Resources:
       KmsMasterKeyId: alias/aws/sqs
       KmsDataKeyReusePeriodSeconds: 600
       MessageRetentionPeriod: 1209600 # 14d
+  testPrimaryQueue: 
+    Type: AWS::SQS::Queue
+    Properties: 
+      RedrivePolicy: 
+        deadLetterTargetArn: !GetAtt testDeadLetterPrimaryQueue.Arn
+        maxReceiveCount: 5
+      VisibilityTimeout: 60
+      ReceiveMessageWaitTimeSeconds: 20 # save costs on polling
+      KmsMasterKeyId: alias/aws/sqs
+      KmsDataKeyReusePeriodSeconds: 600
+      MessageRetentionPeriod: 345600 # 4d
+  testDeadLetterPrimaryQueue: 
+    Type: AWS::SQS::Queue
+    Properties:
+      VisibilityTimeout: 60
+      ReceiveMessageWaitTimeSeconds: 20 # save costs on polling
+      KmsMasterKeyId: alias/aws/sqs
+      KmsDataKeyReusePeriodSeconds: 600
+      MessageRetentionPeriod: 1209600 # 14d
 
 Outputs:
   primaryQueueURL: 
     Description: "URL of the primary queue"
     Value: 
-      Ref: "primaryQueue"
+      Ref: primaryQueue
   primaryQueueARN: 
     Description: "ARN of the primary queue"
-    Value: 
-      Fn::GetAtt: 
-        - "primaryQueue"
-        - "Arn"
+    Value: !GetAtt primaryQueue.Arn
   deadLetterPrimaryQueueURL: 
     Description: "URL of the dead letter for the primary queue"
-    Value: 
-      Ref: "deadLetterPrimaryQueue"
+    Value: !Ref deadLetterPrimaryQueue
   deadLetterPrimaryQueueARN: 
     Description: "ARN of the dead letter for the primary queue"
-    Value: 
-      Fn::GetAtt: 
-        - "deadLetterPrimaryQueue"
-        - "Arn"
+    Value: !GetAtt deadLetterPrimaryQueue.Arn
+  testPrimaryQueueURL: 
+    Description: "URL of the test primary queue"
+    Value: !Ref testPrimaryQueue
+  golangciProdUserAccessKey:
+    Value: !Ref golangciProdUserKeys
+    Description: AWSAccessKeyId of golangciProdUser user
+  golangciProdUserSecretKey:
+    Value: !GetAtt [golangciProdUserKeys, SecretAccessKey]
+    Description: AWSSecretKey of golangciProdUser user
+  golangciTestUserAccessKey:
+    Value: !Ref golangciTestUserKeys
+    Description: AWSAccessKeyId of golangciTestUser user
+  golangciTestUserSecretKey:
+    Value: !GetAtt [golangciTestUserKeys, SecretAccessKey]
+    Description: AWSSecretKey of golangciTestUser user

@@ -1,0 +1,102 @@
+{
+  "name": "master",
+  "commit": {
+    "sha": "04082d3e80135d3753272ee53990137bdbc43e24",
+    "node_id": "MDY6Q29tbWl0MTIxODU0NzY4OjA0MDgyZDNlODAxMzVkMzc1MzI3MmVlNTM5OTAxMzdiZGJjNDNlMjQ=",
+    "commit": {
+      "author": {
+        "name": "Isaev Denis",
+        "email": "idenx@yandex.com",
+        "date": "2018-09-21T16:54:59Z"
+      },
+      "committer": {
+        "name": "GitHub",
+        "email": "noreply@github.com",
+        "date": "2018-09-21T16:54:59Z"
+      },
+      "message": "Merge pull request #39 from golangci/feature/rename-github-auth-to-auth\n\ngolangci/golangci#13: abstract away auths from github",
+      "tree": {
+        "sha": "bfc7acd52573dc56f814d0b93affe31894600b07",
+        "url": "https://api.github.com/repos/golangci/golangci-api/git/trees/bfc7acd52573dc56f814d0b93affe31894600b07"
+      },
+      "url": "https://api.github.com/repos/golangci/golangci-api/git/commits/04082d3e80135d3753272ee53990137bdbc43e24",
+      "comment_count": 0,
+      "verification": {
+        "verified": true,
+        "reason": "valid",
+        "signature": "-----BEGIN PGP SIGNATURE-----\n\nwsBcBAABCAAQBQJbpSJjCRBK7hj4Ov3rIwAAdHIIACO6aowjOIQLq8S2koxHiLUS\nSYrj+2wlMhEbVz5IMCnzNUrKrThNA3KZcXQzZb9mIQ+n9wrsv63gdX+zSL2YlWG8\n6EbvNpW1cSomZ4VUWR5bSoSXiuBfqVT9H3CkdUGdFOHS3khp7yBY93cIxB9Q7wk6\n92TdXeZfpCe9XF8jGI5w/pu2y16CP4Gvod9S7mwh1562kkj+egvovccsKbT9bpw5\noE3hO4Punch8sudj5HYTvg3atn8qPjyM1v9KWTpXLMo0e4nagtnLuJmQa6j0YfmN\nxM8xSEWtgV3+j2uH26HgUuDSlOeBH/E+wMrJeyZUtTt68dG3ZTotJpIbAugUS/8=\n=Uf2l\n-----END PGP SIGNATURE-----\n",
+        "payload": "tree bfc7acd52573dc56f814d0b93affe31894600b07\nparent 0956b0417a560ffb24bd030196b6cf3a3aca3539\nparent 061212a92d0dd3041727d7f30e69e055486b7313\nauthor Isaev Denis <idenx@yandex.com> 1537548899 +0300\ncommitter GitHub <noreply@github.com> 1537548899 +0300\n\nMerge pull request #39 from golangci/feature/rename-github-auth-to-auth\n\ngolangci/golangci#13: abstract away auths from github"
+      }
+    },
+    "url": "https://api.github.com/repos/golangci/golangci-api/commits/04082d3e80135d3753272ee53990137bdbc43e24",
+    "html_url": "https://github.com/golangci/golangci-api/commit/04082d3e80135d3753272ee53990137bdbc43e24",
+    "comments_url": "https://api.github.com/repos/golangci/golangci-api/commits/04082d3e80135d3753272ee53990137bdbc43e24/comments",
+    "author": {
+      "login": "jirfag",
+      "id": 4648736,
+      "node_id": "MDQ6VXNlcjQ2NDg3MzY=",
+      "avatar_url": "https://avatars3.githubusercontent.com/u/4648736?v=4",
+      "gravatar_id": "",
+      "url": "https://api.github.com/users/jirfag",
+      "html_url": "https://github.com/jirfag",
+      "followers_url": "https://api.github.com/users/jirfag/followers",
+      "following_url": "https://api.github.com/users/jirfag/following{/other_user}",
+      "gists_url": "https://api.github.com/users/jirfag/gists{/gist_id}",
+      "starred_url": "https://api.github.com/users/jirfag/starred{/owner}{/repo}",
+      "subscriptions_url": "https://api.github.com/users/jirfag/subscriptions",
+      "organizations_url": "https://api.github.com/users/jirfag/orgs",
+      "repos_url": "https://api.github.com/users/jirfag/repos",
+      "events_url": "https://api.github.com/users/jirfag/events{/privacy}",
+      "received_events_url": "https://api.github.com/users/jirfag/received_events",
+      "type": "User",
+      "site_admin": false
+    },
+    "committer": {
+      "login": "web-flow",
+      "id": 19864447,
+      "node_id": "MDQ6VXNlcjE5ODY0NDQ3",
+      "avatar_url": "https://avatars3.githubusercontent.com/u/19864447?v=4",
+      "gravatar_id": "",
+      "url": "https://api.github.com/users/web-flow",
+      "html_url": "https://github.com/web-flow",
+      "followers_url": "https://api.github.com/users/web-flow/followers",
+      "following_url": "https://api.github.com/users/web-flow/following{/other_user}",
+      "gists_url": "https://api.github.com/users/web-flow/gists{/gist_id}",
+      "starred_url": "https://api.github.com/users/web-flow/starred{/owner}{/repo}",
+      "subscriptions_url": "https://api.github.com/users/web-flow/subscriptions",
+      "organizations_url": "https://api.github.com/users/web-flow/orgs",
+      "repos_url": "https://api.github.com/users/web-flow/repos",
+      "events_url": "https://api.github.com/users/web-flow/events{/privacy}",
+      "received_events_url": "https://api.github.com/users/web-flow/received_events",
+      "type": "User",
+      "site_admin": false
+    },
+    "parents": [
+      {
+        "sha": "0956b0417a560ffb24bd030196b6cf3a3aca3539",
+        "url": "https://api.github.com/repos/golangci/golangci-api/commits/0956b0417a560ffb24bd030196b6cf3a3aca3539",
+        "html_url": "https://github.com/golangci/golangci-api/commit/0956b0417a560ffb24bd030196b6cf3a3aca3539"
+      },
+      {
+        "sha": "061212a92d0dd3041727d7f30e69e055486b7313",
+        "url": "https://api.github.com/repos/golangci/golangci-api/commits/061212a92d0dd3041727d7f30e69e055486b7313",
+        "html_url": "https://github.com/golangci/golangci-api/commit/061212a92d0dd3041727d7f30e69e055486b7313"
+      }
+    ]
+  },
+  "_links": {
+    "self": "https://api.github.com/repos/golangci/golangci-api/branches/master",
+    "html": "https://github.com/golangci/golangci-api/tree/master"
+  },
+  "protected": false,
+  "protection": {
+    "enabled": false,
+    "required_status_checks": {
+      "enforcement_level": "off",
+      "contexts": [
+
+      ]
+    }
+  },
+  "protection_url": "https://api.github.com/repos/golangci/golangci-api/branches/master/protection"
+}

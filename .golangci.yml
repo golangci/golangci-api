@@ -12,6 +12,8 @@ linters-settings:
   goconst:
     min-len: 2
     min-occurrences: 2
+  lll:
+    line-length: 140
 
 linters:
   enable-all: true

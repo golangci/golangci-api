@@ -2,6 +2,8 @@ package producers
 
 import (
 	"fmt"
+
+	"github.com/golangci/golangci-api/pkg/queue"
 )
 
 type Multiplexer struct {
@@ -23,14 +25,14 @@ type subqueue struct {
 
 type subqueueMessage struct {
 	SubqueueID string
-	Message    Message
+	Message    queue.Message
 }
 
 func (sm subqueueMessage) DeduplicationID() string {
 	return sm.Message.DeduplicationID()
 }
 
-func (sq subqueue) Put(message Message) error {
+func (sq subqueue) Put(message queue.Message) error {
 	return sq.parent.q.Put(subqueueMessage{
 		SubqueueID: sq.id,
 		Message:    message,

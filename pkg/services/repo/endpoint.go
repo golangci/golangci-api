@@ -19,23 +19,31 @@ type CreateRequest struct {
 
 type CreateResponse struct {
 	err error
-	*returntypes.RepoInfo
+	*returntypes.WrappedRepoInfo
 }
 
 func makeCreateEndpoint(svc Service, log logutil.Log) endpoint.Endpoint {
-	return func(ctx context.Context, request interface{}) (resp interface{}, err error) {
-		req := request.(CreateRequest)
-		rc := endpointutil.RequestContext(ctx)
+	return func(ctx context.Context, reqObj interface{}) (resp interface{}, err error) {
+		req := reqObj.(CreateRequest)
+
+		reqLogger := log
 		defer func() {
 			if rerr := recover(); rerr != nil {
-				rc.Log.Errorf("Panic occured")
-				rc.Log.Infof("%s", debug.Stack())
+				reqLogger.Errorf("Panic occured")
+				reqLogger.Infof("%s", debug.Stack())
 				resp = CreateResponse{
 					err: errors.New("panic occured"),
 				}
 				err = nil
 			}
 		}()
+
+		if err := endpointutil.Error(ctx); err != nil {
+			// error occurred during request context creation
+			return nil, errors.Wrap(err, "got pre-endpoint error")
+		}
+		rc := endpointutil.RequestContext(ctx).(*request.AuthorizedContext)
+		reqLogger = rc.Log
 
 		req.ReqRepo.FillLogContext(rc.Lctx)
 
@@ -46,6 +54,141 @@ func makeCreateEndpoint(svc Service, log logutil.Log) endpoint.Endpoint {
 		}
 
 		return CreateResponse{nil, v}, nil
+
+	}
+}
+
+type GetRequest struct {
+	ReqRepo *request.RepoID
+}
+
+type GetResponse struct {
+	err error
+	*returntypes.WrappedRepoInfo
+}
+
+func makeGetEndpoint(svc Service, log logutil.Log) endpoint.Endpoint {
+	return func(ctx context.Context, reqObj interface{}) (resp interface{}, err error) {
+		req := reqObj.(GetRequest)
+
+		reqLogger := log
+		defer func() {
+			if rerr := recover(); rerr != nil {
+				reqLogger.Errorf("Panic occured")
+				reqLogger.Infof("%s", debug.Stack())
+				resp = GetResponse{
+					err: errors.New("panic occured"),
+				}
+				err = nil
+			}
+		}()
+
+		if err := endpointutil.Error(ctx); err != nil {
+			// error occurred during request context creation
+			return nil, errors.Wrap(err, "got pre-endpoint error")
+		}
+		rc := endpointutil.RequestContext(ctx).(*request.AuthorizedContext)
+		reqLogger = rc.Log
+
+		req.ReqRepo.FillLogContext(rc.Lctx)
+
+		v, err := svc.Get(rc, req.ReqRepo)
+		if err != nil {
+			rc.Log.Errorf("repo.Service.Get failed: %s", err)
+			return GetResponse{err, v}, nil
+		}
+
+		return GetResponse{nil, v}, nil
+
+	}
+}
+
+type DeleteRequest struct {
+	ReqRepo *request.RepoID
+}
+
+type DeleteResponse struct {
+	err error
+	*returntypes.WrappedRepoInfo
+}
+
+func makeDeleteEndpoint(svc Service, log logutil.Log) endpoint.Endpoint {
+	return func(ctx context.Context, reqObj interface{}) (resp interface{}, err error) {
+		req := reqObj.(DeleteRequest)
+
+		reqLogger := log
+		defer func() {
+			if rerr := recover(); rerr != nil {
+				reqLogger.Errorf("Panic occured")
+				reqLogger.Infof("%s", debug.Stack())
+				resp = DeleteResponse{
+					err: errors.New("panic occured"),
+				}
+				err = nil
+			}
+		}()
+
+		if err := endpointutil.Error(ctx); err != nil {
+			// error occurred during request context creation
+			return nil, errors.Wrap(err, "got pre-endpoint error")
+		}
+		rc := endpointutil.RequestContext(ctx).(*request.AuthorizedContext)
+		reqLogger = rc.Log
+
+		req.ReqRepo.FillLogContext(rc.Lctx)
+
+		v, err := svc.Delete(rc, req.ReqRepo)
+		if err != nil {
+			rc.Log.Errorf("repo.Service.Delete failed: %s", err)
+			return DeleteResponse{err, v}, nil
+		}
+
+		return DeleteResponse{nil, v}, nil
+
+	}
+}
+
+type ListRequest struct {
+	Req *listRequest
+}
+
+type ListResponse struct {
+	err error
+	*returntypes.RepoListResponse
+}
+
+func makeListEndpoint(svc Service, log logutil.Log) endpoint.Endpoint {
+	return func(ctx context.Context, reqObj interface{}) (resp interface{}, err error) {
+		req := reqObj.(ListRequest)
+
+		reqLogger := log
+		defer func() {
+			if rerr := recover(); rerr != nil {
+				reqLogger.Errorf("Panic occured")
+				reqLogger.Infof("%s", debug.Stack())
+				resp = ListResponse{
+					err: errors.New("panic occured"),
+				}
+				err = nil
+			}
+		}()
+
+		if err := endpointutil.Error(ctx); err != nil {
+			// error occurred during request context creation
+			return nil, errors.Wrap(err, "got pre-endpoint error")
+		}
+		rc := endpointutil.RequestContext(ctx).(*request.AuthorizedContext)
+		reqLogger = rc.Log
+
+		req.Req.FillLogContext(rc.Lctx)
+
+		v, err := svc.List(rc, req.Req)
+		if err != nil {
+			rc.Log.Errorf("repo.Service.List failed: %s", err)
+			return ListResponse{err, v}, nil
+		}
+
+		return ListResponse{nil, v}, nil
 
 	}
 }

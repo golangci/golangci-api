@@ -5,15 +5,21 @@ import (
 	"encoding/json"
 	"fmt"
 	"reflect"
+	"time"
 
+	"gopkg.in/redsync.v1"
+
+	"github.com/golangci/golangci-api/pkg/queue"
 	"github.com/pkg/errors"
 )
 
 type ReflectConsumer struct {
-	handler interface{}
+	handler         interface{}
+	timeout         time.Duration
+	distlockFactory *redsync.Redsync
 }
 
-func NewReflectConsumer(handler interface{}) (*ReflectConsumer, error) {
+func NewReflectConsumer(handler interface{}, timeout time.Duration, df *redsync.Redsync) (*ReflectConsumer, error) {
 	handlerType := reflect.TypeOf(handler)
 	if handlerType.Kind() != reflect.Func {
 		return nil, fmt.Errorf("handler kind %s is not %s", handlerType.Kind(), reflect.Func)
@@ -37,6 +43,10 @@ func NewReflectConsumer(handler interface{}) (*ReflectConsumer, error) {
 	if secondArgPointedType.Kind() != reflect.Struct {
 		return nil, fmt.Errorf("handler's second arg's pointer points no to struct but to %s", secondArgPointedType.Kind())
 	}
+	messageType := reflect.TypeOf((*queue.Message)(nil)).Elem()
+	if !secondArgType.Implements(messageType) {
+		return nil, fmt.Errorf("handler's second arg doesn't implement queue.Message interface")
+	}
 
 	if handlerType.NumOut() != 1 {
 		return nil, fmt.Errorf("invalid output values count %d != 1", handlerType.NumOut())
@@ -49,7 +59,9 @@ func NewReflectConsumer(handler interface{}) (*ReflectConsumer, error) {
 	}
 
 	return &ReflectConsumer{
-		handler: handler,
+		handler:         handler,
+		timeout:         timeout,
+		distlockFactory: df,
 	}, nil
 }
 
@@ -64,12 +76,26 @@ func (c ReflectConsumer) ConsumeMessage(ctx context.Context, message []byte) err
 	}
 
 	handler := reflect.ValueOf(c.handler)
+	return c.runHandler(ctx, handler, callArgValue)
+}
+
+func (c ReflectConsumer) runHandler(ctx context.Context, handler, callArgValue reflect.Value) error {
+	ctx, cancel := context.WithTimeout(ctx, c.timeout)
+	defer cancel()
+
+	callArgMessage := callArgValue.Interface().(queue.Message)
+	lockID := fmt.Sprintf("locks/consumers/%s", callArgMessage.DeduplicationID())
+	distLock := c.distlockFactory.NewMutex(lockID, redsync.SetExpiry(c.timeout))
+	if err := distLock.Lock(); err != nil {
+		return errors.Wrapf(err, "failed to acquire distributed lock %s", lockID)
+	}
+	defer distLock.Unlock()
+
 	retValues := handler.Call([]reflect.Value{reflect.ValueOf(ctx), callArgValue})
 	retVal := retValues[0]
-	var err error
+
 	if retVal.Interface() != nil {
-		err = retVal.Interface().(error)
-		return errors.Wrap(ErrRetryLater, err.Error())
+		return retVal.Interface().(error)
 	}
 
 	return nil

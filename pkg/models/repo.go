@@ -1,6 +1,7 @@
 package models
 
 import (
+	"fmt"
 	"strings"
 
 	"github.com/jinzhu/gorm"
@@ -8,7 +9,33 @@ import (
 
 //go:generate goqueryset -in repo.go
 
-// gen:qs
+type RepoCommitState string
+
+const (
+	RepoCommitStateCreateInit        RepoCommitState = "create/init"
+	RepoCommitStateCreateSentToQueue RepoCommitState = "create/sent_to_queue"
+	RepoCommitStateCreateCreatedRepo RepoCommitState = "create/created_repo"
+	RepoCommitStateCreateDone        RepoCommitState = "create/done"
+
+	RepoCommitStateDeleteInit        RepoCommitState = "delete/init"
+	RepoCommitStateDeleteSentToQueue RepoCommitState = "delete/sent_to_queue"
+	RepoCommitStateDeleteDone        RepoCommitState = "delete/done"
+)
+
+func (s RepoCommitState) IsDeleteState() bool {
+	return s == RepoCommitStateDeleteInit || s == RepoCommitStateDeleteSentToQueue || s == RepoCommitStateDeleteDone
+}
+
+func (s RepoCommitState) IsCreateState() bool {
+	return s == RepoCommitStateCreateInit || s == RepoCommitStateCreateSentToQueue ||
+		s == RepoCommitStateCreateCreatedRepo || s == RepoCommitStateCreateDone
+}
+
+func (s RepoCommitState) IsDone() bool {
+	return s == RepoCommitStateDeleteDone || s == RepoCommitStateCreateDone
+}
+
+//gen:qs
 type Repo struct {
 	gorm.Model
 
@@ -24,6 +51,8 @@ type Repo struct {
 	Provider       string // github.com, gitlab.com etc
 	ProviderHookID int
 	ProviderID     int // provider repo id: use it (not name) as repo identifier because of repo renaming
+
+	CommitState RepoCommitState // state of creation or deletion
 }
 
 func (r *Repo) Owner() string {
@@ -36,4 +65,16 @@ func (r *Repo) Repo() string {
 
 func (r *Repo) String() string {
 	return r.Name
+}
+
+func (r *Repo) GoString() string {
+	return fmt.Sprintf("{Name: %s, ID: %d, CommitState: %s}", r.Name, r.ID, r.CommitState)
+}
+
+func (r Repo) IsDeleting() bool {
+	return r.CommitState.IsDeleteState() && !r.CommitState.IsDone()
+}
+
+func (r Repo) IsCreating() bool {
+	return r.CommitState.IsCreateState() && !r.CommitState.IsDone()
 }

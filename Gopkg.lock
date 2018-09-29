@@ -43,6 +43,19 @@
   revision = "523a5da1a92f01b01f840b61689c0340a0243532"
 
 [[projects]]
+  digest = "1:014e79cf5c422dd0547a87bde33c7f7b3cd29116a96fac8897c7e50f18531dea"
+  name = "github.com/aws/aws-lambda-go"
+  packages = [
+    "events",
+    "lambda",
+    "lambda/messages",
+    "lambdacontext",
+  ]
+  pruneopts = "UT"
+  revision = "2d482ef09017ae953b1e8d5a6ddac5b696663a3c"
+  version = "v1.6.0"
+
+[[projects]]
   branch = "master"
   digest = "1:f1f59a0606e95c77a820e2704afa51e21e4a97c3d4a5fd25f7874f81983886a9"
   name = "github.com/aws/aws-sdk-go"
@@ -357,12 +370,12 @@
   revision = "5accad8134979a6ac504d456a6c7f1c53da237ca"
 
 [[projects]]
-  branch = "master"
-  digest = "1:902f9dbe15a922da8b1d662f9f61e7d59d17e11ddbb8eb890a30b79c8568fd03"
+  digest = "1:235ae01f32fb5f12c5f6d2e0e05ab48e651ab31c126e45a4efc4f510810941ac"
   name = "github.com/jinzhu/gorm"
   packages = ["."]
   pruneopts = "UT"
-  revision = "5050a58b457286dbda1844991866a86a434636ab"
+  revision = "6ed508ec6a4ecb3531899a69cbc746ccf65a4166"
+  version = "v1.9.1"
 
 [[projects]]
   branch = "master"
@@ -811,6 +824,13 @@
   analyzer-name = "dep"
   analyzer-version = 1
   input-imports = [
+    "github.com/aws/aws-lambda-go/events",
+    "github.com/aws/aws-lambda-go/lambda",
+    "github.com/aws/aws-sdk-go/aws",
+    "github.com/aws/aws-sdk-go/aws/client",
+    "github.com/aws/aws-sdk-go/aws/session",
+    "github.com/aws/aws-sdk-go/service/sqs",
+    "github.com/cenkalti/backoff",
     "github.com/dukex/mixpanel",
     "github.com/garyburd/redigo/redis",
     "github.com/gavv/httpexpect",
@@ -849,7 +869,7 @@
     "github.com/savaki/amplitude-go",
     "github.com/sirupsen/logrus",
     "github.com/stretchr/testify/assert",
-    "github.com/stvp/rollbar",
+    "github.com/stretchr/testify/require",
     "github.com/urfave/negroni",
     "golang.org/x/oauth2",
     "golang.org/x/tools/go/loader",

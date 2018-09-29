@@ -54,8 +54,8 @@
   name = "github.com/gorilla/sessions"
 
 [[constraint]]
-  branch = "master"
   name = "github.com/jinzhu/gorm"
+  version = "v1.9.1"
 
 [[constraint]]
   branch = "master"
@@ -101,7 +101,3 @@
   root-package = "github.com/golangci/golangci-api"
   go-version = "go1.9"
   install = [ "./cmd/..." ]
-
-[[constraint]]
-  name = "github.com/stvp/rollbar"
-  version = "0.5.1"

@@ -2,15 +2,16 @@ package request
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 
 	"github.com/golangci/golangci-shared/pkg/logutil"
 )
 
 type Repo struct {
-	Provider string `request:",url"`
-	Owner    string `request:",url"`
-	Name     string `request:",url"`
+	Provider string `request:",url,"`
+	Owner    string `request:",url,"`
+	Name     string `request:",url,"`
 }
 
 func (r Repo) FullName() string {
@@ -41,4 +42,12 @@ func (r BodyRepo) String() string {
 
 func (r BodyRepo) FillLogContext(lctx logutil.Context) {
 	lctx["repo"] = r.String()
+}
+
+type RepoID struct {
+	ID uint `request:"repoID,url,"`
+}
+
+func (r RepoID) FillLogContext(lctx logutil.Context) {
+	lctx["repoID"] = strconv.Itoa(int(r.ID))
 }

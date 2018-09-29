@@ -3,7 +3,6 @@ package repoanalysis
 
 import (
 	"context"
-	"errors"
 	"runtime/debug"
 
 	"github.com/go-kit/kit/endpoint"
@@ -11,6 +10,7 @@ import (
 	"github.com/golangci/golangci-api/pkg/models"
 	"github.com/golangci/golangci-api/pkg/request"
 	"github.com/golangci/golangci-shared/pkg/logutil"
+	"github.com/pkg/errors"
 )
 
 type GetStatusRequest struct {
@@ -23,19 +23,27 @@ type GetStatusResponse struct {
 }
 
 func makeGetStatusEndpoint(svc Service, log logutil.Log) endpoint.Endpoint {
-	return func(ctx context.Context, request interface{}) (resp interface{}, err error) {
-		req := request.(GetStatusRequest)
-		rc := endpointutil.RequestContext(ctx)
+	return func(ctx context.Context, reqObj interface{}) (resp interface{}, err error) {
+		req := reqObj.(GetStatusRequest)
+
+		reqLogger := log
 		defer func() {
 			if rerr := recover(); rerr != nil {
-				rc.Log.Errorf("Panic occured")
-				rc.Log.Infof("%s", debug.Stack())
+				reqLogger.Errorf("Panic occured")
+				reqLogger.Infof("%s", debug.Stack())
 				resp = GetStatusResponse{
 					err: errors.New("panic occured"),
 				}
 				err = nil
 			}
 		}()
+
+		if err := endpointutil.Error(ctx); err != nil {
+			// error occurred during request context creation
+			return nil, errors.Wrap(err, "got pre-endpoint error")
+		}
+		rc := endpointutil.RequestContext(ctx).(*request.AnonymousContext)
+		reqLogger = rc.Log
 
 		req.Repo.FillLogContext(rc.Lctx)
 
@@ -60,19 +68,27 @@ type GetResponse struct {
 }
 
 func makeGetEndpoint(svc Service, log logutil.Log) endpoint.Endpoint {
-	return func(ctx context.Context, request interface{}) (resp interface{}, err error) {
-		req := request.(GetRequest)
-		rc := endpointutil.RequestContext(ctx)
+	return func(ctx context.Context, reqObj interface{}) (resp interface{}, err error) {
+		req := reqObj.(GetRequest)
+
+		reqLogger := log
 		defer func() {
 			if rerr := recover(); rerr != nil {
-				rc.Log.Errorf("Panic occured")
-				rc.Log.Infof("%s", debug.Stack())
+				reqLogger.Errorf("Panic occured")
+				reqLogger.Infof("%s", debug.Stack())
 				resp = GetResponse{
 					err: errors.New("panic occured"),
 				}
 				err = nil
 			}
 		}()
+
+		if err := endpointutil.Error(ctx); err != nil {
+			// error occurred during request context creation
+			return nil, errors.Wrap(err, "got pre-endpoint error")
+		}
+		rc := endpointutil.RequestContext(ctx).(*request.AnonymousContext)
+		reqLogger = rc.Log
 
 		req.Rac.FillLogContext(rc.Lctx)
 
@@ -97,19 +113,27 @@ type UpdateResponse struct {
 }
 
 func makeUpdateEndpoint(svc Service, log logutil.Log) endpoint.Endpoint {
-	return func(ctx context.Context, request interface{}) (resp interface{}, err error) {
-		req := request.(UpdateRequest)
-		rc := endpointutil.RequestContext(ctx)
+	return func(ctx context.Context, reqObj interface{}) (resp interface{}, err error) {
+		req := reqObj.(UpdateRequest)
+
+		reqLogger := log
 		defer func() {
 			if rerr := recover(); rerr != nil {
-				rc.Log.Errorf("Panic occured")
-				rc.Log.Infof("%s", debug.Stack())
+				reqLogger.Errorf("Panic occured")
+				reqLogger.Infof("%s", debug.Stack())
 				resp = UpdateResponse{
 					err: errors.New("panic occured"),
 				}
 				err = nil
 			}
 		}()
+
+		if err := endpointutil.Error(ctx); err != nil {
+			// error occurred during request context creation
+			return nil, errors.Wrap(err, "got pre-endpoint error")
+		}
+		rc := endpointutil.RequestContext(ctx).(*request.AnonymousContext)
+		reqLogger = rc.Log
 
 		req.Rac.FillLogContext(rc.Lctx)
 		req.Update.FillLogContext(rc.Lctx)
