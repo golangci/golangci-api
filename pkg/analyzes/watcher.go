@@ -48,6 +48,11 @@ func CheckStaleAnalyzes(ctx *context.C, taskProcessingTimeout time.Duration) (in
 	}
 
 	for _, analysis := range analyzes {
+		if analysis.Repo.ID == 0 {
+			// repo was disconnected
+			continue
+		}
+
 		if err = updateStaleAnalysis(ctx, analysis); err != nil {
 			errors.Errorf(ctx, "Can't update stale analysis %+v: %s", analysis, err)
 		} else {
