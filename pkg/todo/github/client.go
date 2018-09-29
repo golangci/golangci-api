@@ -3,7 +3,6 @@ package github
 import (
 	gocontext "context"
 	"fmt"
-	"net/http"
 
 	"github.com/golangci/golangci-api/pkg/models"
 	"github.com/golangci/golangci-api/pkg/todo/auth/user"
@@ -39,33 +38,6 @@ func getClient(ctx *context.C) (*gh.Client, bool, error) {
 		},
 	)
 	tc := oauth2.NewClient(ctx.Ctx, ts)
-	client := gh.NewClient(tc)
-
-	return client, needPrivateRepos, nil
-}
-
-func GetClientV2(ctx gocontext.Context, db *gorm.DB, httpReq *http.Request) (*gh.Client, bool, error) {
-	ga, err := user.GetAuthV2(db, httpReq)
-	if err != nil {
-		return nil, false, errors.Wrap(err, "can't get current auth")
-	}
-
-	at := ga.AccessToken
-	needPrivateRepos := ga.PrivateAccessToken != ""
-	if needPrivateRepos {
-		at = ga.PrivateAccessToken
-	}
-
-	if at == "" {
-		return nil, false, errors.New("access token is empty")
-	}
-
-	ts := oauth2.StaticTokenSource(
-		&oauth2.Token{
-			AccessToken: at,
-		},
-	)
-	tc := oauth2.NewClient(ctx, ts)
 	client := gh.NewClient(tc)
 
 	return client, needPrivateRepos, nil

@@ -1,4 +1,4 @@
-package events
+package test
 
 import (
 	"net/http"

@@ -8,7 +8,7 @@ import (
 	"testing"
 
 	"github.com/gavv/httpexpect"
-	"github.com/golangci/golangci-api/app/returntypes"
+	"github.com/golangci/golangci-api/pkg/returntypes"
 	"github.com/stretchr/testify/require"
 )
 

@@ -12,6 +12,10 @@ import (
 	log "github.com/sirupsen/logrus"
 
 	_ "github.com/mattes/migrate/source/file" // must have for migrations
+
+	_ "github.com/golangci/golangci-api/app/handlers/auth"   // register handler
+	_ "github.com/golangci/golangci-api/app/handlers/events" // register handler
+	_ "github.com/golangci/golangci-api/app/handlers/repos"  // register handler
 )
 
 func init() {

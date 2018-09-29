@@ -2,7 +2,7 @@ package auth
 
 import (
 	"github.com/golangci/golangci-api/app/handlers"
-	"github.com/golangci/golangci-api/app/returntypes"
+	"github.com/golangci/golangci-api/pkg/returntypes"
 	"github.com/golangci/golangci-api/pkg/todo/auth/user"
 	"github.com/golangci/golib/server/context"
 )

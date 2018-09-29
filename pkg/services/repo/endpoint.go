@@ -6,9 +6,9 @@ import (
 	"runtime/debug"
 
 	"github.com/go-kit/kit/endpoint"
-	"github.com/golangci/golangci-api/app/returntypes"
 	"github.com/golangci/golangci-api/pkg/endpointutil"
 	"github.com/golangci/golangci-api/pkg/request"
+	"github.com/golangci/golangci-api/pkg/returntypes"
 	"github.com/golangci/golangci-shared/pkg/logutil"
 	"github.com/pkg/errors"
 )
