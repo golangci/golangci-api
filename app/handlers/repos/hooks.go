@@ -150,6 +150,9 @@ func receivePullRequestWebhook(ctx context.C) error {
 	if err != nil {
 		errors.Warnf(&ctx, "Can't set github commit status to 'pending in queue' for task %+v: %s",
 			t, err)
+		if !github.IsRecoverableError(err) {
+			return nil
+		}
 	}
 
 	if err = analyzequeue.SchedulePRAnalysis(t); err != nil {
