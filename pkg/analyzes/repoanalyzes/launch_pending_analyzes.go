@@ -41,12 +41,13 @@ func launchPendingRepoAnalyzesIter(ctx *context.C) error {
 		return fmt.Errorf("can't get all analysis statuses: %s", err)
 	}
 
+	sleepDuration := getDurationFromEnv("REPO_REANALYZE_SLEEP_DURATION", 2*time.Minute)
 	for _, as := range analysisStatuses {
 		if err := launchPendingRepoAnalysisChecked(ctx, &as); err != nil {
 			apperrors.Warnf(ctx, "Can't launch pending analysis: %s", err)
 		}
 
-		time.Sleep(2 * time.Minute) // no more than 1 repo per 2 minutes
+		time.Sleep(sleepDuration)
 	}
 
 	return nil

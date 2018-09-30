@@ -158,6 +158,7 @@ func getOrCreateRepo(repoName string) (*models.Repo, error) {
 	}
 
 	repo.Name = repoName
+	repo.DisplayName = repoName
 	repo.UserID = u.ID
 	repo.ProviderHookID = 1
 	repo.HookID = uuid.NewV4().String()[:32]

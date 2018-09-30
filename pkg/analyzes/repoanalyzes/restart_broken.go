@@ -5,10 +5,12 @@ import (
 	"math"
 	"time"
 
+	"github.com/pkg/errors"
+
 	"github.com/golangci/golangci-api/app/utils"
 	"github.com/golangci/golangci-api/pkg/models"
 	"github.com/golangci/golangci-api/pkg/todo/db"
-	"github.com/golangci/golangci-api/pkg/todo/errors"
+	apperrors "github.com/golangci/golangci-api/pkg/todo/errors"
 	"github.com/golangci/golangci-worker/app/analyze/analyzequeue"
 	"github.com/golangci/golangci-worker/app/analyze/analyzequeue/task"
 	"github.com/golangci/golib/server/context"
@@ -20,7 +22,7 @@ func restartBrokenRepoAnalyzes() {
 
 	for range time.Tick(repoAnalysisTimeout / 2) {
 		if err := restartBrokenRepoAnalyzesIter(ctx, repoAnalysisTimeout); err != nil {
-			errors.Warnf(ctx, "Can't restart analyzes: %s", err)
+			apperrors.Warnf(ctx, "Can't restart analyzes: %s", err)
 		}
 	}
 }
@@ -66,9 +68,8 @@ func restartBrokenRepoAnalyzesIter(ctx *context.C, repoAnalysisTimeout time.Dura
 		as := a.RepoAnalysisStatus
 
 		var repo models.Repo
-		err := models.NewRepoQuerySet(db.Get(ctx)).IDEq(as.RepoID).One(&repo)
-		if err != nil {
-			return fmt.Errorf("failed to fetch repo with id %d", as.RepoID)
+		if err := models.NewRepoQuerySet(db.Get(ctx).Unscoped()).IDEq(as.RepoID).One(&repo); err != nil {
+			return errors.Wrapf(err, "failed to fetch repo with id %d", as.RepoID)
 		}
 
 		t := &task.RepoAnalysis{
@@ -78,16 +79,15 @@ func restartBrokenRepoAnalyzesIter(ctx *context.C, repoAnalysisTimeout time.Dura
 		}
 
 		a.AttemptNumber++
-		err = a.Update(db.Get(ctx), models.RepoAnalysisDBSchema.AttemptNumber)
-		if err != nil {
-			return fmt.Errorf("can't update attempt number for analysis %+v: %s", a, err)
+		if err := a.Update(db.Get(ctx), models.RepoAnalysisDBSchema.AttemptNumber); err != nil {
+			return errors.Wrapf(err, "can't update attempt number for analysis %+v", a)
 		}
 
-		if err = analyzequeue.ScheduleRepoAnalysis(t); err != nil {
-			return fmt.Errorf("can't resend repo %s for analysis into queue: %s", repo.Name, err)
+		if err := analyzequeue.ScheduleRepoAnalysis(t); err != nil {
+			return errors.Wrapf(err, "can't resend repo %s for analysis into queue", repo.Name)
 		}
 
-		errors.Warnf(ctx, "Restarted analysis for %s in status %s with %d-th attempt",
+		apperrors.Warnf(ctx, "Restarted analysis for %s in status %s with %d-th attempt",
 			repo.Name, a.Status, a.AttemptNumber)
 	}
 
