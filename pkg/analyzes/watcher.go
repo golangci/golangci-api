@@ -37,7 +37,6 @@ func CheckStaleAnalyzes(ctx *context.C, taskProcessingTimeout time.Duration) (in
 	err := models.NewPullRequestAnalysisQuerySet(db.Get(ctx)).
 		StatusIn("sent_to_queue", "processing").
 		CreatedAtLt(time.Now().Add(-taskProcessingTimeout)).
-		PreloadRepo().
 		All(&analyzes)
 	if err != nil {
 		return 0, fmt.Errorf("can't get github analyzes: %s", err)
@@ -48,11 +47,6 @@ func CheckStaleAnalyzes(ctx *context.C, taskProcessingTimeout time.Duration) (in
 	}
 
 	for _, analysis := range analyzes {
-		if analysis.Repo.ID == 0 {
-			// repo was disconnected
-			continue
-		}
-
 		if err = updateStaleAnalysis(ctx, analysis); err != nil {
 			errors.Errorf(ctx, "Can't update stale analysis %+v: %s", analysis, err)
 		} else {
@@ -64,10 +58,6 @@ func CheckStaleAnalyzes(ctx *context.C, taskProcessingTimeout time.Duration) (in
 }
 
 func getGithubContextForAnalysis(ctx *context.C, analysis models.PullRequestAnalysis) (*github.Context, error) {
-	if analysis.Repo.UserID == 0 {
-		return nil, fmt.Errorf("no repo: %+v", analysis.Repo)
-	}
-
 	var ga models.Auth
 	err := models.NewAuthQuerySet(db.Get(ctx)).
 		UserIDEq(analysis.Repo.UserID).
@@ -117,6 +107,10 @@ func setGithubStatus(ctx *context.C, analysis models.PullRequestAnalysis) error 
 }
 
 func updateStaleAnalysis(ctx *context.C, analysis models.PullRequestAnalysis) error {
+	if err := models.NewRepoQuerySet(db.Get(ctx).Unscoped()).IDEq(analysis.RepoID).One(&analysis.Repo); err != nil {
+		return fmt.Errorf("failed to fetch repo: %s", err)
+	}
+
 	if err := setGithubStatus(ctx, analysis); err != nil {
 		return err
 	}
