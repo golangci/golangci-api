@@ -19,7 +19,6 @@ func reanalyzeByNewLinters() {
 	for range time.NewTicker(10 * time.Minute).C {
 		var analysisStatuses []models.RepoAnalysisStatus
 		err := models.NewRepoAnalysisStatusQuerySet(db.Get(ctx)).
-			PreloadRepo().
 			LastAnalyzedLintersVersionNe(lintersVersion).
 			HasPendingChangesEq(false).
 			ActiveEq(true).
@@ -49,7 +48,7 @@ func reanalyzeFromCh(ctx *context.C, analysisStatusesCh <-chan models.RepoAnalys
 	reanalyzeInterval := time.Duration(float64(avgAnalysisTime) / maxReanalyzeCapacity)
 
 	for as := range analysisStatusesCh {
-		ctx.L.Infof("Starting reanalyzing repo %s by new linters...", as.Repo.Name)
+		ctx.L.Infof("Starting reanalyzing repo %d by new linters...", as.RepoID)
 		if err := reanalyzeAnalysisByNewLinters(ctx, &as); err != nil {
 			errors.Warnf(ctx, "Can't reanalyze analysis status %#v: %s", as, err)
 		}
@@ -59,13 +58,19 @@ func reanalyzeFromCh(ctx *context.C, analysisStatusesCh <-chan models.RepoAnalys
 
 //nolint
 func reanalyzeAnalysisByNewLinters(ctx *context.C, as *models.RepoAnalysisStatus) error {
+	// use Unscoped to fetch deleted repos
+	var repo models.Repo
+	if err := models.NewRepoQuerySet(db.Get(ctx).Unscoped()).IDEq(as.RepoID).One(&repo); err != nil {
+		return fmt.Errorf("failed to fetch repo with id %d: %s", as.RepoID, err)
+	}
+
 	var a models.RepoAnalysis
 	err := models.NewRepoAnalysisQuerySet(db.Get(ctx)).
 		RepoAnalysisStatusIDEq(as.ID).
 		OrderDescByID().
 		One(&a)
 	if err != nil {
-		return fmt.Errorf("can't fetch last repo analysis for %s: %s", as.Repo.Name, err)
+		return fmt.Errorf("can't fetch last repo analysis for %s: %s", repo.Name, err)
 	}
 
 	if as.LastAnalyzedLintersVersion == "" {
@@ -95,6 +100,6 @@ func reanalyzeAnalysisByNewLinters(ctx *context.C, as *models.RepoAnalysisStatus
 	}
 
 	ctx.L.Infof("Marked repo %s for reanalysis by new linters: %s -> %s",
-		as.Repo.Name, as.LastAnalyzedLintersVersion, lintersVersion)
+		repo.Name, as.LastAnalyzedLintersVersion, lintersVersion)
 	return nil
 }

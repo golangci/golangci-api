@@ -61,16 +61,22 @@ func launchPendingRepoAnalysisChecked(ctx *context.C, as *models.RepoAnalysisSta
 		return nil
 	}
 
-	if err := launchRepoAnalysis(ctx, as); err != nil {
+	// use Unscoped to fetch deleted repos
+	var repo models.Repo
+	if err := models.NewRepoQuerySet(db.Get(ctx).Unscoped()).IDEq(as.RepoID).One(&repo); err != nil {
+		return errors.Wrapf(err, "failed to fetch repo with id %d", as.RepoID)
+	}
+
+	if err := launchRepoAnalysis(ctx, as, &repo); err != nil {
 		return fmt.Errorf("can't launch analysis %+v: %s", as, err)
 	}
 
-	ctx.L.Infof("Launched pending analysis for %s...", as.Repo.Name)
+	ctx.L.Infof("Launched pending analysis for %s...", repo.Name)
 	return nil
 }
 
 //nolint:gocyclo
-func launchRepoAnalysis(ctx *context.C, as *models.RepoAnalysisStatus) (err error) {
+func launchRepoAnalysis(ctx *context.C, as *models.RepoAnalysisStatus, repo *models.Repo) (err error) {
 	var finishTx db.FinishTxFunc
 	finishTx, err = db.BeginTx(ctx)
 	if err != nil {
@@ -92,15 +98,6 @@ func launchRepoAnalysis(ctx *context.C, as *models.RepoAnalysisStatus) (err erro
 		needSendToQueue = false
 	}
 
-	// use Unscoped to fetch deleted repos
-	if err = models.NewRepoQuerySet(db.Get(ctx).Unscoped()).IDEq(as.RepoID).One(&as.Repo); err != nil {
-		return errors.Wrapf(err, "failed to fetch repo with id %d", as.RepoID)
-	}
-
-	if as.Repo.Name == "" {
-		return fmt.Errorf("empty repo name: %#v", as.Repo)
-	}
-
 	if needSendToQueue {
 		a := models.RepoAnalysis{
 			RepoAnalysisStatusID: as.ID,
@@ -116,7 +113,7 @@ func launchRepoAnalysis(ctx *context.C, as *models.RepoAnalysisStatus) (err erro
 		}
 
 		t := &task.RepoAnalysis{
-			Name:         as.Repo.Name,
+			Name:         repo.Name,
 			AnalysisGUID: a.AnalysisGUID,
 			Branch:       as.DefaultBranch,
 		}

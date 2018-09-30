@@ -2,7 +2,6 @@ package analyzes
 
 import (
 	"fmt"
-	"strings"
 	"time"
 
 	"github.com/golangci/golangci-api/app/utils"
@@ -57,33 +56,27 @@ func CheckStaleAnalyzes(ctx *context.C, taskProcessingTimeout time.Duration) (in
 	return len(analyzes), nil
 }
 
-func getGithubContextForAnalysis(ctx *context.C, analysis models.PullRequestAnalysis) (*github.Context, error) {
+func getGithubContextForAnalysis(ctx *context.C, analysis models.PullRequestAnalysis, repo *models.Repo) (*github.Context, error) {
 	var ga models.Auth
 	err := models.NewAuthQuerySet(db.Get(ctx)).
-		UserIDEq(analysis.Repo.UserID).
+		UserIDEq(repo.UserID).
 		One(&ga)
 	if err != nil {
-		return nil, fmt.Errorf("can't get auth for user %d: %s", analysis.Repo.UserID, err)
-	}
-
-	parts := strings.SplitN(analysis.Repo.Name, "/", 2)
-	repoOwner, repoName := parts[0], parts[1]
-	if repoOwner == "" || repoName == "" {
-		return nil, fmt.Errorf("invalid repo name: %s", analysis.Repo.Name)
+		return nil, fmt.Errorf("can't get auth for user %d: %s", repo.UserID, err)
 	}
 
 	return &github.Context{
 		Repo: github.Repo{
-			Owner: repoOwner,
-			Name:  repoName,
+			Owner: repo.Owner(),
+			Name:  repo.Repo(),
 		},
 		GithubAccessToken: ga.AccessToken,
 		PullRequestNumber: analysis.PullRequestNumber,
 	}, nil
 }
 
-func setGithubStatus(ctx *context.C, analysis models.PullRequestAnalysis) error {
-	githubContext, err := getGithubContextForAnalysis(ctx, analysis)
+func setGithubStatus(ctx *context.C, analysis models.PullRequestAnalysis, repo *models.Repo) error {
+	githubContext, err := getGithubContextForAnalysis(ctx, analysis, repo)
 	if err != nil {
 		return err
 	}
@@ -107,11 +100,12 @@ func setGithubStatus(ctx *context.C, analysis models.PullRequestAnalysis) error 
 }
 
 func updateStaleAnalysis(ctx *context.C, analysis models.PullRequestAnalysis) error {
-	if err := models.NewRepoQuerySet(db.Get(ctx).Unscoped()).IDEq(analysis.RepoID).One(&analysis.Repo); err != nil {
+	var repo models.Repo
+	if err := models.NewRepoQuerySet(db.Get(ctx).Unscoped()).IDEq(analysis.RepoID).One(&repo); err != nil {
 		return fmt.Errorf("failed to fetch repo: %s", err)
 	}
 
-	if err := setGithubStatus(ctx, analysis); err != nil {
+	if err := setGithubStatus(ctx, analysis, &repo); err != nil {
 		return err
 	}
 

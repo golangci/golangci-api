@@ -10,7 +10,6 @@ import (
 type PullRequestAnalysis struct {
 	gorm.Model
 
-	Repo              Repo
 	RepoID            uint
 	PullRequestNumber int
 

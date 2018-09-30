@@ -12,7 +12,6 @@ import (
 type RepoAnalysisStatus struct {
 	gorm.Model
 
-	Repo   Repo
 	RepoID uint
 
 	LastAnalyzedAt             time.Time
