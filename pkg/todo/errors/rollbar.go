@@ -26,7 +26,7 @@ func Errorf(ctx *context.C, format string, args ...interface{}) {
 func track(ctx *context.C, err error, level string) {
 	log := logutil.NewStderrLog("track")
 	cfg := config.NewEnvConfig(log)
-	et := apperrors.GetTracker(cfg, log)
+	et := apperrors.GetTracker(cfg, log, "api")
 	if ctx.R != nil {
 		et = et.WithHTTPRequest(ctx.R)
 	}

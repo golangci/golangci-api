@@ -74,7 +74,7 @@ func NewApp() *App {
 
 	cfg := config.NewEnvConfig(slog)
 
-	errTracker := apperrors.GetTracker(cfg, slog)
+	errTracker := apperrors.GetTracker(cfg, slog, "api")
 	trackedLog := apperrors.WrapLogWithTracker(slog, nil, errTracker)
 
 	dbConnString, err := gormdb.GetDBConnString(cfg)
