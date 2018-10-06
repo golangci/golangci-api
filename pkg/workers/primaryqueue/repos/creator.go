@@ -5,8 +5,6 @@ import (
 	"database/sql"
 	"fmt"
 
-	"gopkg.in/redsync.v1"
-
 	"github.com/golangci/golangci-api/pkg/db/gormdb"
 	"github.com/golangci/golangci-api/pkg/providers/provider"
 	"github.com/jinzhu/gorm"
@@ -22,6 +20,8 @@ import (
 	"github.com/golangci/golangci-shared/pkg/config"
 	"github.com/golangci/golangci-shared/pkg/logutil"
 	"github.com/pkg/errors"
+
+	"gopkg.in/redsync.v1"
 )
 
 const createQueueID = "repos/create"
@@ -163,21 +163,38 @@ func (cc CreatorConsumer) createRepoAnalysisStatus(ctx context.Context, r *model
 
 		providerRepo, err := p.GetRepoByName(ctx, r.Owner(), r.Repo())
 		if err != nil {
-			return errors.Wrap(err, "failed to fetch repo from provider")
+			return errors.Wrapf(err, "failed to fetch repo %s/%s from provider",
+				r.Owner(), r.Repo())
 		}
 
 		providerRepoBranch, err := p.GetBranch(ctx, r.Owner(), r.Repo(), providerRepo.DefaultBranch)
 		if err != nil {
-			return errors.Wrapf(err, "failed to fetch repo default branch %s from provider",
-				providerRepo.DefaultBranch)
+			if err == provider.ErrNotFound {
+				cc.log.Warnf("Repo %s/%s has empty default branch %s",
+					r.Owner(), r.Repo(), providerRepo.DefaultBranch)
+			} else {
+				return errors.Wrapf(err, "failed to fetch repo %s/%s default branch %s from provider",
+					r.Owner(), r.Repo(), providerRepo.DefaultBranch)
+			}
 		}
 
-		as := models.RepoAnalysisStatus{
-			DefaultBranch:     providerRepo.DefaultBranch,
-			PendingCommitSHA:  providerRepoBranch.HeadCommitSHA,
-			HasPendingChanges: true,
-			Active:            true,
-			RepoID:            r.ID,
+		var as models.RepoAnalysisStatus
+		if providerRepoBranch != nil {
+			as = models.RepoAnalysisStatus{
+				DefaultBranch:     providerRepo.DefaultBranch,
+				PendingCommitSHA:  providerRepoBranch.HeadCommitSHA,
+				HasPendingChanges: true,
+				Active:            true,
+				RepoID:            r.ID,
+			}
+		} else { // empty repo
+			as = models.RepoAnalysisStatus{
+				DefaultBranch:     providerRepo.DefaultBranch,
+				PendingCommitSHA:  "",
+				HasPendingChanges: false,
+				Active:            true,
+				RepoID:            r.ID,
+			}
 		}
 		if err = as.Create(db); err != nil {
 			return errors.Wrap(err, "can't create analysis status in db")
@@ -230,5 +247,9 @@ func (cc CreatorConsumer) consumeMessage(ctx context.Context, m *createMessage) 
 		return errors.Wrap(err, "failed to get gorm db")
 	}
 
-	return cc.run(ctx, m, gormDB)
+	if err = cc.run(ctx, m, gormDB); err != nil {
+		return errors.Wrapf(err, "create of repo %d failed", m.RepoID)
+	}
+
+	return nil
 }

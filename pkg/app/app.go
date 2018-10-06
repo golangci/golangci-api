@@ -18,8 +18,6 @@ import (
 	"github.com/golangci/golangci-api/pkg/workers/primaryqueue"
 	"github.com/golangci/golangci-api/pkg/workers/primaryqueue/repos"
 
-	"gopkg.in/redsync.v1"
-
 	"github.com/golangci/golangci-api/app/handlers"
 	"github.com/golangci/golangci-api/app/utils"
 	"github.com/golangci/golangci-shared/pkg/apperrors"
@@ -39,6 +37,7 @@ import (
 	"github.com/golangci/golangci-api/pkg/queue/consumers"
 	"github.com/golangci/golangci-api/pkg/queue/producers"
 	_ "github.com/mattes/migrate/database/postgres" // must be first
+	"gopkg.in/redsync.v1"
 )
 
 type appServices struct {
@@ -47,7 +46,8 @@ type appServices struct {
 }
 
 type queues struct {
-	primarySQS *sqs.Queue
+	primarySQS    *sqs.Queue
+	primaryDLQSQS *sqs.Queue
 }
 
 type App struct {
@@ -115,6 +115,8 @@ func NewApp() *App {
 
 	primarySQS := sqs.NewQueue(cfg.GetString("SQS_PRIMARY_QUEUE_URL"),
 		awsSess, trackedLog, primaryqueue.VisibilityTimeoutSec)
+	primaryDLQSQS := sqs.NewQueue(cfg.GetString("SQS_PRIMARYDEADLETTER_QUEUE_URL"),
+		awsSess, trackedLog, primaryqueue.VisibilityTimeoutSec)
 
 	sessFactory, err := apisession.NewFactory(redisPool, cfg)
 	if err != nil {
@@ -158,7 +160,8 @@ func NewApp() *App {
 		providerFactory:  providerFactory,
 		distLockFactory:  rs,
 		queues: queues{
-			primarySQS: primarySQS,
+			primarySQS:    primarySQS,
+			primaryDLQSQS: primaryDLQSQS,
 		},
 	}
 }
@@ -176,7 +179,7 @@ func (a App) RunMigrations() {
 	}
 }
 
-func (a App) RunConsumers() {
+func (a App) buildMultiplexedConsumer() *consumers.Multiplexer {
 	primaryQueueConsumerMultiplexer := consumers.NewMultiplexer()
 
 	repoCreatorConsumer := repos.NewCreatorConsumer(a.trackedLog, a.sqlDB, a.cfg, a.providerFactory)
@@ -188,10 +191,23 @@ func (a App) RunConsumers() {
 		a.log.Fatalf("Failed to register repo deleter consumer: %s", err)
 	}
 
+	return primaryQueueConsumerMultiplexer
+}
+
+func (a App) RunConsumers() {
+	primaryQueueConsumerMultiplexer := a.buildMultiplexedConsumer()
 	primaryQueueConsumer := consumer.NewSQS(a.trackedLog, a.cfg, a.queues.primarySQS,
 		primaryQueueConsumerMultiplexer, "primary", primaryqueue.VisibilityTimeoutSec)
 
 	go primaryQueueConsumer.Run()
+}
+
+func (a App) RunDeadLetterConsumers() {
+	primaryDLQConsumerMultiplexer := a.buildMultiplexedConsumer()
+	primaryDLQConsumer := consumer.NewSQS(a.trackedLog, a.cfg, a.queues.primaryDLQSQS,
+		primaryDLQConsumerMultiplexer, "primaryDeadLetter", primaryqueue.VisibilityTimeoutSec)
+
+	primaryDLQConsumer.Run()
 }
 
 func (a App) RunForever() {
