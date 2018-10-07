@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/jinzhu/gorm"
+
 	"github.com/golangci/golangci-api/app/utils"
 	"github.com/golangci/golangci-api/pkg/models"
 	"github.com/golangci/golangci-api/pkg/todo/db"
@@ -70,6 +72,9 @@ func reanalyzeAnalysisByNewLinters(ctx *context.C, as *models.RepoAnalysisStatus
 		OrderDescByID().
 		One(&a)
 	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return nil // no analyzes yet, likely it's an empty repo
+		}
 		return fmt.Errorf("can't fetch last repo analysis for %s: %s", repo.Name, err)
 	}
 
