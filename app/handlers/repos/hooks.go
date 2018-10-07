@@ -148,7 +148,7 @@ func receivePullRequestWebhook(ctx context.C) error {
 	err = gc.SetCommitStatus(ctx.Ctx, &githubCtx, analysis.CommitSHA,
 		github.StatusPending, "Waiting in queue...", "")
 	if err != nil {
-		errors.Warnf(&ctx, "Can't set github commit status to 'pending in queue' for task %+v: %s",
+		ctx.L.Infof("Can't set github commit status to 'pending in queue' for task %+v, skipping webhook: %s",
 			t, err)
 		if !github.IsRecoverableError(err) {
 			return nil
