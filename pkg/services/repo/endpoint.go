@@ -39,9 +39,13 @@ func makeCreateEndpoint(svc Service, log logutil.Log) endpoint.Endpoint {
 		}()
 
 		if err := endpointutil.Error(ctx); err != nil {
-			// error occurred during request context creation
-			return nil, errors.Wrap(err, "got pre-endpoint error")
+			log.Warnf("Error occurred during request context creation: %s", err)
+			resp = CreateResponse{
+				err: err,
+			}
+			return resp, nil
 		}
+
 		rc := endpointutil.RequestContext(ctx).(*request.AuthorizedContext)
 		reqLogger = rc.Log
 
@@ -84,9 +88,13 @@ func makeGetEndpoint(svc Service, log logutil.Log) endpoint.Endpoint {
 		}()
 
 		if err := endpointutil.Error(ctx); err != nil {
-			// error occurred during request context creation
-			return nil, errors.Wrap(err, "got pre-endpoint error")
+			log.Warnf("Error occurred during request context creation: %s", err)
+			resp = GetResponse{
+				err: err,
+			}
+			return resp, nil
 		}
+
 		rc := endpointutil.RequestContext(ctx).(*request.AuthorizedContext)
 		reqLogger = rc.Log
 
@@ -129,9 +137,13 @@ func makeDeleteEndpoint(svc Service, log logutil.Log) endpoint.Endpoint {
 		}()
 
 		if err := endpointutil.Error(ctx); err != nil {
-			// error occurred during request context creation
-			return nil, errors.Wrap(err, "got pre-endpoint error")
+			log.Warnf("Error occurred during request context creation: %s", err)
+			resp = DeleteResponse{
+				err: err,
+			}
+			return resp, nil
 		}
+
 		rc := endpointutil.RequestContext(ctx).(*request.AuthorizedContext)
 		reqLogger = rc.Log
 
@@ -174,9 +186,13 @@ func makeListEndpoint(svc Service, log logutil.Log) endpoint.Endpoint {
 		}()
 
 		if err := endpointutil.Error(ctx); err != nil {
-			// error occurred during request context creation
-			return nil, errors.Wrap(err, "got pre-endpoint error")
+			log.Warnf("Error occurred during request context creation: %s", err)
+			resp = ListResponse{
+				err: err,
+			}
+			return resp, nil
 		}
+
 		rc := endpointutil.RequestContext(ctx).(*request.AuthorizedContext)
 		reqLogger = rc.Log
 

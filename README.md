@@ -12,6 +12,7 @@ Go (golang), heroku, circleci, docker, redis, postgres.
 Run:
 ```
 docker-compose up -d
+echo "create database api_prod;" | docker-compose exec -T pg psql -Upostgres
 ```
 It runs postgres and redis needed for both api and worker.
 

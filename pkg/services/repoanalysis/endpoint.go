@@ -3,6 +3,7 @@ package repoanalysis
 
 import (
 	"context"
+	"errors"
 	"runtime/debug"
 
 	"github.com/go-kit/kit/endpoint"
@@ -10,7 +11,6 @@ import (
 	"github.com/golangci/golangci-api/pkg/models"
 	"github.com/golangci/golangci-api/pkg/request"
 	"github.com/golangci/golangci-shared/pkg/logutil"
-	"github.com/pkg/errors"
 )
 
 type GetStatusRequest struct {
@@ -39,9 +39,13 @@ func makeGetStatusEndpoint(svc Service, log logutil.Log) endpoint.Endpoint {
 		}()
 
 		if err := endpointutil.Error(ctx); err != nil {
-			// error occurred during request context creation
-			return nil, errors.Wrap(err, "got pre-endpoint error")
+			log.Warnf("Error occurred during request context creation: %s", err)
+			resp = GetStatusResponse{
+				err: err,
+			}
+			return resp, nil
 		}
+
 		rc := endpointutil.RequestContext(ctx).(*request.AnonymousContext)
 		reqLogger = rc.Log
 
@@ -84,9 +88,13 @@ func makeGetEndpoint(svc Service, log logutil.Log) endpoint.Endpoint {
 		}()
 
 		if err := endpointutil.Error(ctx); err != nil {
-			// error occurred during request context creation
-			return nil, errors.Wrap(err, "got pre-endpoint error")
+			log.Warnf("Error occurred during request context creation: %s", err)
+			resp = GetResponse{
+				err: err,
+			}
+			return resp, nil
 		}
+
 		rc := endpointutil.RequestContext(ctx).(*request.AnonymousContext)
 		reqLogger = rc.Log
 
@@ -129,9 +137,13 @@ func makeUpdateEndpoint(svc Service, log logutil.Log) endpoint.Endpoint {
 		}()
 
 		if err := endpointutil.Error(ctx); err != nil {
-			// error occurred during request context creation
-			return nil, errors.Wrap(err, "got pre-endpoint error")
+			log.Warnf("Error occurred during request context creation: %s", err)
+			resp = UpdateResponse{
+				err: err,
+			}
+			return resp, nil
 		}
+
 		rc := endpointutil.RequestContext(ctx).(*request.AnonymousContext)
 		reqLogger = rc.Log
 

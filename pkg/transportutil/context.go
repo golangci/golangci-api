@@ -42,7 +42,8 @@ func FinalizeRequest(ctx context.Context, code int, r *http.Request) {
 	if rc != nil {
 		rc.Logger().Debugf("%s %s respond %d for %s", r.Method, r.URL.Path, code, time.Since(rc.RequestStartedAt()))
 	} else {
-		rc.Logger().Debugf("%s %s respond %d with no request context", r.Method, r.URL.Path, code)
+		logger := logutil.NewStderrLog("finalize request")
+		logger.Debugf("%s %s respond %d with no request context", r.Method, r.URL.Path, code)
 	}
 }
 

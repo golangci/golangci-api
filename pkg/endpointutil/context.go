@@ -22,7 +22,11 @@ const (
 )
 
 func RequestContext(ctx context.Context) request.Context {
-	return ctx.Value(contextKeyRequestContext).(request.Context)
+	rc := ctx.Value(contextKeyRequestContext)
+	if rc == nil {
+		return nil
+	}
+	return rc.(request.Context)
 }
 
 func StoreRequestContext(ctx context.Context, rc request.Context) context.Context {
@@ -68,7 +72,7 @@ func MakeAuthorizedRequestContext(ctx context.Context, log logutil.Log, et apper
 	const userIDSessKey = "UserID"
 	userIDobj := sess.GetValue(userIDSessKey)
 	if userIDobj == nil {
-		baseCtx.Log.Warnf("No user id in session")
+		baseCtx.Log.Infof("No user id in session %#v", sess)
 		return nil, apierrors.ErrNotAuthorized
 	}
 

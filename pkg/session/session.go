@@ -1,6 +1,7 @@
 package session
 
 import (
+	"fmt"
 	"net/http"
 
 	"github.com/gorilla/sessions"
@@ -13,6 +14,10 @@ type Session struct {
 	gs        *sessions.Session
 	httpReq   *http.Request
 	callbacks []httpWriteCallback
+}
+
+func (s Session) GoString() string {
+	return fmt.Sprintf("%#v", s.gs.Values)
 }
 
 func (s Session) GetValue(key string) interface{} {

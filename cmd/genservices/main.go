@@ -47,9 +47,13 @@ func make{{.Name}}Endpoint(svc Service, log logutil.Log) endpoint.Endpoint {
 		}()
 
 		if err := endpointutil.Error(ctx); err != nil {
-			// error occurred during request context creation 
-			return nil, errors.Wrap(err, "got pre-endpoint error")
+			log.Warnf("Error occurred during request context creation: %s", err)
+			resp = {{.Name}}Response{
+				err: err,
+			}
+			return resp, nil
 		}
+
 		rc := endpointutil.RequestContext(ctx).(*request.{{if .Authorized}}Authorized{{else}}Anonymous{{end}}Context)
 		reqLogger = rc.Log
 
