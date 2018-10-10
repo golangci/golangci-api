@@ -9,9 +9,9 @@ import (
 )
 
 type Repo struct {
-	Provider string `request:",url,"`
-	Owner    string `request:",url,"`
-	Name     string `request:",url,"`
+	Provider string `request:",urlPart,"`
+	Owner    string `request:",urlPart,"`
+	Name     string `request:",urlPart,"`
 }
 
 func (r Repo) FullName() string {
@@ -45,7 +45,7 @@ func (r BodyRepo) FillLogContext(lctx logutil.Context) {
 }
 
 type RepoID struct {
-	ID uint `request:"repoID,url,"`
+	ID uint `request:"repoID,urlPart,"`
 }
 
 func (r RepoID) FillLogContext(lctx logutil.Context) {

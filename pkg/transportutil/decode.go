@@ -12,6 +12,11 @@ import (
 	"github.com/pkg/errors"
 )
 
+const (
+	urlPartType  = "urlPart"
+	urlParamType = "urlParam"
+)
+
 func DecodeRequest(request interface{}, r *http.Request) error {
 	val := reflect.ValueOf(request)
 	if val.Type().Kind() != reflect.Ptr {
@@ -57,7 +62,7 @@ func extractStructFields(sv reflect.Value) []structField {
 	return fields
 }
 
-func getURLParamName(rf reflect.StructField) string {
+func getURLFieldName(rf reflect.StructField, expectedType string) string {
 	request := rf.Tag.Get("request")
 	if request == "" {
 		return ""
@@ -68,8 +73,12 @@ func getURLParamName(rf reflect.StructField) string {
 		panic("bad tag " + rf.Tag)
 	}
 
-	if parts[1] != "url" {
-		panic("bad tag parts[1] " + rf.Tag)
+	if parts[1] != expectedType {
+		if parts[1] != urlParamType && parts[1] != urlPartType {
+			panic("bad tag parts[1] " + rf.Tag)
+		}
+
+		return ""
 	}
 
 	if parts[0] == "" {
@@ -79,7 +88,7 @@ func getURLParamName(rf reflect.StructField) string {
 	return parts[0]
 }
 
-func isRequiredURLParam(rf reflect.StructField) bool {
+func isRequiredField(rf reflect.StructField) bool {
 	request := rf.Tag.Get("request")
 	if request == "" {
 		return false
@@ -101,8 +110,12 @@ func isRequiredURLParam(rf reflect.StructField) bool {
 	panic("bad tag required field " + rf.Tag)
 }
 
-func isURLParamField(rf reflect.StructField) bool {
-	return getURLParamName(rf) != ""
+func isURLField(rf reflect.StructField) bool {
+	if getURLFieldName(rf, urlPartType) != "" {
+		return true
+	}
+
+	return getURLFieldName(rf, urlParamType) != ""
 }
 
 func decodeRequestField(f reflect.Value, r *http.Request) error {
@@ -121,14 +134,14 @@ func decodeRequestField(f reflect.Value, r *http.Request) error {
 	pointedVal := ptrVal.Elem()
 	structFields := extractStructFields(pointedVal)
 
-	isURLParam := isURLParamField(structFields[0].rf)
+	isFirstFieldFromURL := isURLField(structFields[0].rf)
 	for _, sf := range structFields {
-		if isURLParam != isURLParamField(sf.rf) {
-			return errors.New("all struct fields must be URL or JSON params, not combined")
+		if isFirstFieldFromURL != isURLField(sf.rf) {
+			return errors.New("all struct fields must be URL or JSON fields, not combined")
 		}
 	}
 
-	if isURLParam {
+	if isFirstFieldFromURL {
 		if err := decodeRequestFieldFromURL(structFields, r); err != nil {
 			return errors.Wrap(err, "can't decode from url")
 		}
@@ -145,19 +158,40 @@ func decodeRequestField(f reflect.Value, r *http.Request) error {
 
 func decodeRequestFieldFromURL(structFields []structField, r *http.Request) error {
 	for _, sf := range structFields {
-		urlParamName := getURLParamName(sf.rf)
-		urlParamName = strings.ToLower(urlParamName)
-		vars := mux.Vars(r)
-		urlVar := vars[urlParamName]
-		if urlVar == "" {
-			if isRequiredURLParam(sf.rf) {
-				return fmt.Errorf("no url param %s, all params are %#v", urlParamName, vars)
+		if urlPartName := getURLFieldName(sf.rf, urlPartType); urlPartName != "" {
+			urlPartName = strings.ToLower(urlPartName)
+			vars := mux.Vars(r)
+			urlPartValue := vars[urlPartName]
+			if urlPartValue == "" {
+				if isRequiredField(sf.rf) {
+					return fmt.Errorf("no required url part %s, all parts are %#v", urlPartName, vars)
+				}
+				continue
 			}
-			return nil
+
+			if err := decodeRequestParamFromString(sf.val, urlPartValue); err != nil {
+				return fmt.Errorf("failed to decode url part %s with value %q: %s", urlPartName, urlPartValue, err)
+			}
+
+			continue
 		}
 
-		if err := decodeRequestParamFromString(sf.val, urlVar); err != nil {
-			return fmt.Errorf("failed to decode url param %s with value %q: %s", urlParamName, urlVar, err)
+		urlParamName := getURLFieldName(sf.rf, urlParamType)
+		if urlParamName == "" {
+			return fmt.Errorf("invalid url field type for %#v", sf.rf)
+		}
+
+		urlParamName = strings.ToLower(urlParamName)
+		urlParamValue := r.URL.Query().Get(urlParamName)
+		if urlParamValue == "" {
+			if isRequiredField(sf.rf) {
+				return fmt.Errorf("no required url param %s, all params are %#v", urlParamName, r.URL.Query())
+			}
+			continue
+		}
+
+		if err := decodeRequestParamFromString(sf.val, urlParamValue); err != nil {
+			return fmt.Errorf("failed to decode url param %s with value %q: %s", urlParamName, urlParamValue, err)
 		}
 	}
 
@@ -174,6 +208,15 @@ func decodeRequestParamFromString(param reflect.Value, s string) error {
 			return fmt.Errorf("can't parse number from %q: %s", s, err)
 		}
 		param.SetUint(v)
+	case reflect.Bool:
+		v, err := strconv.ParseUint(s, 10, 32)
+		if err != nil {
+			return fmt.Errorf("can't parse number from %q: %s", s, err)
+		}
+		if v != 0 && v != 1 {
+			return fmt.Errorf("boolean var can be only 0 or 1, but it's %d", v)
+		}
+		param.SetBool(v == 1)
 	default:
 		return fmt.Errorf("unsupported type %s", param.Kind())
 	}

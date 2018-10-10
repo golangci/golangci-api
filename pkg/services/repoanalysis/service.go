@@ -20,7 +20,7 @@ type Status struct {
 
 type Context struct {
 	request.Repo
-	AnalysisGUID string `request:",url,"`
+	AnalysisGUID string `request:",urlPart,"`
 }
 
 func (c Context) FillLogContext(lctx logutil.Context) {

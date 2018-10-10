@@ -20,7 +20,7 @@ import (
 )
 
 type listRequest struct {
-	Refresh bool `request:",url,optional"`
+	Refresh bool `request:",urlParam,optional"`
 }
 
 func (lr listRequest) FillLogContext(lctx logutil.Context) {
