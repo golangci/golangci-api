@@ -118,7 +118,7 @@ func (dc DeleterConsumer) deleteRepo(ctx context.Context, repo *models.Repo,
 
 	if err := p.DeleteRepoHook(ctx, repo.Owner(), repo.Repo(), repo.ProviderHookID); err != nil {
 		if err == provider.ErrNotFound {
-			dc.log.Warnf("Repo %s hook id %d was already deleted by previous run or manually by user",
+			dc.log.Warnf("Repo %s hook id %s was already deleted by previous run or manually by user",
 				repo, repo.HookID)
 		} else {
 			return errors.Wrap(err, "failed to delete hook from provider")
