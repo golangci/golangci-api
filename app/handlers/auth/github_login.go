@@ -12,7 +12,10 @@ import (
 	"github.com/golangci/golib/server/context"
 )
 
-const callbackURL = "/v1/auth/github/callback"
+const (
+	publicCallbackURL  = "/v1/auth/github/callback/public"
+	privateCallbackURL = "/v1/auth/github/callback/private"
+)
 
 func getWebRoot() string {
 	return os.Getenv("WEB_ROOT")
@@ -24,29 +27,40 @@ func getAfterLoginURL() string {
 
 func githubLogin(ctx context.C) error {
 	if u, err := user.GetCurrent(&ctx); err == nil {
-		ctx.L.Warnf("User is already authorized: %v", u)
-		ctx.RedirectTemp(getAfterLoginURL())
-		return nil
+		if ctx.R.URL.Query().Get("relogin") != "1" {
+			ctx.L.Warnf("User is already authorized: %v", u)
+			ctx.RedirectTemp(getAfterLoginURL())
+			return nil
+		}
+
+		auth, err := user.GetAuth(&ctx)
+		if err != nil {
+			ctx.L.Warnf("Can't get current auth: %s", err)
+			ctx.RedirectTemp(getAfterLoginURL())
+			return nil
+		}
+
+		if auth.PrivateAccessToken != "" {
+			ctx.L.Infof("Github private oauth relogin")
+			return githubPrivateLogin(ctx)
+		}
+
+		ctx.L.Infof("Github public oauth relogin")
+		// continue authorization
 	}
 
-	a := oauth.GetPublicReposAuthorizer(callbackURL)
+	a := oauth.GetPublicReposAuthorizer(publicCallbackURL)
 	return a.RedirectToProvider(&ctx)
 }
 
 func githubOAuthCallback(ctx context.C) error {
-	if _, err := user.GetCurrent(&ctx); err == nil {
-		// User is already authorized, but we checked it in githubLogin.
-		// Therefore it's a private login callback.
-		return githubPrivateOAuthCallback(ctx)
-	}
-
-	a := oauth.GetPublicReposAuthorizer(callbackURL)
+	a := oauth.GetPublicReposAuthorizer(publicCallbackURL)
 	gu, err := a.HandleProviderCallback(&ctx)
 	if err != nil {
-		return fmt.Errorf("can't complete github oauth: %s", err)
+		return fmt.Errorf("can't complete public github oauth: %s", err)
 	}
 
-	ctx.L.Infof("Github oauth completed: %+v", gu)
+	ctx.L.Infof("Github public oauth completed: %+v", gu)
 	if err = user.LoginGithub(&ctx, gu); err != nil {
 		return err
 	}
@@ -56,15 +70,15 @@ func githubOAuthCallback(ctx context.C) error {
 }
 
 func githubPrivateLogin(ctx context.C) error {
-	a := oauth.GetPrivateReposAuthorizer(callbackURL)
+	a := oauth.GetPrivateReposAuthorizer(privateCallbackURL)
 	return a.RedirectToProvider(&ctx)
 }
 
 func githubPrivateOAuthCallback(ctx context.C) error {
-	a := oauth.GetPrivateReposAuthorizer(callbackURL)
+	a := oauth.GetPrivateReposAuthorizer(privateCallbackURL)
 	gu, err := a.HandleProviderCallback(&ctx)
 	if err != nil {
-		return fmt.Errorf("can't complete github oauth: %s", err)
+		return fmt.Errorf("can't complete private github oauth: %s", err)
 	}
 
 	ga, err := user.GetAuth(&ctx)
@@ -74,7 +88,7 @@ func githubPrivateOAuthCallback(ctx context.C) error {
 
 	ga.PrivateAccessToken = gu.AccessToken
 	if err := ga.Update(db.Get(&ctx), models.AuthDBSchema.PrivateAccessToken); err != nil {
-		return fmt.Errorf("can't save access token: %s", err)
+		return fmt.Errorf("can't save private access token: %s", err)
 	}
 
 	ctx.RedirectTemp(getWebRoot() + "/repos/github?refresh=1&after=private_login")
@@ -84,5 +98,6 @@ func githubPrivateOAuthCallback(ctx context.C) error {
 func init() {
 	handlers.Register("/v1/auth/github", githubLogin)
 	handlers.Register("/v1/auth/github/private", githubPrivateLogin)
-	handlers.Register(callbackURL, githubOAuthCallback)
+	handlers.Register(publicCallbackURL, githubOAuthCallback)
+	handlers.Register(privateCallbackURL, githubPrivateOAuthCallback)
 }

@@ -5,6 +5,7 @@ import (
 	"strconv"
 
 	"github.com/golangci/golangci-api/pkg/apierrors"
+	"github.com/golangci/golangci-api/pkg/providers/provider"
 	"github.com/pkg/errors"
 )
 
@@ -35,7 +36,7 @@ func MakeError(e error) *Error {
 		return makeError(http.StatusNotFound, e)
 	case apierrors.ErrBadRequest:
 		return makeError(http.StatusBadRequest, e)
-	case apierrors.ErrNotAuthorized:
+	case apierrors.ErrNotAuthorized, provider.ErrUnauthorized:
 		return makeError(http.StatusForbidden, e)
 	case apierrors.ErrInternal:
 		return makeError(http.StatusInternalServerError, errors.New("internal error"))
