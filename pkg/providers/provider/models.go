@@ -29,3 +29,10 @@ type ListReposConfig struct {
 	Sort       string
 	MaxPages   int
 }
+
+type CommitStatus struct {
+	Description string
+	State       string
+	Context     string
+	TargetURL   string
+}

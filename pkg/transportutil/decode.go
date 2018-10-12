@@ -3,6 +3,7 @@ package transportutil
 import (
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"net/http"
 	"reflect"
 	"strconv"
@@ -118,14 +119,32 @@ func isURLField(rf reflect.StructField) bool {
 	return getURLFieldName(rf, urlParamType) != ""
 }
 
+func decodeRequestBody(f reflect.Value, r *http.Request) error {
+	if r.Body == nil {
+		return errors.New("no request body")
+	}
+	defer r.Body.Close()
+
+	body, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		return errors.Wrap(err, "failed to read http request body")
+	}
+	f.SetBytes(body)
+	return nil
+}
+
 func decodeRequestField(f reflect.Value, r *http.Request) error {
+	if f.Type().ConvertibleTo(reflect.TypeOf([]byte(nil))) {
+		return decodeRequestBody(f, r)
+	}
+
 	if f.Kind() != reflect.Ptr {
-		return fmt.Errorf("invalid field type %s, pointer to struct expected", f.Kind())
+		return fmt.Errorf("invalid field type %s (%#v), pointer to struct expected", f.Kind(), f.Interface())
 	}
 
 	pointedType := f.Type().Elem()
 	if pointedType.Kind() != reflect.Struct {
-		return fmt.Errorf("invalid field type %s, struct expected", pointedType.Kind())
+		return fmt.Errorf("invalid field type %s (%#v), struct expected", pointedType.Kind(), f.Interface())
 	}
 
 	ptrVal := reflect.New(pointedType)

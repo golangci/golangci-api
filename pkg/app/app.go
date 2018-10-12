@@ -28,6 +28,7 @@ import (
 	"github.com/golangci/golangci-api/pkg/db/migrations"
 	"github.com/golangci/golangci-api/pkg/services/repo"
 	"github.com/golangci/golangci-api/pkg/services/repoanalysis"
+	"github.com/golangci/golangci-api/pkg/services/repohook"
 	"github.com/golangci/golangci-shared/pkg/config"
 	"github.com/golangci/golangci-shared/pkg/logutil"
 	"github.com/jinzhu/gorm"
@@ -43,6 +44,7 @@ import (
 type appServices struct {
 	repoanalysis repoanalysis.Service
 	repo         repo.Service
+	repohook     repohook.Service
 }
 
 type queues struct {
@@ -143,6 +145,9 @@ func NewApp() *App {
 			ProviderFactory: providerFactory,
 			Cache:           cache.NewRedis(cfg.GetString("REDIS_URL") + "/1"),
 		},
+		repohook: repohook.BasicService{
+			ProviderFactory: providerFactory,
+		},
 	}
 
 	return &App{
@@ -170,6 +175,7 @@ func (a App) RegisterHandlers() {
 	manager.RegisterCallback(func(r *mux.Router) {
 		repoanalysis.RegisterHandlers(r, a.services.repoanalysis, a.log, a.errTracker, a.gormDB, a.sessFactory)
 		repo.RegisterHandlers(r, a.services.repo, a.log, a.errTracker, a.gormDB, a.sessFactory)
+		repohook.RegisterHandlers(r, a.services.repohook, a.log, a.errTracker, a.gormDB, a.sessFactory)
 	})
 }
 

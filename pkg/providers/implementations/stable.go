@@ -79,10 +79,15 @@ func (p StableProvider) DeleteRepoHook(ctx context.Context, owner, repo string, 
 }
 
 func (p StableProvider) ListRepos(ctx context.Context, cfg *provider.ListReposConfig) (ret []provider.Repo, err error) {
-
 	_ = p.retry(func() error {
 		ret, err = p.underlying.ListRepos(ctx, cfg)
 		return err
 	})
 	return
+}
+
+func (p StableProvider) SetCommitStatus(ctx context.Context, owner, repo, ref string, status *provider.CommitStatus) error {
+	return p.retry(func() error {
+		return p.underlying.SetCommitStatus(ctx, owner, repo, ref, status)
+	})
 }

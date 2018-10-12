@@ -175,6 +175,24 @@ func (p Github) DeleteRepoHook(ctx context.Context, owner, repo string, hookID i
 	return nil
 }
 
+func (p Github) SetCommitStatus(ctx context.Context, owner, repo, ref string, status *provider.CommitStatus) error {
+	githubStatus := github.RepoStatus{
+		State:       github.String(status.State),
+		Description: github.String(status.Description),
+		Context:     github.String(status.Context),
+	}
+	if status.TargetURL != "" {
+		githubStatus.TargetURL = github.String(status.TargetURL)
+	}
+
+	_, _, err := p.client(ctx).Repositories.CreateStatus(ctx, owner, repo, ref, &githubStatus)
+	if err != nil {
+		return p.unwrapError(err)
+	}
+
+	return nil
+}
+
 func (p Github) ListRepos(ctx context.Context, cfg *provider.ListReposConfig) ([]provider.Repo, error) {
 	opts := github.RepositoryListOptions{
 		Visibility: cfg.Visibility,
