@@ -28,3 +28,11 @@ func (a Auth) GoString() string {
 	return fmt.Sprintf("{ID: %d, UserID: %d, Login: %s, Provider: %s}",
 		a.ID, a.UserID, a.Login, a.Provider)
 }
+
+func (a Auth) StrongestAccessToken() string {
+	if a.PrivateAccessToken != "" {
+		return a.PrivateAccessToken
+	}
+
+	return a.AccessToken
+}

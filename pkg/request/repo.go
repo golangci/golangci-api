@@ -26,6 +26,23 @@ func (r Repo) FillLogContext(lctx logutil.Context) {
 	lctx["repo"] = r.String()
 }
 
+type ShortRepo struct {
+	Owner string `request:",urlPart,"`
+	Name  string `request:",urlPart,"`
+}
+
+func (r ShortRepo) FullName() string {
+	return strings.ToLower(fmt.Sprintf("%s/%s", r.Owner, r.Name))
+}
+
+func (r ShortRepo) String() string {
+	return r.FullName()
+}
+
+func (r ShortRepo) FillLogContext(lctx logutil.Context) {
+	lctx["repo"] = r.String()
+}
+
 type BodyRepo struct {
 	Provider string
 	Owner    string

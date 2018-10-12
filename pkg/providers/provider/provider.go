@@ -15,4 +15,5 @@ type Provider interface {
 	CreateRepoHook(ctx context.Context, owner, repo string, hook *HookConfig) (*Hook, error)
 	DeleteRepoHook(ctx context.Context, owner, repo string, hookID int) error
 	ListRepos(ctx context.Context, cfg *ListReposConfig) ([]Repo, error)
+	SetCommitStatus(ctx context.Context, owner, repo, ref string, status *CommitStatus) error
 }

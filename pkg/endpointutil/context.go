@@ -46,7 +46,9 @@ func Error(ctx context.Context) error {
 	return v.(error)
 }
 
-func makeBaseRequestContext(ctx context.Context, log logutil.Log, et apperrors.Tracker, db *gorm.DB) *request.BaseContext {
+func makeBaseRequestContext(ctx context.Context, log logutil.Log, et apperrors.Tracker,
+	db *gorm.DB, headers map[string]string) *request.BaseContext {
+
 	lctx := logutil.Context{}
 	log = logutil.WrapLogWithContext(log, lctx)
 	log = apperrors.WrapLogWithTracker(log, lctx, et)
@@ -57,17 +59,22 @@ func makeBaseRequestContext(ctx context.Context, log logutil.Log, et apperrors.T
 		Lctx:      lctx,
 		DB:        db,
 		StartedAt: time.Now(),
+		Headers:   headers,
 	}
 }
 
-func MakeAnonymousRequestContext(ctx context.Context, log logutil.Log, et apperrors.Tracker, db *gorm.DB) *request.AnonymousContext {
+func MakeAnonymousRequestContext(ctx context.Context, log logutil.Log, et apperrors.Tracker,
+	db *gorm.DB, headers map[string]string) *request.AnonymousContext {
+
 	return &request.AnonymousContext{
-		BaseContext: *makeBaseRequestContext(ctx, log, et, db),
+		BaseContext: *makeBaseRequestContext(ctx, log, et, db, headers),
 	}
 }
 
-func MakeAuthorizedRequestContext(ctx context.Context, log logutil.Log, et apperrors.Tracker, db *gorm.DB, sess *session.Session) (*request.AuthorizedContext, error) {
-	baseCtx := makeBaseRequestContext(ctx, log, et, db)
+func MakeAuthorizedRequestContext(ctx context.Context, log logutil.Log, et apperrors.Tracker,
+	db *gorm.DB, sess *session.Session, headers map[string]string) (*request.AuthorizedContext, error) {
+
+	baseCtx := makeBaseRequestContext(ctx, log, et, db, headers)
 
 	const userIDSessKey = "UserID"
 	userIDobj := sess.GetValue(userIDSessKey)

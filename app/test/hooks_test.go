@@ -6,13 +6,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/golang/mock/gomock"
 	"github.com/golangci/golangci-api/app/test/sharedtest"
 	"github.com/golangci/golangci-api/app/utils"
 	"github.com/golangci/golangci-api/pkg/analyzes"
 	"github.com/golangci/golangci-api/pkg/models"
 	"github.com/golangci/golangci-api/pkg/todo/db"
-	"github.com/golangci/golangci-worker/app/lib/github"
 	gh "github.com/google/go-github/github"
 	"github.com/stretchr/testify/assert"
 )
@@ -39,6 +37,19 @@ func TestReceivePullRequestOpenedWebhook(t *testing.T) {
 	r.ExpectWebhook("pull_request", getTestPREvent()).Status(http.StatusOK)
 }
 
+func TestReceivePushWebhook(t *testing.T) {
+	r, _ := sharedtest.GetActivatedRepo(t)
+	r.ExpectWebhook("push", gh.PushEvent{
+		Ref: gh.String("refs/heads/master"),
+		Repo: &gh.PushEventRepository{
+			DefaultBranch: gh.String("master"),
+		},
+		HeadCommit: &gh.PushEventCommit{
+			ID: gh.String("sha"),
+		},
+	}).Status(http.StatusOK)
+}
+
 func TestStaleAnalyzes(t *testing.T) {
 	r, _ := sharedtest.GetActivatedRepo(t)
 
@@ -48,23 +59,12 @@ func TestStaleAnalyzes(t *testing.T) {
 
 	r.ExpectWebhook("pull_request", getTestPREvent()).Status(http.StatusOK)
 
-	timeout := time.Second
+	timeout := 3 * time.Second
 	staleCount, err := analyzes.CheckStaleAnalyzes(ctx, timeout)
 	assert.NoError(t, err)
 	assert.Zero(t, staleCount)
 
 	time.Sleep(timeout + time.Millisecond)
-
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
-	mc := github.NewMockClient(ctrl)
-	any := gomock.Any()
-	mc.EXPECT().GetPullRequest(any, any).AnyTimes().Return(&gh.PullRequest{}, nil)
-	mc.EXPECT().SetCommitStatus(any, any, any, any, any, "").Return(nil)
-	analyzes.GithubClient = mc
-	defer func() {
-		analyzes.GithubClient = github.NewMyClient()
-	}()
 
 	staleCount, err = analyzes.CheckStaleAnalyzes(ctx, timeout)
 	assert.NoError(t, err)

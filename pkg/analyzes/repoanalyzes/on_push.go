@@ -1,19 +1,17 @@
 package repoanalyzes
 
 import (
-	"fmt"
-
-	"github.com/jinzhu/gorm"
-
 	"github.com/golangci/golangci-api/pkg/models"
-	"github.com/golangci/golangci-api/pkg/todo/db"
-	"github.com/golangci/golib/server/context"
+	"github.com/jinzhu/gorm"
+	"github.com/pkg/errors"
+
+	"github.com/golangci/golangci-shared/pkg/logutil"
 )
 
-func OnRepoMasterUpdated(ctx *context.C, repo *models.Repo, defaultBranch, commitSHA string) error {
+func OnRepoMasterUpdated(db *gorm.DB, log logutil.Log, repo *models.Repo, defaultBranch, commitSHA string) error {
 	repoName := repo.Name
 	var as models.RepoAnalysisStatus
-	err := models.NewRepoAnalysisStatusQuerySet(db.Get(ctx)).RepoIDEq(repo.ID).One(&as)
+	err := models.NewRepoAnalysisStatusQuerySet(db).RepoIDEq(repo.ID).One(&as)
 
 	if err != nil {
 		if err == gorm.ErrRecordNotFound {
@@ -21,28 +19,27 @@ func OnRepoMasterUpdated(ctx *context.C, repo *models.Repo, defaultBranch, commi
 				Active: true,
 				RepoID: repo.ID,
 			}
-			if err = as.Create(db.Get(ctx)); err != nil {
-				return fmt.Errorf("can't create repo analysis status %+v: %s", as, err)
+			if err = as.Create(db); err != nil {
+				return errors.Wrapf(err, "can't create repo analysis status %+v", as)
 			}
 		} else {
-			return fmt.Errorf("can't fetch analysis status with name %s: %s", repoName, err)
+			return errors.Wrapf(err, "can't fetch analysis status with name %s", repoName)
 		}
 	}
 
 	as.HasPendingChanges = true
 	as.DefaultBranch = defaultBranch
 	as.PendingCommitSHA = commitSHA
-	err = as.Update(db.Get(ctx),
+	err = as.Update(db,
 		models.RepoAnalysisStatusDBSchema.HasPendingChanges,
 		models.RepoAnalysisStatusDBSchema.DefaultBranch,
 		models.RepoAnalysisStatusDBSchema.PendingCommitSHA,
 	)
 	if err != nil {
-		return fmt.Errorf("can't update has_pending_changes to true: %s", err)
+		return errors.Wrap(err, "can't update has_pending_changes to true")
 	}
 
-	ctx.L.Infof("Set has_pending_changes=true, default_branch=%s for repo %s analysis status",
+	log.Infof("Set has_pending_changes=true, default_branch=%s for repo %s analysis status",
 		defaultBranch, repoName)
-
 	return nil
 }

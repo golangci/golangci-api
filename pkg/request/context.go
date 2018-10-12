@@ -2,6 +2,7 @@ package request
 
 import (
 	"context"
+	"strings"
 	"time"
 
 	"github.com/golangci/golangci-api/pkg/models"
@@ -10,6 +11,12 @@ import (
 
 	"github.com/golangci/golangci-shared/pkg/logutil"
 )
+
+type Headers map[string]string
+
+func (h Headers) Get(k string) string {
+	return h[strings.ToLower(k)]
+}
 
 type Context interface {
 	RequestStartedAt() time.Time
@@ -23,6 +30,7 @@ type BaseContext struct {
 	DB   *gorm.DB
 
 	StartedAt time.Time
+	Headers   Headers
 }
 
 func (ctx BaseContext) RequestStartedAt() time.Time {
