@@ -24,7 +24,7 @@ func (s Session) GetValue(key string) interface{} {
 	return s.gs.Values[key]
 }
 
-func (s Session) Set(k string, v interface{}) {
+func (s *Session) Set(k string, v interface{}) {
 	s.gs.Values[k] = v
 	s.callbacks = append(s.callbacks, func(httpWriter http.ResponseWriter) error {
 		if err := s.gs.Save(s.httpReq, httpWriter); err != nil {
@@ -34,7 +34,7 @@ func (s Session) Set(k string, v interface{}) {
 	})
 }
 
-func (s Session) Delete() {
+func (s *Session) Delete() {
 	s.gs.Options.MaxAge = -1
 	s.gs.Values = make(map[interface{}]interface{})
 	s.callbacks = append(s.callbacks, func(httpWriter http.ResponseWriter) error {

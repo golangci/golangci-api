@@ -118,22 +118,6 @@ func ActivateRepo(ctx *context.C, ga *models.Auth, owner, repo string) (*models.
 	return &gr, nil
 }
 
-func DeactivateAll(ctx *context.C) error {
-	userID, err := user.GetCurrentID(ctx.R)
-	if err != nil {
-		return fmt.Errorf("can't get current user id: %s", err)
-	}
-
-	// TODO: remove all hooks
-	err = models.NewRepoQuerySet(db.Get(ctx)).
-		UserIDEq(userID).Delete()
-	if err != nil {
-		return fmt.Errorf("can't delete all repos of user %d: %s", userID, err)
-	}
-
-	return nil
-}
-
 func ArePrivateReposEnabledForUser(ctx *context.C) bool {
 	ga, err := user.GetAuth(ctx)
 	if err != nil {

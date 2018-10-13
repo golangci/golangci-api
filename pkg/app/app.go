@@ -168,7 +168,9 @@ func (a *App) buildServices() {
 	}
 	a.services.pranalysis = pranalysis.BasicService{}
 	a.services.events = events.BasicService{}
-	a.services.auth = auth.BasicService{}
+	a.services.auth = auth.BasicService{
+		WebRoot: a.cfg.GetString("WEB_ROOT"),
+	}
 
 	a.buildRepoService()
 }

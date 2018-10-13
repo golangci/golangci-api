@@ -31,13 +31,13 @@ type Service interface {
 	//url:/v1/repos method:POST
 	Create(rc *request.AuthorizedContext, reqRepo *request.BodyRepo) (*returntypes.WrappedRepoInfo, error)
 
-	//url:/v1/repos/{repoid} method:GET
+	//url:/v1/repos/{repoid}
 	Get(rc *request.AuthorizedContext, reqRepo *request.RepoID) (*returntypes.WrappedRepoInfo, error)
 
 	//url:/v1/repos/{repoid} method:DELETE
 	Delete(rc *request.AuthorizedContext, reqRepo *request.RepoID) (*returntypes.WrappedRepoInfo, error)
 
-	//url:/v1/repos method:GET
+	//url:/v1/repos
 	List(rc *request.AuthorizedContext, req *listRequest) (*returntypes.RepoListResponse, error)
 }
 

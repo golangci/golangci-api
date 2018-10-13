@@ -73,7 +73,9 @@ func make{{.Name}}Endpoint(svc Service, log logutil.Log) endpoint.Endpoint {
 		{{else}}
 			err = svc.{{.Name}}({{.CallArgs}})
 			if err != nil {
-				rc.Log.Errorf("{{.FullName}} failed: %s", err)
+				if !apierrors.IsErrorLikeResult(err) {
+					rc.Log.Errorf("{{.FullName}} failed: %s", err)
+				}
 				return {{.Name}}Response{err}, nil
 			}
 
@@ -95,6 +97,7 @@ func RegisterHandlers(svc Service, regCtx *transportutil.HandlerRegContext) {
 			make{{.Name}}Endpoint(svc, regCtx.Log),
 			decode{{.Name}}Request,
 			encode{{.Name}}Response,
+			httptransport.ServerBefore(transportutil.StoreHTTPRequestToContext),
 			{{if .Authorized}}
 			httptransport.ServerBefore(transportutil.MakeStoreAuthorizedRequestContext(regCtx.Log,
 				regCtx.ErrTracker, regCtx.DB, regCtx.SessFactory)),
@@ -143,6 +146,10 @@ func encode{{.Name}}Response(ctx context.Context, w http.ResponseWriter, respons
 	}
 
 	if resp.err != nil {
+		if apierrors.IsErrorLikeResult(resp.err) {
+			return transportutil.HandleErrorLikeResult(ctx, w, resp.err)
+		}
+
 		terr := transportutil.MakeError(resp.err)
 		wrappedResp.Error = terr
 		w.WriteHeader(terr.HTTPCode)

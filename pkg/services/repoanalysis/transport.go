@@ -7,6 +7,7 @@ import (
 	"net/http"
 
 	httptransport "github.com/go-kit/kit/transport/http"
+	"github.com/golangci/golangci-api/pkg/apierrors"
 	"github.com/golangci/golangci-api/pkg/transportutil"
 	"github.com/pkg/errors"
 )
@@ -17,6 +18,7 @@ func RegisterHandlers(svc Service, regCtx *transportutil.HandlerRegContext) {
 		makeGetStatusEndpoint(svc, regCtx.Log),
 		decodeGetStatusRequest,
 		encodeGetStatusResponse,
+		httptransport.ServerBefore(transportutil.StoreHTTPRequestToContext),
 
 		httptransport.ServerBefore(transportutil.MakeStoreAnonymousRequestContext(
 			regCtx.Log, regCtx.ErrTracker, regCtx.DB)),
@@ -31,6 +33,7 @@ func RegisterHandlers(svc Service, regCtx *transportutil.HandlerRegContext) {
 		makeGetEndpoint(svc, regCtx.Log),
 		decodeGetRequest,
 		encodeGetResponse,
+		httptransport.ServerBefore(transportutil.StoreHTTPRequestToContext),
 
 		httptransport.ServerBefore(transportutil.MakeStoreAnonymousRequestContext(
 			regCtx.Log, regCtx.ErrTracker, regCtx.DB)),
@@ -45,6 +48,7 @@ func RegisterHandlers(svc Service, regCtx *transportutil.HandlerRegContext) {
 		makeUpdateEndpoint(svc, regCtx.Log),
 		decodeUpdateRequest,
 		encodeUpdateResponse,
+		httptransport.ServerBefore(transportutil.StoreHTTPRequestToContext),
 
 		httptransport.ServerBefore(transportutil.MakeStoreAnonymousRequestContext(
 			regCtx.Log, regCtx.ErrTracker, regCtx.DB)),
@@ -87,6 +91,10 @@ func encodeGetStatusResponse(ctx context.Context, w http.ResponseWriter, respons
 	}
 
 	if resp.err != nil {
+		if apierrors.IsErrorLikeResult(resp.err) {
+			return transportutil.HandleErrorLikeResult(ctx, w, resp.err)
+		}
+
 		terr := transportutil.MakeError(resp.err)
 		wrappedResp.Error = terr
 		w.WriteHeader(terr.HTTPCode)
@@ -125,6 +133,10 @@ func encodeGetResponse(ctx context.Context, w http.ResponseWriter, response inte
 	}
 
 	if resp.err != nil {
+		if apierrors.IsErrorLikeResult(resp.err) {
+			return transportutil.HandleErrorLikeResult(ctx, w, resp.err)
+		}
+
 		terr := transportutil.MakeError(resp.err)
 		wrappedResp.Error = terr
 		w.WriteHeader(terr.HTTPCode)
@@ -163,6 +175,10 @@ func encodeUpdateResponse(ctx context.Context, w http.ResponseWriter, response i
 	}
 
 	if resp.err != nil {
+		if apierrors.IsErrorLikeResult(resp.err) {
+			return transportutil.HandleErrorLikeResult(ctx, w, resp.err)
+		}
+
 		terr := transportutil.MakeError(resp.err)
 		wrappedResp.Error = terr
 		w.WriteHeader(terr.HTTPCode)

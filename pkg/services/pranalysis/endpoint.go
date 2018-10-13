@@ -7,6 +7,7 @@ import (
 	"runtime/debug"
 
 	"github.com/go-kit/kit/endpoint"
+	"github.com/golangci/golangci-api/pkg/apierrors"
 	"github.com/golangci/golangci-api/pkg/endpointutil"
 	"github.com/golangci/golangci-api/pkg/request"
 	"github.com/golangci/golangci-shared/pkg/logutil"
@@ -154,7 +155,9 @@ func makeUpdateAnalysisStateByAnalysisGUIDEndpoint(svc Service, log logutil.Log)
 
 		err = svc.UpdateAnalysisStateByAnalysisGUID(rc, req.Req, req.State)
 		if err != nil {
-			rc.Log.Errorf("pranalysis.Service.UpdateAnalysisStateByAnalysisGUID failed: %s", err)
+			if !apierrors.IsErrorLikeResult(err) {
+				rc.Log.Errorf("pranalysis.Service.UpdateAnalysisStateByAnalysisGUID failed: %s", err)
+			}
 			return UpdateAnalysisStateByAnalysisGUIDResponse{err}, nil
 		}
 

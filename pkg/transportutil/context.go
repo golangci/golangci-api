@@ -58,7 +58,10 @@ func FinalizeRequest(ctx context.Context, code int, r *http.Request) {
 
 type ctxKey string
 
-const errKey ctxKey = "transport/error"
+const (
+	errKey         ctxKey = "transport/error"
+	httpRequestKey ctxKey = "transport/httpRequest"
+)
 
 func storeContextError(ctx context.Context, err error) context.Context {
 	return context.WithValue(ctx, errKey, err)
@@ -71,4 +74,12 @@ func GetContextError(ctx context.Context) error {
 	}
 
 	return v.(error)
+}
+
+func StoreHTTPRequestToContext(ctx context.Context, r *http.Request) context.Context {
+	return context.WithValue(ctx, httpRequestKey, r)
+}
+
+func getHTTPRequestFromContext(ctx context.Context) *http.Request {
+	return ctx.Value(httpRequestKey).(*http.Request)
 }

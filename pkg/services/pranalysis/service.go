@@ -38,10 +38,10 @@ type RepoPullRequest struct {
 }
 
 type Service interface {
-	//url:/v1/repos/{provider}/{owner}/{name}/analyzes/{analysisguid}/state method:GET
+	//url:/v1/repos/{provider}/{owner}/{name}/analyzes/{analysisguid}/state
 	GetAnalysisStateByAnalysisGUID(rc *request.AnonymousContext, req *AnalyzedRepo) (*State, error)
 
-	//url:/v1/repos/{provider}/{owner}/{name}/pulls/{pullrequestnumber} method:GET
+	//url:/v1/repos/{provider}/{owner}/{name}/pulls/{pullrequestnumber}
 	GetAnalysisStateByPRNumber(rc *request.AnonymousContext, req *RepoPullRequest) (*State, error)
 
 	//url:/v1/repos/{provider}/{owner}/{name}/analyzes/{analysisguid}/state method:PUT

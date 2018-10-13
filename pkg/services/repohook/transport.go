@@ -7,6 +7,7 @@ import (
 	"net/http"
 
 	httptransport "github.com/go-kit/kit/transport/http"
+	"github.com/golangci/golangci-api/pkg/apierrors"
 	"github.com/golangci/golangci-api/pkg/transportutil"
 	"github.com/pkg/errors"
 )
@@ -17,6 +18,7 @@ func RegisterHandlers(svc Service, regCtx *transportutil.HandlerRegContext) {
 		makeHandleGithubWebhookEndpoint(svc, regCtx.Log),
 		decodeHandleGithubWebhookRequest,
 		encodeHandleGithubWebhookResponse,
+		httptransport.ServerBefore(transportutil.StoreHTTPRequestToContext),
 
 		httptransport.ServerBefore(transportutil.MakeStoreAnonymousRequestContext(
 			regCtx.Log, regCtx.ErrTracker, regCtx.DB)),
@@ -59,6 +61,10 @@ func encodeHandleGithubWebhookResponse(ctx context.Context, w http.ResponseWrite
 	}
 
 	if resp.err != nil {
+		if apierrors.IsErrorLikeResult(resp.err) {
+			return transportutil.HandleErrorLikeResult(ctx, w, resp.err)
+		}
+
 		terr := transportutil.MakeError(resp.err)
 		wrappedResp.Error = terr
 		w.WriteHeader(terr.HTTPCode)

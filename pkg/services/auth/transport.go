@@ -7,6 +7,7 @@ import (
 	"net/http"
 
 	httptransport "github.com/go-kit/kit/transport/http"
+	"github.com/golangci/golangci-api/pkg/apierrors"
 	"github.com/golangci/golangci-api/pkg/transportutil"
 	"github.com/pkg/errors"
 )
@@ -17,6 +18,7 @@ func RegisterHandlers(svc Service, regCtx *transportutil.HandlerRegContext) {
 		makeCheckAuthEndpoint(svc, regCtx.Log),
 		decodeCheckAuthRequest,
 		encodeCheckAuthResponse,
+		httptransport.ServerBefore(transportutil.StoreHTTPRequestToContext),
 
 		httptransport.ServerBefore(transportutil.MakeStoreAuthorizedRequestContext(regCtx.Log,
 			regCtx.ErrTracker, regCtx.DB, regCtx.SessFactory)),
@@ -27,6 +29,38 @@ func RegisterHandlers(svc Service, regCtx *transportutil.HandlerRegContext) {
 		httptransport.ServerErrorLogger(transportutil.AdaptErrorLogger(regCtx.Log)),
 	)
 	regCtx.Router.Methods("GET").Path("/v1/auth/check").Handler(hCheckAuth)
+
+	hLogout := httptransport.NewServer(
+		makeLogoutEndpoint(svc, regCtx.Log),
+		decodeLogoutRequest,
+		encodeLogoutResponse,
+		httptransport.ServerBefore(transportutil.StoreHTTPRequestToContext),
+
+		httptransport.ServerBefore(transportutil.MakeStoreAuthorizedRequestContext(regCtx.Log,
+			regCtx.ErrTracker, regCtx.DB, regCtx.SessFactory)),
+		httptransport.ServerAfter(transportutil.FinalizeSession),
+
+		httptransport.ServerFinalizer(transportutil.FinalizeRequest),
+		httptransport.ServerErrorEncoder(transportutil.EncodeError),
+		httptransport.ServerErrorLogger(transportutil.AdaptErrorLogger(regCtx.Log)),
+	)
+	regCtx.Router.Methods("GET").Path("/v1/auth/logout").Handler(hLogout)
+
+	hUnlinkProvider := httptransport.NewServer(
+		makeUnlinkProviderEndpoint(svc, regCtx.Log),
+		decodeUnlinkProviderRequest,
+		encodeUnlinkProviderResponse,
+		httptransport.ServerBefore(transportutil.StoreHTTPRequestToContext),
+
+		httptransport.ServerBefore(transportutil.MakeStoreAuthorizedRequestContext(regCtx.Log,
+			regCtx.ErrTracker, regCtx.DB, regCtx.SessFactory)),
+		httptransport.ServerAfter(transportutil.FinalizeSession),
+
+		httptransport.ServerFinalizer(transportutil.FinalizeRequest),
+		httptransport.ServerErrorEncoder(transportutil.EncodeError),
+		httptransport.ServerErrorLogger(transportutil.AdaptErrorLogger(regCtx.Log)),
+	)
+	regCtx.Router.Methods("PUT").Path("/v1/auth/github/unlink").Handler(hUnlinkProvider)
 
 }
 
@@ -60,6 +94,94 @@ func encodeCheckAuthResponse(ctx context.Context, w http.ResponseWriter, respons
 	}
 
 	if resp.err != nil {
+		if apierrors.IsErrorLikeResult(resp.err) {
+			return transportutil.HandleErrorLikeResult(ctx, w, resp.err)
+		}
+
+		terr := transportutil.MakeError(resp.err)
+		wrappedResp.Error = terr
+		w.WriteHeader(terr.HTTPCode)
+	}
+
+	return json.NewEncoder(w).Encode(wrappedResp)
+}
+
+func decodeLogoutRequest(_ context.Context, r *http.Request) (interface{}, error) {
+	var request LogoutRequest
+	if err := transportutil.DecodeRequest(&request, r); err != nil {
+		return nil, errors.Wrap(err, "can't decode request")
+	}
+
+	return request, nil
+}
+
+func encodeLogoutResponse(ctx context.Context, w http.ResponseWriter, response interface{}) error {
+	w.Header().Add("Content-Type", "application/json; charset=UTF-8")
+	if err := transportutil.GetContextError(ctx); err != nil {
+		wrappedResp := struct {
+			Error *transportutil.Error
+		}{
+			Error: transportutil.MakeError(err),
+		}
+		w.WriteHeader(wrappedResp.Error.HTTPCode)
+		return json.NewEncoder(w).Encode(wrappedResp)
+	}
+
+	resp := response.(LogoutResponse)
+	wrappedResp := struct {
+		transportutil.ErrorResponse
+		LogoutResponse
+	}{
+		LogoutResponse: resp,
+	}
+
+	if resp.err != nil {
+		if apierrors.IsErrorLikeResult(resp.err) {
+			return transportutil.HandleErrorLikeResult(ctx, w, resp.err)
+		}
+
+		terr := transportutil.MakeError(resp.err)
+		wrappedResp.Error = terr
+		w.WriteHeader(terr.HTTPCode)
+	}
+
+	return json.NewEncoder(w).Encode(wrappedResp)
+}
+
+func decodeUnlinkProviderRequest(_ context.Context, r *http.Request) (interface{}, error) {
+	var request UnlinkProviderRequest
+	if err := transportutil.DecodeRequest(&request, r); err != nil {
+		return nil, errors.Wrap(err, "can't decode request")
+	}
+
+	return request, nil
+}
+
+func encodeUnlinkProviderResponse(ctx context.Context, w http.ResponseWriter, response interface{}) error {
+	w.Header().Add("Content-Type", "application/json; charset=UTF-8")
+	if err := transportutil.GetContextError(ctx); err != nil {
+		wrappedResp := struct {
+			Error *transportutil.Error
+		}{
+			Error: transportutil.MakeError(err),
+		}
+		w.WriteHeader(wrappedResp.Error.HTTPCode)
+		return json.NewEncoder(w).Encode(wrappedResp)
+	}
+
+	resp := response.(UnlinkProviderResponse)
+	wrappedResp := struct {
+		transportutil.ErrorResponse
+		UnlinkProviderResponse
+	}{
+		UnlinkProviderResponse: resp,
+	}
+
+	if resp.err != nil {
+		if apierrors.IsErrorLikeResult(resp.err) {
+			return transportutil.HandleErrorLikeResult(ctx, w, resp.err)
+		}
+
 		terr := transportutil.MakeError(resp.err)
 		wrappedResp.Error = terr
 		w.WriteHeader(terr.HTTPCode)

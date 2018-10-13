@@ -7,6 +7,7 @@ import (
 	"runtime/debug"
 
 	"github.com/go-kit/kit/endpoint"
+	"github.com/golangci/golangci-api/pkg/apierrors"
 	"github.com/golangci/golangci-api/pkg/endpointutil"
 	"github.com/golangci/golangci-api/pkg/models"
 	"github.com/golangci/golangci-api/pkg/request"
@@ -155,7 +156,9 @@ func makeUpdateEndpoint(svc Service, log logutil.Log) endpoint.Endpoint {
 
 		err = svc.Update(rc, req.Rac, req.Update)
 		if err != nil {
-			rc.Log.Errorf("repoanalysis.Service.Update failed: %s", err)
+			if !apierrors.IsErrorLikeResult(err) {
+				rc.Log.Errorf("repoanalysis.Service.Update failed: %s", err)
+			}
 			return UpdateResponse{err}, nil
 		}
 

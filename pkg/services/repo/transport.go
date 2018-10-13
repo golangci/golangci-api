@@ -7,6 +7,7 @@ import (
 	"net/http"
 
 	httptransport "github.com/go-kit/kit/transport/http"
+	"github.com/golangci/golangci-api/pkg/apierrors"
 	"github.com/golangci/golangci-api/pkg/transportutil"
 	"github.com/pkg/errors"
 )
@@ -17,6 +18,7 @@ func RegisterHandlers(svc Service, regCtx *transportutil.HandlerRegContext) {
 		makeCreateEndpoint(svc, regCtx.Log),
 		decodeCreateRequest,
 		encodeCreateResponse,
+		httptransport.ServerBefore(transportutil.StoreHTTPRequestToContext),
 
 		httptransport.ServerBefore(transportutil.MakeStoreAuthorizedRequestContext(regCtx.Log,
 			regCtx.ErrTracker, regCtx.DB, regCtx.SessFactory)),
@@ -32,6 +34,7 @@ func RegisterHandlers(svc Service, regCtx *transportutil.HandlerRegContext) {
 		makeGetEndpoint(svc, regCtx.Log),
 		decodeGetRequest,
 		encodeGetResponse,
+		httptransport.ServerBefore(transportutil.StoreHTTPRequestToContext),
 
 		httptransport.ServerBefore(transportutil.MakeStoreAuthorizedRequestContext(regCtx.Log,
 			regCtx.ErrTracker, regCtx.DB, regCtx.SessFactory)),
@@ -47,6 +50,7 @@ func RegisterHandlers(svc Service, regCtx *transportutil.HandlerRegContext) {
 		makeDeleteEndpoint(svc, regCtx.Log),
 		decodeDeleteRequest,
 		encodeDeleteResponse,
+		httptransport.ServerBefore(transportutil.StoreHTTPRequestToContext),
 
 		httptransport.ServerBefore(transportutil.MakeStoreAuthorizedRequestContext(regCtx.Log,
 			regCtx.ErrTracker, regCtx.DB, regCtx.SessFactory)),
@@ -62,6 +66,7 @@ func RegisterHandlers(svc Service, regCtx *transportutil.HandlerRegContext) {
 		makeListEndpoint(svc, regCtx.Log),
 		decodeListRequest,
 		encodeListResponse,
+		httptransport.ServerBefore(transportutil.StoreHTTPRequestToContext),
 
 		httptransport.ServerBefore(transportutil.MakeStoreAuthorizedRequestContext(regCtx.Log,
 			regCtx.ErrTracker, regCtx.DB, regCtx.SessFactory)),
@@ -105,6 +110,10 @@ func encodeCreateResponse(ctx context.Context, w http.ResponseWriter, response i
 	}
 
 	if resp.err != nil {
+		if apierrors.IsErrorLikeResult(resp.err) {
+			return transportutil.HandleErrorLikeResult(ctx, w, resp.err)
+		}
+
 		terr := transportutil.MakeError(resp.err)
 		wrappedResp.Error = terr
 		w.WriteHeader(terr.HTTPCode)
@@ -143,6 +152,10 @@ func encodeGetResponse(ctx context.Context, w http.ResponseWriter, response inte
 	}
 
 	if resp.err != nil {
+		if apierrors.IsErrorLikeResult(resp.err) {
+			return transportutil.HandleErrorLikeResult(ctx, w, resp.err)
+		}
+
 		terr := transportutil.MakeError(resp.err)
 		wrappedResp.Error = terr
 		w.WriteHeader(terr.HTTPCode)
@@ -181,6 +194,10 @@ func encodeDeleteResponse(ctx context.Context, w http.ResponseWriter, response i
 	}
 
 	if resp.err != nil {
+		if apierrors.IsErrorLikeResult(resp.err) {
+			return transportutil.HandleErrorLikeResult(ctx, w, resp.err)
+		}
+
 		terr := transportutil.MakeError(resp.err)
 		wrappedResp.Error = terr
 		w.WriteHeader(terr.HTTPCode)
@@ -219,6 +236,10 @@ func encodeListResponse(ctx context.Context, w http.ResponseWriter, response int
 	}
 
 	if resp.err != nil {
+		if apierrors.IsErrorLikeResult(resp.err) {
+			return transportutil.HandleErrorLikeResult(ctx, w, resp.err)
+		}
+
 		terr := transportutil.MakeError(resp.err)
 		wrappedResp.Error = terr
 		w.WriteHeader(terr.HTTPCode)

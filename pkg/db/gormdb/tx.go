@@ -1,20 +1,39 @@
 package gormdb
 
 import (
-	"database/sql"
-
+	"github.com/jinzhu/gorm"
 	"github.com/pkg/errors"
 )
 
-func FinishTx(tx *sql.Tx, err *error) {
-	if *err != nil {
-		if rollbackErr := tx.Rollback(); rollbackErr != nil {
-			*err = errors.Wrapf(*err, "Failed to rollback transaction: %s", rollbackErr)
+type FinishTxFunc func(err *error)
+
+func StartTx(db *gorm.DB) (*gorm.DB, FinishTxFunc, error) {
+	tx := db.Begin()
+	if tx.Error != nil {
+		return nil, nil, errors.Wrap(tx.Error, "failed to start transaction")
+	}
+
+	return tx, func(err *error) {
+		finishTx(tx, err, recover())
+	}, nil
+}
+
+func finishTx(tx *gorm.DB, err *error, rec interface{}) {
+	if rec != nil {
+		if rollbackErr := tx.Rollback().Error; rollbackErr != nil {
+			*err = errors.Wrapf(rollbackErr, "failed to rollback transaction after panic: %s", rec)
 		}
 		return
 	}
 
-	if commitErr := tx.Commit(); commitErr != nil {
+	if *err != nil {
+		if rollbackErr := tx.Rollback().Error; rollbackErr != nil {
+			*err = errors.Wrapf(*err, "failed to rollback transaction: %s", rollbackErr)
+		}
+		return
+	}
+
+	if commitErr := tx.Commit().Error; commitErr != nil {
 		*err = errors.Wrap(commitErr, "failed to commit transaction")
 	}
 }

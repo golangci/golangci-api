@@ -1,6 +1,8 @@
 package transportutil
 
 import (
+	"context"
+	"fmt"
 	"net/http"
 	"strconv"
 
@@ -47,4 +49,19 @@ func MakeError(e error) *Error {
 	}
 
 	return makeError(http.StatusInternalServerError, errors.New("internal error"))
+}
+
+func HandleErrorLikeResult(ctx context.Context, w http.ResponseWriter, e error) error {
+	switch err := e.(type) {
+	case *apierrors.RedirectError:
+		r := getHTTPRequestFromContext(ctx)
+		code := http.StatusPermanentRedirect
+		if err.Temporary {
+			code = http.StatusTemporaryRedirect
+		}
+		http.Redirect(w, r, err.URL, code)
+		return nil
+	}
+
+	return fmt.Errorf("unknown error like result type: %#v", e)
 }

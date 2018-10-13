@@ -7,6 +7,7 @@ import (
 	"runtime/debug"
 
 	"github.com/go-kit/kit/endpoint"
+	"github.com/golangci/golangci-api/pkg/apierrors"
 	"github.com/golangci/golangci-api/pkg/endpointutil"
 	"github.com/golangci/golangci-api/pkg/request"
 	"github.com/golangci/golangci-shared/pkg/logutil"
@@ -52,7 +53,9 @@ func makeTrackEventEndpoint(svc Service, log logutil.Log) endpoint.Endpoint {
 
 		err = svc.TrackEvent(rc, req.Req)
 		if err != nil {
-			rc.Log.Errorf("events.Service.TrackEvent failed: %s", err)
+			if !apierrors.IsErrorLikeResult(err) {
+				rc.Log.Errorf("events.Service.TrackEvent failed: %s", err)
+			}
 			return TrackEventResponse{err}, nil
 		}
 

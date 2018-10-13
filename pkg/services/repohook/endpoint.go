@@ -7,6 +7,7 @@ import (
 	"runtime/debug"
 
 	"github.com/go-kit/kit/endpoint"
+	"github.com/golangci/golangci-api/pkg/apierrors"
 	"github.com/golangci/golangci-api/pkg/endpointutil"
 	"github.com/golangci/golangci-api/pkg/request"
 	"github.com/golangci/golangci-shared/pkg/logutil"
@@ -54,7 +55,9 @@ func makeHandleGithubWebhookEndpoint(svc Service, log logutil.Log) endpoint.Endp
 
 		err = svc.HandleGithubWebhook(rc, req.ReqRepo, req.Body)
 		if err != nil {
-			rc.Log.Errorf("repohook.Service.HandleGithubWebhook failed: %s", err)
+			if !apierrors.IsErrorLikeResult(err) {
+				rc.Log.Errorf("repohook.Service.HandleGithubWebhook failed: %s", err)
+			}
 			return HandleGithubWebhookResponse{err}, nil
 		}
 

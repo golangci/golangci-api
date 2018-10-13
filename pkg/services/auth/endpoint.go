@@ -7,6 +7,7 @@ import (
 	"runtime/debug"
 
 	"github.com/go-kit/kit/endpoint"
+	"github.com/golangci/golangci-api/pkg/apierrors"
 	"github.com/golangci/golangci-api/pkg/endpointutil"
 	"github.com/golangci/golangci-api/pkg/request"
 	"github.com/golangci/golangci-api/pkg/returntypes"
@@ -54,6 +55,98 @@ func makeCheckAuthEndpoint(svc Service, log logutil.Log) endpoint.Endpoint {
 		}
 
 		return CheckAuthResponse{nil, v}, nil
+
+	}
+}
+
+type LogoutRequest struct {
+}
+
+type LogoutResponse struct {
+	err error
+}
+
+func makeLogoutEndpoint(svc Service, log logutil.Log) endpoint.Endpoint {
+	return func(ctx context.Context, reqObj interface{}) (resp interface{}, err error) {
+
+		reqLogger := log
+		defer func() {
+			if rerr := recover(); rerr != nil {
+				reqLogger.Errorf("Panic occured")
+				reqLogger.Infof("%s", debug.Stack())
+				resp = LogoutResponse{
+					err: errors.New("panic occured"),
+				}
+				err = nil
+			}
+		}()
+
+		if err := endpointutil.Error(ctx); err != nil {
+			log.Warnf("Error occurred during request context creation: %s", err)
+			resp = LogoutResponse{
+				err: err,
+			}
+			return resp, nil
+		}
+
+		rc := endpointutil.RequestContext(ctx).(*request.AuthorizedContext)
+		reqLogger = rc.Log
+
+		err = svc.Logout(rc)
+		if err != nil {
+			if !apierrors.IsErrorLikeResult(err) {
+				rc.Log.Errorf("auth.Service.Logout failed: %s", err)
+			}
+			return LogoutResponse{err}, nil
+		}
+
+		return LogoutResponse{nil}, nil
+
+	}
+}
+
+type UnlinkProviderRequest struct {
+}
+
+type UnlinkProviderResponse struct {
+	err error
+}
+
+func makeUnlinkProviderEndpoint(svc Service, log logutil.Log) endpoint.Endpoint {
+	return func(ctx context.Context, reqObj interface{}) (resp interface{}, err error) {
+
+		reqLogger := log
+		defer func() {
+			if rerr := recover(); rerr != nil {
+				reqLogger.Errorf("Panic occured")
+				reqLogger.Infof("%s", debug.Stack())
+				resp = UnlinkProviderResponse{
+					err: errors.New("panic occured"),
+				}
+				err = nil
+			}
+		}()
+
+		if err := endpointutil.Error(ctx); err != nil {
+			log.Warnf("Error occurred during request context creation: %s", err)
+			resp = UnlinkProviderResponse{
+				err: err,
+			}
+			return resp, nil
+		}
+
+		rc := endpointutil.RequestContext(ctx).(*request.AuthorizedContext)
+		reqLogger = rc.Log
+
+		err = svc.UnlinkProvider(rc)
+		if err != nil {
+			if !apierrors.IsErrorLikeResult(err) {
+				rc.Log.Errorf("auth.Service.UnlinkProvider failed: %s", err)
+			}
+			return UnlinkProviderResponse{err}, nil
+		}
+
+		return UnlinkProviderResponse{nil}, nil
 
 	}
 }
