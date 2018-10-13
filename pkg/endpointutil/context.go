@@ -95,6 +95,9 @@ func MakeAuthorizedRequestContext(ctx context.Context, log logutil.Log, et apper
 		return nil, errors.Wrapf(err, "failed to fetch user with id %d", userID)
 	}
 
+	baseCtx.Lctx["user_id"] = userID
+	baseCtx.Lctx["provider_login"] = auth.Login
+
 	return &request.AuthorizedContext{
 		BaseContext: *baseCtx,
 		Sess:        sess,

@@ -7,29 +7,25 @@ import (
 	"net/http"
 
 	httptransport "github.com/go-kit/kit/transport/http"
-	"github.com/golangci/golangci-api/pkg/session"
 	"github.com/golangci/golangci-api/pkg/transportutil"
-	"github.com/golangci/golangci-shared/pkg/apperrors"
-	"github.com/golangci/golangci-shared/pkg/logutil"
-	"github.com/gorilla/mux"
-	"github.com/jinzhu/gorm"
 	"github.com/pkg/errors"
 )
 
-func RegisterHandlers(r *mux.Router, svc Service, log logutil.Log, et apperrors.Tracker, db *gorm.DB, sf *session.Factory) {
+func RegisterHandlers(svc Service, regCtx *transportutil.HandlerRegContext) {
 
 	hHandleGithubWebhook := httptransport.NewServer(
-		makeHandleGithubWebhookEndpoint(svc, log),
+		makeHandleGithubWebhookEndpoint(svc, regCtx.Log),
 		decodeHandleGithubWebhookRequest,
 		encodeHandleGithubWebhookResponse,
 
-		httptransport.ServerBefore(transportutil.MakeStoreAnonymousRequestContext(log, et, db)),
+		httptransport.ServerBefore(transportutil.MakeStoreAnonymousRequestContext(
+			regCtx.Log, regCtx.ErrTracker, regCtx.DB)),
 
 		httptransport.ServerFinalizer(transportutil.FinalizeRequest),
 		httptransport.ServerErrorEncoder(transportutil.EncodeError),
-		httptransport.ServerErrorLogger(transportutil.AdaptErrorLogger(log)),
+		httptransport.ServerErrorLogger(transportutil.AdaptErrorLogger(regCtx.Log)),
 	)
-	r.Methods("POST").Path("/v1/repos/{owner}/{name}/hooks/{hookid}").Handler(hHandleGithubWebhook)
+	regCtx.Router.Methods("POST").Path("/v1/repos/{owner}/{name}/hooks/{hookid}").Handler(hHandleGithubWebhook)
 
 }
 

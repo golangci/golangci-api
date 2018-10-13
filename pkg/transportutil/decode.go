@@ -217,6 +217,7 @@ func decodeRequestFieldFromURL(structFields []structField, r *http.Request) erro
 	return nil
 }
 
+//nolint:gocyclo
 func decodeRequestParamFromString(param reflect.Value, s string) error {
 	switch param.Kind() {
 	case reflect.String:
@@ -227,6 +228,12 @@ func decodeRequestParamFromString(param reflect.Value, s string) error {
 			return fmt.Errorf("can't parse number from %q: %s", s, err)
 		}
 		param.SetUint(v)
+	case reflect.Int:
+		v, err := strconv.ParseInt(s, 10, 32)
+		if err != nil {
+			return fmt.Errorf("can't parse number from %q: %s", s, err)
+		}
+		param.SetInt(v)
 	case reflect.Bool:
 		v, err := strconv.ParseUint(s, 10, 32)
 		if err != nil {

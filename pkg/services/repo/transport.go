@@ -7,72 +7,71 @@ import (
 	"net/http"
 
 	httptransport "github.com/go-kit/kit/transport/http"
-	"github.com/golangci/golangci-api/pkg/session"
 	"github.com/golangci/golangci-api/pkg/transportutil"
-	"github.com/golangci/golangci-shared/pkg/apperrors"
-	"github.com/golangci/golangci-shared/pkg/logutil"
-	"github.com/gorilla/mux"
-	"github.com/jinzhu/gorm"
 	"github.com/pkg/errors"
 )
 
-func RegisterHandlers(r *mux.Router, svc Service, log logutil.Log, et apperrors.Tracker, db *gorm.DB, sf *session.Factory) {
+func RegisterHandlers(svc Service, regCtx *transportutil.HandlerRegContext) {
 
 	hCreate := httptransport.NewServer(
-		makeCreateEndpoint(svc, log),
+		makeCreateEndpoint(svc, regCtx.Log),
 		decodeCreateRequest,
 		encodeCreateResponse,
 
-		httptransport.ServerBefore(transportutil.MakeStoreAuthorizedRequestContext(log, et, db, sf)),
+		httptransport.ServerBefore(transportutil.MakeStoreAuthorizedRequestContext(regCtx.Log,
+			regCtx.ErrTracker, regCtx.DB, regCtx.SessFactory)),
 		httptransport.ServerAfter(transportutil.FinalizeSession),
 
 		httptransport.ServerFinalizer(transportutil.FinalizeRequest),
 		httptransport.ServerErrorEncoder(transportutil.EncodeError),
-		httptransport.ServerErrorLogger(transportutil.AdaptErrorLogger(log)),
+		httptransport.ServerErrorLogger(transportutil.AdaptErrorLogger(regCtx.Log)),
 	)
-	r.Methods("POST").Path("/v1/repos").Handler(hCreate)
+	regCtx.Router.Methods("POST").Path("/v1/repos").Handler(hCreate)
 
 	hGet := httptransport.NewServer(
-		makeGetEndpoint(svc, log),
+		makeGetEndpoint(svc, regCtx.Log),
 		decodeGetRequest,
 		encodeGetResponse,
 
-		httptransport.ServerBefore(transportutil.MakeStoreAuthorizedRequestContext(log, et, db, sf)),
+		httptransport.ServerBefore(transportutil.MakeStoreAuthorizedRequestContext(regCtx.Log,
+			regCtx.ErrTracker, regCtx.DB, regCtx.SessFactory)),
 		httptransport.ServerAfter(transportutil.FinalizeSession),
 
 		httptransport.ServerFinalizer(transportutil.FinalizeRequest),
 		httptransport.ServerErrorEncoder(transportutil.EncodeError),
-		httptransport.ServerErrorLogger(transportutil.AdaptErrorLogger(log)),
+		httptransport.ServerErrorLogger(transportutil.AdaptErrorLogger(regCtx.Log)),
 	)
-	r.Methods("GET").Path("/v1/repos/{repoid}").Handler(hGet)
+	regCtx.Router.Methods("GET").Path("/v1/repos/{repoid}").Handler(hGet)
 
 	hDelete := httptransport.NewServer(
-		makeDeleteEndpoint(svc, log),
+		makeDeleteEndpoint(svc, regCtx.Log),
 		decodeDeleteRequest,
 		encodeDeleteResponse,
 
-		httptransport.ServerBefore(transportutil.MakeStoreAuthorizedRequestContext(log, et, db, sf)),
+		httptransport.ServerBefore(transportutil.MakeStoreAuthorizedRequestContext(regCtx.Log,
+			regCtx.ErrTracker, regCtx.DB, regCtx.SessFactory)),
 		httptransport.ServerAfter(transportutil.FinalizeSession),
 
 		httptransport.ServerFinalizer(transportutil.FinalizeRequest),
 		httptransport.ServerErrorEncoder(transportutil.EncodeError),
-		httptransport.ServerErrorLogger(transportutil.AdaptErrorLogger(log)),
+		httptransport.ServerErrorLogger(transportutil.AdaptErrorLogger(regCtx.Log)),
 	)
-	r.Methods("DELETE").Path("/v1/repos/{repoid}").Handler(hDelete)
+	regCtx.Router.Methods("DELETE").Path("/v1/repos/{repoid}").Handler(hDelete)
 
 	hList := httptransport.NewServer(
-		makeListEndpoint(svc, log),
+		makeListEndpoint(svc, regCtx.Log),
 		decodeListRequest,
 		encodeListResponse,
 
-		httptransport.ServerBefore(transportutil.MakeStoreAuthorizedRequestContext(log, et, db, sf)),
+		httptransport.ServerBefore(transportutil.MakeStoreAuthorizedRequestContext(regCtx.Log,
+			regCtx.ErrTracker, regCtx.DB, regCtx.SessFactory)),
 		httptransport.ServerAfter(transportutil.FinalizeSession),
 
 		httptransport.ServerFinalizer(transportutil.FinalizeRequest),
 		httptransport.ServerErrorEncoder(transportutil.EncodeError),
-		httptransport.ServerErrorLogger(transportutil.AdaptErrorLogger(log)),
+		httptransport.ServerErrorLogger(transportutil.AdaptErrorLogger(regCtx.Log)),
 	)
-	r.Methods("GET").Path("/v1/repos").Handler(hList)
+	regCtx.Router.Methods("GET").Path("/v1/repos").Handler(hList)
 
 }
 

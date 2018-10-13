@@ -6,6 +6,8 @@ import (
 	"net/http"
 	"os"
 
+	"github.com/golangci/golangci-api/pkg/services/pranalysis"
+
 	"github.com/aws/aws-sdk-go/aws"
 
 	"github.com/aws/aws-sdk-go/aws/session"
@@ -21,6 +23,7 @@ import (
 
 	"github.com/golangci/golangci-api/app/handlers"
 	"github.com/golangci/golangci-api/app/utils"
+	"github.com/golangci/golangci-api/pkg/transportutil"
 	"github.com/golangci/golangci-shared/pkg/apperrors"
 
 	"github.com/golangci/golib/server/handlers/manager"
@@ -46,6 +49,7 @@ type appServices struct {
 	repoanalysis repoanalysis.Service
 	repo         repo.Service
 	repohook     repohook.Service
+	pranalysis   pranalysis.Service
 }
 
 type queues struct {
@@ -157,6 +161,7 @@ func (a *App) buildServices() {
 	a.services.repohook = repohook.BasicService{
 		ProviderFactory: a.providerFactory,
 	}
+	a.services.pranalysis = pranalysis.BasicService{}
 
 	a.buildRepoService()
 }
@@ -216,9 +221,17 @@ func NewApp(modifiers ...Modifier) *App {
 
 func (a App) RegisterHandlers() {
 	manager.RegisterCallback(func(r *mux.Router) {
-		repoanalysis.RegisterHandlers(r, a.services.repoanalysis, a.log, a.errTracker, a.gormDB, a.sessFactory)
-		repo.RegisterHandlers(r, a.services.repo, a.log, a.errTracker, a.gormDB, a.sessFactory)
-		repohook.RegisterHandlers(r, a.services.repohook, a.log, a.errTracker, a.gormDB, a.sessFactory)
+		regCtx := &transportutil.HandlerRegContext{
+			Router:      r,
+			Log:         a.log,
+			ErrTracker:  a.errTracker,
+			DB:          a.gormDB,
+			SessFactory: a.sessFactory,
+		}
+		repoanalysis.RegisterHandlers(a.services.repoanalysis, regCtx)
+		repo.RegisterHandlers(a.services.repo, regCtx)
+		repohook.RegisterHandlers(a.services.repohook, regCtx)
+		pranalysis.RegisterHandlers(a.services.pranalysis, regCtx)
 	})
 }
 
