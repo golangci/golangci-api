@@ -61,10 +61,10 @@ type DeleterConsumer struct {
 	log             logutil.Log
 	db              *sql.DB
 	cfg             config.Config
-	providerFactory *providers.Factory
+	providerFactory providers.Factory
 }
 
-func NewDeleterConsumer(log logutil.Log, db *sql.DB, cfg config.Config, pf *providers.Factory) *DeleterConsumer {
+func NewDeleterConsumer(log logutil.Log, db *sql.DB, cfg config.Config, pf providers.Factory) *DeleterConsumer {
 	return &DeleterConsumer{
 		log:             log,
 		db:              db,

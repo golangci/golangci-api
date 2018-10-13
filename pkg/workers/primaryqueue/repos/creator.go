@@ -58,10 +58,10 @@ type CreatorConsumer struct {
 	log             logutil.Log
 	db              *sql.DB
 	cfg             config.Config
-	providerFactory *providers.Factory
+	providerFactory providers.Factory
 }
 
-func NewCreatorConsumer(log logutil.Log, db *sql.DB, cfg config.Config, pf *providers.Factory) *CreatorConsumer {
+func NewCreatorConsumer(log logutil.Log, db *sql.DB, cfg config.Config, pf providers.Factory) *CreatorConsumer {
 	return &CreatorConsumer{
 		log:             log,
 		db:              db,

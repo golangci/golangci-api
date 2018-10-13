@@ -9,6 +9,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 
 	"github.com/aws/aws-sdk-go/aws/session"
+	redigo "github.com/garyburd/redigo/redis"
 	"github.com/golangci/golangci-api/pkg/app/hooks"
 	"github.com/golangci/golangci-api/pkg/cache"
 	"github.com/golangci/golangci-api/pkg/db/gormdb"
@@ -64,111 +65,153 @@ type App struct {
 	awsSess          *session.Session
 	queues           queues
 	sessFactory      *apisession.Factory
-	providerFactory  *providers.Factory
+	providerFactory  providers.Factory
 	hooksInjector    *hooks.Injector
 	distLockFactory  *redsync.Redsync
+	redisPool        *redigo.Pool
 }
 
 //nolint:gocyclo
-func NewApp() *App {
-	slog := logutil.NewStderrLog("golangci-api")
-	slog.SetLevel(logutil.LogLevelInfo)
-
-	cfg := config.NewEnvConfig(slog)
-
-	errTracker := apperrors.GetTracker(cfg, slog, "api")
-	trackedLog := apperrors.WrapLogWithTracker(slog, nil, errTracker)
-
-	dbConnString, err := gormdb.GetDBConnString(cfg)
-	if err != nil {
-		slog.Fatalf("Can't get DB conn string: %s", err)
+func (a *App) buildDeps() {
+	if a.log == nil {
+		slog := logutil.NewStderrLog("golangci-api")
+		slog.SetLevel(logutil.LogLevelInfo)
+		a.log = slog
 	}
 
-	gormDB, err := gormdb.GetDB(cfg, dbConnString)
-	if err != nil {
-		slog.Fatalf("Can't get DB: %s", err)
+	if a.cfg == nil {
+		a.cfg = config.NewEnvConfig(a.log)
 	}
 
-	sqlDB, err := gormdb.GetSQLDB(cfg, dbConnString)
-	if err != nil {
-		slog.Fatalf("Can't get DB: %s", err)
+	if a.errTracker == nil {
+		a.errTracker = apperrors.GetTracker(a.cfg, a.log, "api")
+	}
+	if a.trackedLog == nil {
+		a.trackedLog = apperrors.WrapLogWithTracker(a.log, nil, a.errTracker)
 	}
 
-	redisPool, err := redis.GetPool(cfg)
-	if err != nil {
-		slog.Fatalf("Can't get redis pool: %s", err)
-	}
-	rs := redsync.New([]redsync.Pool{redisPool})
-	migrationsRunner := migrations.NewRunner(rs.NewMutex("migrations"), trackedLog,
-		dbConnString, utils.GetProjectRoot())
+	if a.gormDB == nil || a.sqlDB == nil {
+		dbConnString, err := gormdb.GetDBConnString(a.cfg)
+		if err != nil {
+			a.log.Fatalf("Can't get DB conn string: %s", err)
+		}
 
+		if a.gormDB == nil {
+			gormDB, err := gormdb.GetDB(a.cfg, dbConnString)
+			if err != nil {
+				a.log.Fatalf("Can't get DB: %s", err)
+			}
+			a.gormDB = gormDB
+		}
+
+		if a.sqlDB == nil {
+			sqlDB, err := gormdb.GetSQLDB(a.cfg, dbConnString)
+			if err != nil {
+				a.log.Fatalf("Can't get DB: %s", err)
+			}
+			a.sqlDB = sqlDB
+		}
+	}
+
+	if a.hooksInjector == nil {
+		a.hooksInjector = &hooks.Injector{}
+	}
+	if a.providerFactory == nil {
+		a.providerFactory = providers.NewBasicFactory(a.hooksInjector, a.trackedLog)
+	}
+
+	if a.redisPool == nil {
+		redisPool, err := redis.GetPool(a.cfg)
+		if err != nil {
+			a.log.Fatalf("Can't get redis pool: %s", err)
+		}
+		a.redisPool = redisPool
+	}
+}
+
+func (a *App) buildAwsSess() {
 	awsCfg := aws.NewConfig().WithRegion("us-east-1")
-	if cfg.GetBool("AWS_DEBUG", false) {
+	if a.cfg.GetBool("AWS_DEBUG", false) {
 		awsCfg = awsCfg.WithLogLevel(aws.LogDebugWithHTTPBody)
 	}
-	endpoint := cfg.GetString("SQS_ENDPOINT")
+	endpoint := a.cfg.GetString("SQS_ENDPOINT")
 	if endpoint != "" {
 		awsCfg = awsCfg.WithEndpoint(endpoint)
 	}
 	awsSess, err := session.NewSession(awsCfg)
 	if err != nil {
-		slog.Fatalf("Can't make aws session: %s", err)
+		a.log.Fatalf("Can't make aws session: %s", err)
+	}
+	a.awsSess = awsSess
+}
+
+func (a *App) buildQueues() {
+	a.queues.primarySQS = sqs.NewQueue(a.cfg.GetString("SQS_PRIMARY_QUEUE_URL"),
+		a.awsSess, a.trackedLog, primaryqueue.VisibilityTimeoutSec)
+	a.queues.primaryDLQSQS = sqs.NewQueue(a.cfg.GetString("SQS_PRIMARYDEADLETTER_QUEUE_URL"),
+		a.awsSess, a.trackedLog, primaryqueue.VisibilityTimeoutSec)
+}
+
+func (a *App) buildServices() {
+	a.services.repoanalysis = repoanalysis.BasicService{}
+	a.services.repohook = repohook.BasicService{
+		ProviderFactory: a.providerFactory,
 	}
 
-	primarySQS := sqs.NewQueue(cfg.GetString("SQS_PRIMARY_QUEUE_URL"),
-		awsSess, trackedLog, primaryqueue.VisibilityTimeoutSec)
-	primaryDLQSQS := sqs.NewQueue(cfg.GetString("SQS_PRIMARYDEADLETTER_QUEUE_URL"),
-		awsSess, trackedLog, primaryqueue.VisibilityTimeoutSec)
+	a.buildRepoService()
+}
 
-	sessFactory, err := apisession.NewFactory(redisPool, cfg)
-	if err != nil {
-		slog.Fatalf("Failed to make session factory: %s", err)
-	}
-
-	primaryQueueProducerMultiplexer := producers.NewMultiplexer(primarySQS)
+func (a *App) buildRepoService() {
+	primaryQueueProducerMultiplexer := producers.NewMultiplexer(a.queues.primarySQS)
 	createRepoQP := &repos.CreatorProducer{}
-	if err = createRepoQP.Register(primaryQueueProducerMultiplexer); err != nil {
-		slog.Fatalf("Failed to create 'create repo' producer: %s", err)
+	if err := createRepoQP.Register(primaryQueueProducerMultiplexer); err != nil {
+		a.log.Fatalf("Failed to create 'create repo' producer: %s", err)
 	}
 	deleteRepoQP := &repos.DeleterProducer{}
-	if err = deleteRepoQP.Register(primaryQueueProducerMultiplexer); err != nil {
-		slog.Fatalf("Failed to create 'delete repo' producer: %s", err)
-	}
-	hooksInjector := &hooks.Injector{}
-	providerFactory := providers.NewFactory(hooksInjector, trackedLog)
-	s := appServices{
-		repoanalysis: repoanalysis.BasicService{},
-		repo: repo.BasicService{
-			Cfg:             cfg,
-			CreateQueue:     createRepoQP,
-			DeleteQueue:     deleteRepoQP,
-			ProviderFactory: providerFactory,
-			Cache:           cache.NewRedis(cfg.GetString("REDIS_URL") + "/1"),
-		},
-		repohook: repohook.BasicService{
-			ProviderFactory: providerFactory,
-		},
+	if err := deleteRepoQP.Register(primaryQueueProducerMultiplexer); err != nil {
+		a.log.Fatalf("Failed to create 'delete repo' producer: %s", err)
 	}
 
-	return &App{
-		cfg:              cfg,
-		log:              slog,
-		trackedLog:       trackedLog,
-		errTracker:       errTracker,
-		gormDB:           gormDB,
-		sqlDB:            sqlDB,
-		migrationsRunner: migrationsRunner,
-		services:         s,
-		awsSess:          awsSess,
-		sessFactory:      sessFactory,
-		hooksInjector:    hooksInjector,
-		providerFactory:  providerFactory,
-		distLockFactory:  rs,
-		queues: queues{
-			primarySQS:    primarySQS,
-			primaryDLQSQS: primaryDLQSQS,
-		},
+	a.services.repo = repo.BasicService{
+		Cfg:             a.cfg,
+		CreateQueue:     createRepoQP,
+		DeleteQueue:     deleteRepoQP,
+		ProviderFactory: a.providerFactory,
+		Cache:           cache.NewRedis(a.cfg.GetString("REDIS_URL") + "/1"),
 	}
+}
+
+func (a *App) buildSessFactory() {
+	sessFactory, err := apisession.NewFactory(a.redisPool, a.cfg)
+	if err != nil {
+		a.log.Fatalf("Failed to make session factory: %s", err)
+	}
+	a.sessFactory = sessFactory
+}
+
+func (a *App) buildMigrationsRunner() {
+	a.distLockFactory = redsync.New([]redsync.Pool{a.redisPool})
+	dbConnString, err := gormdb.GetDBConnString(a.cfg)
+	if err != nil {
+		a.log.Fatalf("Can't get DB conn string: %s", err)
+	}
+	a.migrationsRunner = migrations.NewRunner(a.distLockFactory.NewMutex("migrations"), a.trackedLog,
+		dbConnString, utils.GetProjectRoot())
+}
+
+func NewApp(modifiers ...Modifier) *App {
+	a := App{}
+	for _, m := range modifiers {
+		m(&a)
+	}
+	a.buildDeps()
+	a.buildAwsSess()
+	a.buildQueues()
+	a.buildSessFactory()
+	a.buildServices()
+	a.buildMigrationsRunner()
+
+	return &a
 }
 
 func (a App) RegisterHandlers() {

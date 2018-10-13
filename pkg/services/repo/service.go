@@ -44,7 +44,7 @@ type Service interface {
 type BasicService struct {
 	CreateQueue     *repos.CreatorProducer
 	DeleteQueue     *repos.DeleterProducer
-	ProviderFactory *providers.Factory
+	ProviderFactory providers.Factory
 	Cache           cache.Cache
 	Cfg             config.Config
 }
