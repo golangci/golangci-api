@@ -6,6 +6,8 @@ import (
 	"net/http"
 	"os"
 
+	"github.com/golangci/golangci-api/pkg/services/events"
+
 	"github.com/golangci/golangci-api/pkg/services/pranalysis"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -50,6 +52,7 @@ type appServices struct {
 	repo         repo.Service
 	repohook     repohook.Service
 	pranalysis   pranalysis.Service
+	events       events.Service
 }
 
 type queues struct {
@@ -162,6 +165,7 @@ func (a *App) buildServices() {
 		ProviderFactory: a.providerFactory,
 	}
 	a.services.pranalysis = pranalysis.BasicService{}
+	a.services.events = events.BasicService{}
 
 	a.buildRepoService()
 }
@@ -232,6 +236,7 @@ func (a App) RegisterHandlers() {
 		repo.RegisterHandlers(a.services.repo, regCtx)
 		repohook.RegisterHandlers(a.services.repohook, regCtx)
 		pranalysis.RegisterHandlers(a.services.pranalysis, regCtx)
+		events.RegisterHandlers(a.services.events, regCtx)
 	})
 }
 
