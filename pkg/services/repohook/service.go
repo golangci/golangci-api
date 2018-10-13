@@ -34,7 +34,7 @@ type Service interface {
 }
 
 type BasicService struct {
-	ProviderFactory *providers.Factory
+	ProviderFactory providers.Factory
 }
 
 func (s BasicService) HandleGithubWebhook(rc *request.AnonymousContext, reqRepo *GithubRepo, body request.Body) error {
