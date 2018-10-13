@@ -22,6 +22,10 @@ func (e Error) Error() string {
 	return e.Message
 }
 
+type ErrorResponse struct {
+	Error *Error `json:"error,omitempty"`
+}
+
 func makeError(code int, e error) *Error {
 	return &Error{
 		HTTPCode: code,

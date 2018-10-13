@@ -2,6 +2,10 @@ package returntypes
 
 import "time"
 
+type Error struct {
+	Error string `json:"error,omitempty"`
+}
+
 type RepoInfo struct {
 	ID          uint   `json:"id"`
 	HookID      string `json:"hookId"` // needed only for tests
@@ -30,4 +34,8 @@ type AuthorizedUser struct {
 	AvatarURL   string    `json:"avatarUrl"`
 	GithubLogin string    `json:"githubLogin"`
 	CreatedAt   time.Time `json:"createdAt"`
+}
+
+type CheckAuthResponse struct {
+	User AuthorizedUser `json:"user"`
 }

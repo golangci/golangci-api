@@ -32,7 +32,9 @@ type {{.Name}}Response struct {
 
 func make{{.Name}}Endpoint(svc Service, log logutil.Log) endpoint.Endpoint {
 	return func(ctx context.Context, reqObj interface{}) (resp interface{}, err error) {
+		{{if .HasRequestParams}}
 		req := reqObj.({{.Name}}Request)
+		{{end}}
 
 		reqLogger := log
 		defer func() {
@@ -134,7 +136,7 @@ func encode{{.Name}}Response(ctx context.Context, w http.ResponseWriter, respons
 
 	resp := response.({{.Name}}Response)
 	wrappedResp := struct {
-		Error *transportutil.Error
+		transportutil.ErrorResponse
 		{{.Name}}Response
 	}{
 		{{.Name}}Response: resp,
@@ -401,16 +403,17 @@ func (sg *serviceGenerator) generateForMethod(fn *ast.FuncType, method *ast.Fiel
 	}
 
 	ctx := map[string]interface{}{
-		"Name":           method.Names[0].Name,
-		"FullName":       fmt.Sprintf("%s.Service.%s", sg.pkg.Pkg.Name(), method.Names[0].Name),
-		"RequestDef":     strings.Join(reqDefElems, "\n"),
-		"ResponseDef":    strings.Join(respDefElems, "\n"),
-		"URL":            url,
-		"HTTPMethod":     httpMethod,
-		"CallArgs":       strings.Join(callArgs, ", "),
-		"ArgsToFillLctx": argsToFillLctx,
-		"HasRetVal":      fn.Results.NumFields() == 2, // value and error
-		"Authorized":     isAuthorized,
+		"Name":             method.Names[0].Name,
+		"FullName":         fmt.Sprintf("%s.Service.%s", sg.pkg.Pkg.Name(), method.Names[0].Name),
+		"RequestDef":       strings.Join(reqDefElems, "\n"),
+		"ResponseDef":      strings.Join(respDefElems, "\n"),
+		"URL":              url,
+		"HTTPMethod":       httpMethod,
+		"CallArgs":         strings.Join(callArgs, ", "),
+		"HasRequestParams": fn.Params.NumFields() > 1,
+		"ArgsToFillLctx":   argsToFillLctx,
+		"HasRetVal":        fn.Results.NumFields() == 2, // value and error
+		"Authorized":       isAuthorized,
 	}
 	return ctx, nil
 }

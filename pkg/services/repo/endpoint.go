@@ -24,6 +24,7 @@ type CreateResponse struct {
 
 func makeCreateEndpoint(svc Service, log logutil.Log) endpoint.Endpoint {
 	return func(ctx context.Context, reqObj interface{}) (resp interface{}, err error) {
+
 		req := reqObj.(CreateRequest)
 
 		reqLogger := log
@@ -73,6 +74,7 @@ type GetResponse struct {
 
 func makeGetEndpoint(svc Service, log logutil.Log) endpoint.Endpoint {
 	return func(ctx context.Context, reqObj interface{}) (resp interface{}, err error) {
+
 		req := reqObj.(GetRequest)
 
 		reqLogger := log
@@ -122,6 +124,7 @@ type DeleteResponse struct {
 
 func makeDeleteEndpoint(svc Service, log logutil.Log) endpoint.Endpoint {
 	return func(ctx context.Context, reqObj interface{}) (resp interface{}, err error) {
+
 		req := reqObj.(DeleteRequest)
 
 		reqLogger := log
@@ -171,6 +174,7 @@ type ListResponse struct {
 
 func makeListEndpoint(svc Service, log logutil.Log) endpoint.Endpoint {
 	return func(ctx context.Context, reqObj interface{}) (resp interface{}, err error) {
+
 		req := reqObj.(ListRequest)
 
 		reqLogger := log

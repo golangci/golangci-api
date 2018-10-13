@@ -4,15 +4,15 @@ import (
 	"context"
 	"encoding/json"
 	"net/http"
+
+	"github.com/golangci/golangci-api/pkg/returntypes"
 )
 
 func EncodeError(ctx context.Context, err error, w http.ResponseWriter) {
 	w.Header().Add("Content-Type", "application/json; charset=UTF-8")
 	w.WriteHeader(http.StatusBadRequest)
 
-	resp := struct {
-		Error string
-	}{
+	resp := returntypes.Error{
 		Error: err.Error(),
 	}
 

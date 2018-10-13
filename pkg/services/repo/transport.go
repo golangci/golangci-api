@@ -98,7 +98,7 @@ func encodeCreateResponse(ctx context.Context, w http.ResponseWriter, response i
 
 	resp := response.(CreateResponse)
 	wrappedResp := struct {
-		Error *transportutil.Error
+		transportutil.ErrorResponse
 		CreateResponse
 	}{
 		CreateResponse: resp,
@@ -136,7 +136,7 @@ func encodeGetResponse(ctx context.Context, w http.ResponseWriter, response inte
 
 	resp := response.(GetResponse)
 	wrappedResp := struct {
-		Error *transportutil.Error
+		transportutil.ErrorResponse
 		GetResponse
 	}{
 		GetResponse: resp,
@@ -174,7 +174,7 @@ func encodeDeleteResponse(ctx context.Context, w http.ResponseWriter, response i
 
 	resp := response.(DeleteResponse)
 	wrappedResp := struct {
-		Error *transportutil.Error
+		transportutil.ErrorResponse
 		DeleteResponse
 	}{
 		DeleteResponse: resp,
@@ -212,7 +212,7 @@ func encodeListResponse(ctx context.Context, w http.ResponseWriter, response int
 
 	resp := response.(ListResponse)
 	wrappedResp := struct {
-		Error *transportutil.Error
+		transportutil.ErrorResponse
 		ListResponse
 	}{
 		ListResponse: resp,

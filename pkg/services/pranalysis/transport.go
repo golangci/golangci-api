@@ -80,7 +80,7 @@ func encodeGetAnalysisStateByAnalysisGUIDResponse(ctx context.Context, w http.Re
 
 	resp := response.(GetAnalysisStateByAnalysisGUIDResponse)
 	wrappedResp := struct {
-		Error *transportutil.Error
+		transportutil.ErrorResponse
 		GetAnalysisStateByAnalysisGUIDResponse
 	}{
 		GetAnalysisStateByAnalysisGUIDResponse: resp,
@@ -118,7 +118,7 @@ func encodeGetAnalysisStateByPRNumberResponse(ctx context.Context, w http.Respon
 
 	resp := response.(GetAnalysisStateByPRNumberResponse)
 	wrappedResp := struct {
-		Error *transportutil.Error
+		transportutil.ErrorResponse
 		GetAnalysisStateByPRNumberResponse
 	}{
 		GetAnalysisStateByPRNumberResponse: resp,
@@ -156,7 +156,7 @@ func encodeUpdateAnalysisStateByAnalysisGUIDResponse(ctx context.Context, w http
 
 	resp := response.(UpdateAnalysisStateByAnalysisGUIDResponse)
 	wrappedResp := struct {
-		Error *transportutil.Error
+		transportutil.ErrorResponse
 		UpdateAnalysisStateByAnalysisGUIDResponse
 	}{
 		UpdateAnalysisStateByAnalysisGUIDResponse: resp,

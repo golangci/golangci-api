@@ -49,5 +49,6 @@ type AuthorizedContext struct {
 	BaseContext
 
 	Auth *models.Auth
+	User *models.User
 	Sess *session.Session
 }

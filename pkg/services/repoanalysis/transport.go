@@ -80,7 +80,7 @@ func encodeGetStatusResponse(ctx context.Context, w http.ResponseWriter, respons
 
 	resp := response.(GetStatusResponse)
 	wrappedResp := struct {
-		Error *transportutil.Error
+		transportutil.ErrorResponse
 		GetStatusResponse
 	}{
 		GetStatusResponse: resp,
@@ -118,7 +118,7 @@ func encodeGetResponse(ctx context.Context, w http.ResponseWriter, response inte
 
 	resp := response.(GetResponse)
 	wrappedResp := struct {
-		Error *transportutil.Error
+		transportutil.ErrorResponse
 		GetResponse
 	}{
 		GetResponse: resp,
@@ -156,7 +156,7 @@ func encodeUpdateResponse(ctx context.Context, w http.ResponseWriter, response i
 
 	resp := response.(UpdateResponse)
 	wrappedResp := struct {
-		Error *transportutil.Error
+		transportutil.ErrorResponse
 		UpdateResponse
 	}{
 		UpdateResponse: resp,

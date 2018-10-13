@@ -23,6 +23,7 @@ type GetAnalysisStateByAnalysisGUIDResponse struct {
 
 func makeGetAnalysisStateByAnalysisGUIDEndpoint(svc Service, log logutil.Log) endpoint.Endpoint {
 	return func(ctx context.Context, reqObj interface{}) (resp interface{}, err error) {
+
 		req := reqObj.(GetAnalysisStateByAnalysisGUIDRequest)
 
 		reqLogger := log
@@ -72,6 +73,7 @@ type GetAnalysisStateByPRNumberResponse struct {
 
 func makeGetAnalysisStateByPRNumberEndpoint(svc Service, log logutil.Log) endpoint.Endpoint {
 	return func(ctx context.Context, reqObj interface{}) (resp interface{}, err error) {
+
 		req := reqObj.(GetAnalysisStateByPRNumberRequest)
 
 		reqLogger := log
@@ -121,6 +123,7 @@ type UpdateAnalysisStateByAnalysisGUIDResponse struct {
 
 func makeUpdateAnalysisStateByAnalysisGUIDEndpoint(svc Service, log logutil.Log) endpoint.Endpoint {
 	return func(ctx context.Context, reqObj interface{}) (resp interface{}, err error) {
+
 		req := reqObj.(UpdateAnalysisStateByAnalysisGUIDRequest)
 
 		reqLogger := log

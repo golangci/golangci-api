@@ -52,7 +52,7 @@ func encodeHandleGithubWebhookResponse(ctx context.Context, w http.ResponseWrite
 
 	resp := response.(HandleGithubWebhookResponse)
 	wrappedResp := struct {
-		Error *transportutil.Error
+		transportutil.ErrorResponse
 		HandleGithubWebhookResponse
 	}{
 		HandleGithubWebhookResponse: resp,

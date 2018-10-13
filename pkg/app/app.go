@@ -32,6 +32,7 @@ import (
 	"github.com/gorilla/mux"
 
 	"github.com/golangci/golangci-api/pkg/db/migrations"
+	"github.com/golangci/golangci-api/pkg/services/auth"
 	"github.com/golangci/golangci-api/pkg/services/repo"
 	"github.com/golangci/golangci-api/pkg/services/repoanalysis"
 	"github.com/golangci/golangci-api/pkg/services/repohook"
@@ -53,6 +54,7 @@ type appServices struct {
 	repohook     repohook.Service
 	pranalysis   pranalysis.Service
 	events       events.Service
+	auth         auth.Service
 }
 
 type queues struct {
@@ -166,6 +168,7 @@ func (a *App) buildServices() {
 	}
 	a.services.pranalysis = pranalysis.BasicService{}
 	a.services.events = events.BasicService{}
+	a.services.auth = auth.BasicService{}
 
 	a.buildRepoService()
 }
@@ -237,6 +240,7 @@ func (a App) RegisterHandlers() {
 		repohook.RegisterHandlers(a.services.repohook, regCtx)
 		pranalysis.RegisterHandlers(a.services.pranalysis, regCtx)
 		events.RegisterHandlers(a.services.events, regCtx)
+		auth.RegisterHandlers(a.services.auth, regCtx)
 	})
 }
 

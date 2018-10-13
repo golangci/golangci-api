@@ -23,6 +23,7 @@ type HandleGithubWebhookResponse struct {
 
 func makeHandleGithubWebhookEndpoint(svc Service, log logutil.Log) endpoint.Endpoint {
 	return func(ctx context.Context, reqObj interface{}) (resp interface{}, err error) {
+
 		req := reqObj.(HandleGithubWebhookRequest)
 
 		reqLogger := log
