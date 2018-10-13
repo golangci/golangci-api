@@ -15,7 +15,6 @@ import (
 
 	_ "github.com/golangci/golangci-api/app/handlers/auth"   // register handler
 	_ "github.com/golangci/golangci-api/app/handlers/events" // register handler
-	_ "github.com/golangci/golangci-api/app/handlers/repos"  // register handler
 )
 
 func init() {

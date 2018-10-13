@@ -87,23 +87,25 @@ package {{.PkgName}}
 
 import httptransport "github.com/go-kit/kit/transport/http"
 
-func RegisterHandlers(r *mux.Router, svc Service, log logutil.Log, et apperrors.Tracker, db *gorm.DB, sf *session.Factory) {
+func RegisterHandlers(svc Service, regCtx *transportutil.HandlerRegContext) {
 	{{range .ServiceMethods}}
 		h{{.Name}} := httptransport.NewServer(
-			make{{.Name}}Endpoint(svc, log),
+			make{{.Name}}Endpoint(svc, regCtx.Log),
 			decode{{.Name}}Request,
 			encode{{.Name}}Response,
 			{{if .Authorized}}
-			httptransport.ServerBefore(transportutil.MakeStoreAuthorizedRequestContext(log, et, db, sf)),
+			httptransport.ServerBefore(transportutil.MakeStoreAuthorizedRequestContext(regCtx.Log,
+				regCtx.ErrTracker, regCtx.DB, regCtx.SessFactory)),
 			httptransport.ServerAfter(transportutil.FinalizeSession),
 			{{else}}
-			httptransport.ServerBefore(transportutil.MakeStoreAnonymousRequestContext(log, et, db)),
+			httptransport.ServerBefore(transportutil.MakeStoreAnonymousRequestContext(
+				regCtx.Log, regCtx.ErrTracker, regCtx.DB)),
 			{{end}}
 			httptransport.ServerFinalizer(transportutil.FinalizeRequest),
 			httptransport.ServerErrorEncoder(transportutil.EncodeError),
-			httptransport.ServerErrorLogger(transportutil.AdaptErrorLogger(log)),
+			httptransport.ServerErrorLogger(transportutil.AdaptErrorLogger(regCtx.Log)),
 		)
-		r.Methods("{{.HTTPMethod}}").Path("{{.URL}}").Handler(h{{.Name}})
+		regCtx.Router.Methods("{{.HTTPMethod}}").Path("{{.URL}}").Handler(h{{.Name}})
 
 	{{end}}
 }
