@@ -28,8 +28,8 @@ type subqueueMessage struct {
 	Message    queue.Message
 }
 
-func (sm subqueueMessage) DeduplicationID() string {
-	return sm.Message.DeduplicationID()
+func (sm subqueueMessage) LockID() string {
+	return sm.Message.LockID()
 }
 
 func (sq subqueue) Put(message queue.Message) error {

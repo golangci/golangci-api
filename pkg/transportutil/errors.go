@@ -1,11 +1,13 @@
 package transportutil
 
 import (
+	"context"
+	"fmt"
 	"net/http"
 	"strconv"
 
-	"github.com/golangci/golangci-api/pkg/apierrors"
-	"github.com/golangci/golangci-api/pkg/providers/provider"
+	"github.com/golangci/golangci-api/pkg/app/providers/provider"
+	"github.com/golangci/golangci-api/pkg/endpoint/apierrors"
 	"github.com/pkg/errors"
 )
 
@@ -20,6 +22,10 @@ func (e Error) MarshalJSON() ([]byte, error) {
 
 func (e Error) Error() string {
 	return e.Message
+}
+
+type ErrorResponse struct {
+	Error *Error `json:"error,omitempty"`
 }
 
 func makeError(code int, e error) *Error {
@@ -43,4 +49,19 @@ func MakeError(e error) *Error {
 	}
 
 	return makeError(http.StatusInternalServerError, errors.New("internal error"))
+}
+
+func HandleErrorLikeResult(ctx context.Context, w http.ResponseWriter, e error) error {
+	switch err := e.(type) {
+	case *apierrors.RedirectError:
+		r := getHTTPRequestFromContext(ctx)
+		code := http.StatusPermanentRedirect
+		if err.Temporary {
+			code = http.StatusTemporaryRedirect
+		}
+		http.Redirect(w, r, err.URL, code)
+		return nil
+	}
+
+	return fmt.Errorf("unknown error like result type: %#v", e)
 }

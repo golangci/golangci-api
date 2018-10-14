@@ -16,7 +16,11 @@ import (
 const (
 	urlPartType  = "urlPart"
 	urlParamType = "urlParam"
+	headerType   = "header"
+	bodyType     = "body"
 )
+
+var types = []string{urlPartType, urlParamType, headerType, bodyType}
 
 func DecodeRequest(request interface{}, r *http.Request) error {
 	val := reflect.ValueOf(request)
@@ -63,10 +67,10 @@ func extractStructFields(sv reflect.Value) []structField {
 	return fields
 }
 
-func getURLFieldName(rf reflect.StructField, expectedType string) string {
+func getFieldType(rf reflect.StructField) string {
 	request := rf.Tag.Get("request")
 	if request == "" {
-		return ""
+		return bodyType
 	}
 
 	parts := strings.Split(request, ",")
@@ -74,19 +78,27 @@ func getURLFieldName(rf reflect.StructField, expectedType string) string {
 		panic("bad tag " + rf.Tag)
 	}
 
-	if parts[1] != expectedType {
-		if parts[1] != urlParamType && parts[1] != urlPartType {
-			panic("bad tag parts[1] " + rf.Tag)
+	for _, t := range types {
+		if t == parts[1] {
+			return t
 		}
+	}
 
+	panic("invalid field type " + parts[1])
+}
+
+func getFieldName(rf reflect.StructField) string {
+	request := rf.Tag.Get("request")
+	if request == "" {
 		return ""
 	}
 
+	parts := strings.Split(request, ",")
 	if parts[0] == "" {
-		return rf.Name
+		return strings.ToLower(rf.Name)
 	}
 
-	return parts[0]
+	return strings.ToLower(parts[0])
 }
 
 func isRequiredField(rf reflect.StructField) bool {
@@ -109,14 +121,6 @@ func isRequiredField(rf reflect.StructField) bool {
 	}
 
 	panic("bad tag required field " + rf.Tag)
-}
-
-func isURLField(rf reflect.StructField) bool {
-	if getURLFieldName(rf, urlPartType) != "" {
-		return true
-	}
-
-	return getURLFieldName(rf, urlParamType) != ""
 }
 
 func decodeRequestBody(f reflect.Value, r *http.Request) error {
@@ -153,64 +157,65 @@ func decodeRequestField(f reflect.Value, r *http.Request) error {
 	pointedVal := ptrVal.Elem()
 	structFields := extractStructFields(pointedVal)
 
-	isFirstFieldFromURL := isURLField(structFields[0].rf)
+	isFirstFieldFromBody := getFieldType(structFields[0].rf) == bodyType
 	for _, sf := range structFields {
-		if isFirstFieldFromURL != isURLField(sf.rf) {
-			return errors.New("all struct fields must be URL or JSON fields, not combined")
+		isBodyField := getFieldType(sf.rf) == bodyType
+		if isFirstFieldFromBody != isBodyField {
+			return errors.New("body fields can't be combined with another field types")
 		}
 	}
 
-	if isFirstFieldFromURL {
-		if err := decodeRequestFieldFromURL(structFields, r); err != nil {
-			return errors.Wrap(err, "can't decode from url")
+	if isFirstFieldFromBody {
+		if err := decodeRequestFieldFromBody(ptrVal, r); err != nil {
+			return errors.Wrap(err, "can't decode from body")
 		}
 
 		return nil
 	}
 
-	if err := decodeRequestFieldFromBody(ptrVal, r); err != nil {
-		return errors.Wrap(err, "can't decode from body")
+	if err := decodeRequestFields(structFields, r); err != nil {
+		return errors.Wrap(err, "can't decode from url")
 	}
 
 	return nil
 }
 
-func decodeRequestFieldFromURL(structFields []structField, r *http.Request) error {
+func decodeRequestFields(structFields []structField, r *http.Request) error {
+	typeToDataGetter := map[string]func(string) string{
+		urlParamType: func(k string) string {
+			return r.URL.Query().Get(k)
+		},
+		urlPartType: func(k string) string {
+			return mux.Vars(r)[k]
+		},
+		headerType: func(k string) string {
+			return r.Header.Get(k)
+		},
+	}
+
 	for _, sf := range structFields {
-		if urlPartName := getURLFieldName(sf.rf, urlPartType); urlPartName != "" {
-			urlPartName = strings.ToLower(urlPartName)
-			vars := mux.Vars(r)
-			urlPartValue := vars[urlPartName]
-			if urlPartValue == "" {
-				if isRequiredField(sf.rf) {
-					return fmt.Errorf("no required url part %s, all parts are %#v", urlPartName, vars)
-				}
-				continue
-			}
-
-			if err := decodeRequestParamFromString(sf.val, urlPartValue); err != nil {
-				return fmt.Errorf("failed to decode url part %s with value %q: %s", urlPartName, urlPartValue, err)
-			}
-
-			continue
+		fieldType := getFieldType(sf.rf)
+		dataGetter := typeToDataGetter[fieldType]
+		if dataGetter == nil {
+			return fmt.Errorf("invalid field type %s: no data getter for it", fieldType)
 		}
 
-		urlParamName := getURLFieldName(sf.rf, urlParamType)
-		if urlParamName == "" {
-			return fmt.Errorf("invalid url field type for %#v", sf.rf)
+		fieldName := getFieldName(sf.rf)
+		if fieldName == "" {
+			return fmt.Errorf("no field name for %#v", sf.rf)
 		}
 
-		urlParamName = strings.ToLower(urlParamName)
-		urlParamValue := r.URL.Query().Get(urlParamName)
-		if urlParamValue == "" {
+		fieldValue := dataGetter(fieldName)
+		if fieldValue == "" {
 			if isRequiredField(sf.rf) {
-				return fmt.Errorf("no required url param %s, all params are %#v", urlParamName, r.URL.Query())
+				return fmt.Errorf("no required field %s", fieldName)
 			}
+
 			continue
 		}
 
-		if err := decodeRequestParamFromString(sf.val, urlParamValue); err != nil {
-			return fmt.Errorf("failed to decode url param %s with value %q: %s", urlParamName, urlParamValue, err)
+		if err := decodeRequestParamFromString(sf.val, fieldValue); err != nil {
+			return errors.Wrapf(err, "failed to decode field %s value %q", fieldName, fieldValue)
 		}
 	}
 

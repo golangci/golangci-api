@@ -2,7 +2,7 @@ package main
 
 import (
 	"github.com/golangci/golangci-api/pkg/app"
-	"github.com/golangci/golangci-api/pkg/shared"
+	"github.com/golangci/golangci-api/pkg/app/shared"
 )
 
 func main() {

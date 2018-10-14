@@ -1,7 +1,7 @@
 package app
 
 import (
-	"github.com/golangci/golangci-api/pkg/providers"
+	"github.com/golangci/golangci-api/pkg/app/providers"
 )
 
 type Modifier func(a *App)

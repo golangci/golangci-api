@@ -36,7 +36,7 @@ func (r Runner) Run() error {
 	migrationsDir := fmt.Sprintf("file://%s/migrations", r.projectRoot)
 	m, err := migrate.New(migrationsDir, r.dbConnString)
 	if err != nil {
-		return fmt.Errorf("can't initialize migrations: %s", err)
+		return errors.Wrap(err, "can't initialize migrations")
 	}
 
 	if err = m.Up(); err != nil {
@@ -45,7 +45,7 @@ func (r Runner) Run() error {
 			return nil
 		}
 
-		return fmt.Errorf("can't execute migrations: %s", err)
+		return errors.Wrap(err, "can't execute migrations")
 	}
 
 	r.log.Infof("Successfully executed database migrations")

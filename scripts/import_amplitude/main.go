@@ -10,8 +10,8 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/golangci/golangci-api/pkg/models"
-	"github.com/golangci/golangci-api/pkg/shared"
+	"github.com/golangci/golangci-api/pkg/app/models"
+	"github.com/golangci/golangci-api/pkg/app/shared"
 	"github.com/golangci/golib/server/database"
 	"github.com/jinzhu/gorm"
 	uuid "github.com/satori/go.uuid"

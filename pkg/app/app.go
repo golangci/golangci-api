@@ -5,36 +5,43 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"time"
 
-	"github.com/golangci/golangci-api/pkg/services/events"
+	"github.com/golangci/golangci-api/pkg/app/analyzes/pranalyzes"
+	repoanalyzeslib "github.com/golangci/golangci-api/pkg/app/analyzes/repoanalyzes"
+	"github.com/golangci/golangci-api/pkg/app/auth/oauth"
+	"github.com/golangci/golangci-api/pkg/app/services/events"
+	"github.com/rs/cors"
+	"github.com/urfave/negroni"
 
-	"github.com/golangci/golangci-api/pkg/services/pranalysis"
+	"github.com/golangci/golangci-api/pkg/app/services/pranalysis"
 
 	"github.com/aws/aws-sdk-go/aws"
 
 	"github.com/aws/aws-sdk-go/aws/session"
 	redigo "github.com/garyburd/redigo/redis"
 	"github.com/golangci/golangci-api/pkg/app/hooks"
+	"github.com/golangci/golangci-api/pkg/app/providers"
+	"github.com/golangci/golangci-api/pkg/app/workers/primaryqueue"
+	"github.com/golangci/golangci-api/pkg/app/workers/primaryqueue/repoanalyzes"
+	"github.com/golangci/golangci-api/pkg/app/workers/primaryqueue/repos"
 	"github.com/golangci/golangci-api/pkg/cache"
 	"github.com/golangci/golangci-api/pkg/db/gormdb"
 	"github.com/golangci/golangci-api/pkg/db/redis"
-	"github.com/golangci/golangci-api/pkg/providers"
 	apisession "github.com/golangci/golangci-api/pkg/session"
-	"github.com/golangci/golangci-api/pkg/workers/primaryqueue"
-	"github.com/golangci/golangci-api/pkg/workers/primaryqueue/repos"
 
-	"github.com/golangci/golangci-api/app/handlers"
-	"github.com/golangci/golangci-api/app/utils"
+	"github.com/golangci/golangci-api/pkg/app/utils"
 	"github.com/golangci/golangci-api/pkg/transportutil"
 	"github.com/golangci/golangci-shared/pkg/apperrors"
 
 	"github.com/golangci/golib/server/handlers/manager"
 	"github.com/gorilla/mux"
 
+	"github.com/golangci/golangci-api/pkg/app/services/auth"
+	"github.com/golangci/golangci-api/pkg/app/services/repo"
+	"github.com/golangci/golangci-api/pkg/app/services/repoanalysis"
+	"github.com/golangci/golangci-api/pkg/app/services/repohook"
 	"github.com/golangci/golangci-api/pkg/db/migrations"
-	"github.com/golangci/golangci-api/pkg/services/repo"
-	"github.com/golangci/golangci-api/pkg/services/repoanalysis"
-	"github.com/golangci/golangci-api/pkg/services/repohook"
 	"github.com/golangci/golangci-shared/pkg/config"
 	"github.com/golangci/golangci-shared/pkg/logutil"
 	"github.com/jinzhu/gorm"
@@ -53,11 +60,18 @@ type appServices struct {
 	repohook     repohook.Service
 	pranalysis   pranalysis.Service
 	events       events.Service
+	auth         auth.Service
 }
 
 type queues struct {
 	primarySQS    *sqs.Queue
 	primaryDLQSQS *sqs.Queue
+
+	producers struct {
+		primaryMultiplexer *producers.Multiplexer
+
+		repoAnalyzesLauncher *repoanalyzes.LauncherProducer
+	}
 }
 
 type App struct {
@@ -71,11 +85,18 @@ type App struct {
 	services         appServices
 	awsSess          *session.Session
 	queues           queues
-	sessFactory      *apisession.Factory
+	authSessFactory  *apisession.Factory
 	providerFactory  providers.Factory
 	hooksInjector    *hooks.Injector
 	distLockFactory  *redsync.Redsync
 	redisPool        *redigo.Pool
+
+	PRAnalyzesRestarter   *pranalyzes.Restarter // TODO: make private
+	repoAnalyzesRestarter *repoanalyzeslib.Restarter
+}
+
+func (a App) GetDB() *gorm.DB { // TODO: remove
+	return a.gormDB
 }
 
 //nolint:gocyclo
@@ -104,7 +125,7 @@ func (a *App) buildDeps() {
 		}
 
 		if a.gormDB == nil {
-			gormDB, err := gormdb.GetDB(a.cfg, dbConnString)
+			gormDB, err := gormdb.GetDB(a.cfg, a.trackedLog, dbConnString)
 			if err != nil {
 				a.log.Fatalf("Can't get DB: %s", err)
 			}
@@ -157,27 +178,45 @@ func (a *App) buildQueues() {
 		a.awsSess, a.trackedLog, primaryqueue.VisibilityTimeoutSec)
 	a.queues.primaryDLQSQS = sqs.NewQueue(a.cfg.GetString("SQS_PRIMARYDEADLETTER_QUEUE_URL"),
 		a.awsSess, a.trackedLog, primaryqueue.VisibilityTimeoutSec)
+
+	a.queues.producers.primaryMultiplexer = producers.NewMultiplexer(a.queues.primarySQS)
+
+	repoAnalyzesLauncher := &repoanalyzes.LauncherProducer{}
+	if err := repoAnalyzesLauncher.Register(a.queues.producers.primaryMultiplexer); err != nil {
+		a.log.Fatalf("Failed to create 'launch repo analysis' producer: %s", err)
+	}
+	a.queues.producers.repoAnalyzesLauncher = repoAnalyzesLauncher
 }
 
 func (a *App) buildServices() {
 	a.services.repoanalysis = repoanalysis.BasicService{}
 	a.services.repohook = repohook.BasicService{
-		ProviderFactory: a.providerFactory,
+		ProviderFactory:       a.providerFactory,
+		AnalysisLauncherQueue: a.queues.producers.repoAnalyzesLauncher,
 	}
 	a.services.pranalysis = pranalysis.BasicService{}
 	a.services.events = events.BasicService{}
+
+	sf, err := apisession.NewFactory(a.redisPool, a.cfg, time.Hour)
+	if err != nil {
+		a.log.Fatalf("Can't build oauth session factory: %s", err)
+	}
+	a.services.auth = auth.BasicService{
+		Cfg:             a.cfg,
+		OAuthFactory:    oauth.NewFactory(sf, a.trackedLog, a.cfg),
+		AuthSessFactory: a.authSessFactory,
+	}
 
 	a.buildRepoService()
 }
 
 func (a *App) buildRepoService() {
-	primaryQueueProducerMultiplexer := producers.NewMultiplexer(a.queues.primarySQS)
 	createRepoQP := &repos.CreatorProducer{}
-	if err := createRepoQP.Register(primaryQueueProducerMultiplexer); err != nil {
+	if err := createRepoQP.Register(a.queues.producers.primaryMultiplexer); err != nil {
 		a.log.Fatalf("Failed to create 'create repo' producer: %s", err)
 	}
 	deleteRepoQP := &repos.DeleterProducer{}
-	if err := deleteRepoQP.Register(primaryQueueProducerMultiplexer); err != nil {
+	if err := deleteRepoQP.Register(a.queues.producers.primaryMultiplexer); err != nil {
 		a.log.Fatalf("Failed to create 'delete repo' producer: %s", err)
 	}
 
@@ -190,12 +229,12 @@ func (a *App) buildRepoService() {
 	}
 }
 
-func (a *App) buildSessFactory() {
-	sessFactory, err := apisession.NewFactory(a.redisPool, a.cfg)
+func (a *App) buildAuthSessFactory() {
+	authSessFactory, err := apisession.NewFactory(a.redisPool, a.cfg, 365*24*time.Hour) // 1 year
 	if err != nil {
-		a.log.Fatalf("Failed to make session factory: %s", err)
+		a.log.Fatalf("Failed to make auth session factory: %s", err)
 	}
-	a.sessFactory = sessFactory
+	a.authSessFactory = authSessFactory
 }
 
 func (a *App) buildMigrationsRunner() {
@@ -216,9 +255,20 @@ func NewApp(modifiers ...Modifier) *App {
 	a.buildDeps()
 	a.buildAwsSess()
 	a.buildQueues()
-	a.buildSessFactory()
+	a.buildAuthSessFactory()
 	a.buildServices()
 	a.buildMigrationsRunner()
+
+	a.PRAnalyzesRestarter = &pranalyzes.Restarter{
+		DB:              a.gormDB,
+		Log:             a.trackedLog,
+		ProviderFactory: a.providerFactory,
+	}
+	a.repoAnalyzesRestarter = &repoanalyzeslib.Restarter{
+		DB:  a.gormDB,
+		Log: a.trackedLog,
+		Cfg: a.cfg,
+	}
 
 	return &a
 }
@@ -226,17 +276,18 @@ func NewApp(modifiers ...Modifier) *App {
 func (a App) RegisterHandlers() {
 	manager.RegisterCallback(func(r *mux.Router) {
 		regCtx := &transportutil.HandlerRegContext{
-			Router:      r,
-			Log:         a.log,
-			ErrTracker:  a.errTracker,
-			DB:          a.gormDB,
-			SessFactory: a.sessFactory,
+			Router:          r,
+			Log:             a.log,
+			ErrTracker:      a.errTracker,
+			DB:              a.gormDB,
+			AuthSessFactory: a.authSessFactory,
 		}
 		repoanalysis.RegisterHandlers(a.services.repoanalysis, regCtx)
 		repo.RegisterHandlers(a.services.repo, regCtx)
 		repohook.RegisterHandlers(a.services.repohook, regCtx)
 		pranalysis.RegisterHandlers(a.services.pranalysis, regCtx)
 		events.RegisterHandlers(a.services.events, regCtx)
+		auth.RegisterHandlers(a.services.auth, regCtx)
 	})
 }
 
@@ -249,13 +300,19 @@ func (a App) RunMigrations() {
 func (a App) buildMultiplexedConsumer() *consumers.Multiplexer {
 	primaryQueueConsumerMultiplexer := consumers.NewMultiplexer()
 
-	repoCreatorConsumer := repos.NewCreatorConsumer(a.trackedLog, a.sqlDB, a.cfg, a.providerFactory)
+	repoCreatorConsumer := repos.NewCreatorConsumer(a.trackedLog, a.sqlDB, a.cfg,
+		a.providerFactory, a.queues.producers.repoAnalyzesLauncher)
 	if err := repoCreatorConsumer.Register(primaryQueueConsumerMultiplexer, a.distLockFactory); err != nil {
 		a.log.Fatalf("Failed to register repo creator consumer: %s", err)
 	}
 	repoDeleterConsumer := repos.NewDeleterConsumer(a.trackedLog, a.sqlDB, a.cfg, a.providerFactory)
 	if err := repoDeleterConsumer.Register(primaryQueueConsumerMultiplexer, a.distLockFactory); err != nil {
 		a.log.Fatalf("Failed to register repo deleter consumer: %s", err)
+	}
+
+	analyzesLauncherConsumer := repoanalyzes.NewLauncherConsumer(a.trackedLog, a.sqlDB)
+	if err := analyzesLauncherConsumer.Register(primaryQueueConsumerMultiplexer, a.distLockFactory); err != nil {
+		a.log.Fatalf("Failed to register analyzes launcher consumer: %s", err)
 	}
 
 	return primaryQueueConsumerMultiplexer
@@ -282,7 +339,10 @@ func (a App) RunForever() {
 	a.RegisterHandlers()
 	a.RunConsumers()
 
-	http.Handle("/", handlers.GetRoot())
+	go a.PRAnalyzesRestarter.Run()
+	go a.repoAnalyzesRestarter.Run()
+
+	http.Handle("/", GetRoot())
 
 	addr := fmt.Sprintf(":%d", a.cfg.GetInt("port", 3000))
 	a.log.Infof("Listening on %s...", addr)
@@ -294,4 +354,19 @@ func (a App) RunForever() {
 
 func (a App) GetHooksInjector() *hooks.Injector {
 	return a.hooksInjector
+}
+
+func GetRoot() http.Handler {
+	h := manager.GetHTTPHandler()
+
+	c := cors.New(cors.Options{
+		AllowedOrigins:   []string{"https://golangci.com", "https://dev.golangci.com"},
+		AllowCredentials: true,
+		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE"},
+	})
+
+	n := negroni.Classic()
+	n.Use(c)
+	n.UseHandler(h)
+	return n
 }
