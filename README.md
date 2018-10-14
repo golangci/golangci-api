@@ -7,6 +7,7 @@ This repository contains code of API.
 ## Development
 ### Technologies
 Go (golang), heroku, circleci, docker, redis, postgres.
+Web framework is a go kit wrapped with a code generation.
 
 ### Preparation
 Run:
