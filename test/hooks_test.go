@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/golangci/golangci-api/pkg/app/analyzes/pranalyzes"
 	"github.com/golangci/golangci-api/pkg/app/models"
 	"github.com/golangci/golangci-api/test/sharedtest"
 	gh "github.com/google/go-github/github"
@@ -49,15 +50,19 @@ func TestReceivePushWebhook(t *testing.T) {
 
 func TestStaleAnalyzes(t *testing.T) {
 	r, _ := sharedtest.GetActivatedRepo(t)
-	app := sharedtest.GetApp()
+	deps := sharedtest.GetDefaultTestApp().BuildCommonDeps()
 
-	err := models.NewPullRequestAnalysisQuerySet(app.GetDB()).Delete()
+	err := models.NewPullRequestAnalysisQuerySet(deps.DB).Delete()
 	assert.NoError(t, err)
 
 	r.ExpectWebhook("pull_request", getTestPREvent()).Status(http.StatusOK)
 
 	timeout := 3 * time.Second
-	restarter := app.PRAnalyzesRestarter
+	restarter := pranalyzes.Restarter{
+		DB:              deps.DB,
+		Log:             deps.Log,
+		ProviderFactory: deps.ProviderFactory,
+	}
 	staleCount, err := restarter.RunIteration(timeout)
 	assert.NoError(t, err)
 	assert.Zero(t, staleCount)

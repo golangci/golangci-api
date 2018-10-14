@@ -17,13 +17,15 @@ type User struct {
 	A *require.Assertions
 	E *httpexpect.Expect
 	t *testing.T
+
+	testApp *App
 }
 
-func NewHTTPExpect(t *testing.T) *httpexpect.Expect {
+func (ta App) newHTTPExpect(t *testing.T) *httpexpect.Expect {
 	httpClient := &http.Client{
 		Jar: httpexpect.NewJar(),
 		CheckRedirect: func(req *http.Request, via []*http.Request) error {
-			isRedirectToFakeGithub := strings.HasPrefix(req.URL.String(), fakeGithubServer.URL)
+			isRedirectToFakeGithub := strings.HasPrefix(req.URL.String(), ta.fakeGithubServer.URL)
 			if isRedirectToFakeGithub || strings.HasPrefix(req.URL.Path, "/v1/auth/github") {
 				return nil // follow redirect
 			}
@@ -33,7 +35,7 @@ func NewHTTPExpect(t *testing.T) *httpexpect.Expect {
 	}
 
 	return httpexpect.WithConfig(httpexpect.Config{
-		BaseURL:  server.URL,
+		BaseURL:  ta.testserver.URL,
 		Reporter: httpexpect.NewAssertReporter(t),
 		Printers: []httpexpect.Printer{
 			httpexpect.NewCompactPrinter(t),
@@ -42,12 +44,8 @@ func NewHTTPExpect(t *testing.T) *httpexpect.Expect {
 	})
 }
 
-func StubLogin(t *testing.T) *User {
-	initEnv()
-	initServer()
-	fakeGithubServerOnce.Do(initFakeGithubServer)
-
-	e := NewHTTPExpect(t)
+func (ta App) Login(t *testing.T) *User {
+	e := ta.newHTTPExpect(t)
 
 	e.GET("/v1/auth/check").
 		Expect().
@@ -74,6 +72,7 @@ func StubLogin(t *testing.T) *User {
 	user.A = require.New(t)
 	user.E = e
 	user.t = t
+	user.testApp = &ta
 	return user
 }
 
