@@ -7,6 +7,7 @@ import (
 
 	"github.com/golangci/golangci-shared/pkg/logutil"
 	"github.com/mattes/migrate"
+	_ "github.com/mattes/migrate/source/file" // must have for migrations
 	redsync "gopkg.in/redsync.v1"
 )
 

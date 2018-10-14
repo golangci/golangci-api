@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/golangci/golangci-shared/pkg/logutil"
+	_ "github.com/mattes/migrate/database/postgres" // init pg driver
 
 	"github.com/golangci/golangci-shared/pkg/config"
 	"github.com/jinzhu/gorm"

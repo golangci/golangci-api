@@ -11,7 +11,6 @@ import (
 	"time"
 
 	"github.com/golangci/golangci-api/pkg/app/models"
-	"github.com/golangci/golangci-api/pkg/app/shared"
 	"github.com/golangci/golib/server/database"
 	"github.com/jinzhu/gorm"
 	uuid "github.com/satori/go.uuid"
@@ -20,8 +19,6 @@ import (
 func main() {
 	inputFile := flag.String("input-file", "amp.json", "Amplitude json file path")
 	flag.Parse()
-
-	shared.Init()
 
 	if err := importAmplitude(*inputFile); err != nil {
 		log.Fatal(err)
