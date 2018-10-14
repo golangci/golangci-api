@@ -11,6 +11,7 @@ import (
 	repoanalyzeslib "github.com/golangci/golangci-api/pkg/app/analyzes/repoanalyzes"
 	"github.com/golangci/golangci-api/pkg/app/auth/oauth"
 	"github.com/golangci/golangci-api/pkg/app/services/events"
+	"github.com/golangci/golangci-worker/app/lib/queue"
 	"github.com/rs/cors"
 	"github.com/urfave/negroni"
 
@@ -332,6 +333,7 @@ func (a App) RunDeadLetterConsumers() {
 }
 
 func (a App) RunEnvironment() {
+	queue.Init()
 	a.runMigrations()
 	a.runConsumers()
 
