@@ -123,6 +123,8 @@ func (c LauncherConsumer) setPendingChanges(tx *gorm.DB, m *launchMessage, as *m
 	}
 
 	as.Version++
+	as.PendingCommitSHA = m.CommitSHA
+	as.HasPendingChanges = true
 	return nil
 }
 
