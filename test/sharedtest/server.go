@@ -7,7 +7,6 @@ import (
 	"sync"
 
 	appPkg "github.com/golangci/golangci-api/pkg/app"
-	"github.com/golangci/golangci-api/pkg/app/shared"
 	"github.com/golangci/golangci-api/pkg/app/utils"
 	"github.com/joho/godotenv"
 )
@@ -25,10 +24,8 @@ func GetApp() *appPkg.App {
 func initServer() {
 	serverOnce.Do(func() {
 		app = appPkg.NewApp()
-		app.RegisterHandlers()
-		app.RunMigrations()
-		app.RunConsumers()
-		server = httptest.NewServer(appPkg.GetRoot())
+		app.RunEnvironment()
+		server = httptest.NewServer(app.GetHTTPHandler())
 	})
 }
 
@@ -42,7 +39,5 @@ func initEnv() {
 				log.Fatalf("Can't load %s: %s", fpath, err)
 			}
 		}
-
-		shared.Init()
 	})
 }

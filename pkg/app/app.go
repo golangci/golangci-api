@@ -34,7 +34,6 @@ import (
 	"github.com/golangci/golangci-api/pkg/transportutil"
 	"github.com/golangci/golangci-shared/pkg/apperrors"
 
-	"github.com/golangci/golib/server/handlers/manager"
 	"github.com/gorilla/mux"
 
 	"github.com/golangci/golangci-api/pkg/app/services/auth"
@@ -273,25 +272,23 @@ func NewApp(modifiers ...Modifier) *App {
 	return &a
 }
 
-func (a App) RegisterHandlers() {
-	manager.RegisterCallback(func(r *mux.Router) {
-		regCtx := &transportutil.HandlerRegContext{
-			Router:          r,
-			Log:             a.log,
-			ErrTracker:      a.errTracker,
-			DB:              a.gormDB,
-			AuthSessFactory: a.authSessFactory,
-		}
-		repoanalysis.RegisterHandlers(a.services.repoanalysis, regCtx)
-		repo.RegisterHandlers(a.services.repo, regCtx)
-		repohook.RegisterHandlers(a.services.repohook, regCtx)
-		pranalysis.RegisterHandlers(a.services.pranalysis, regCtx)
-		events.RegisterHandlers(a.services.events, regCtx)
-		auth.RegisterHandlers(a.services.auth, regCtx)
-	})
+func (a App) registerHandlers(r *mux.Router) {
+	regCtx := &transportutil.HandlerRegContext{
+		Router:          r,
+		Log:             a.log,
+		ErrTracker:      a.errTracker,
+		DB:              a.gormDB,
+		AuthSessFactory: a.authSessFactory,
+	}
+	repoanalysis.RegisterHandlers(a.services.repoanalysis, regCtx)
+	repo.RegisterHandlers(a.services.repo, regCtx)
+	repohook.RegisterHandlers(a.services.repohook, regCtx)
+	pranalysis.RegisterHandlers(a.services.pranalysis, regCtx)
+	events.RegisterHandlers(a.services.events, regCtx)
+	auth.RegisterHandlers(a.services.auth, regCtx)
 }
 
-func (a App) RunMigrations() {
+func (a App) runMigrations() {
 	if err := a.migrationsRunner.Run(); err != nil {
 		a.log.Fatalf("Can't run migrations: %s", err)
 	}
@@ -318,7 +315,7 @@ func (a App) buildMultiplexedConsumer() *consumers.Multiplexer {
 	return primaryQueueConsumerMultiplexer
 }
 
-func (a App) RunConsumers() {
+func (a App) runConsumers() {
 	primaryQueueConsumerMultiplexer := a.buildMultiplexedConsumer()
 	primaryQueueConsumer := consumer.NewSQS(a.trackedLog, a.cfg, a.queues.primarySQS,
 		primaryQueueConsumerMultiplexer, "primary", primaryqueue.VisibilityTimeoutSec)
@@ -334,15 +331,18 @@ func (a App) RunDeadLetterConsumers() {
 	primaryDLQConsumer.Run()
 }
 
-func (a App) RunForever() {
-	a.RunMigrations()
-	a.RegisterHandlers()
-	a.RunConsumers()
+func (a App) RunEnvironment() {
+	a.runMigrations()
+	a.runConsumers()
 
 	go a.PRAnalyzesRestarter.Run()
 	go a.repoAnalyzesRestarter.Run()
+}
 
-	http.Handle("/", GetRoot())
+func (a App) RunForever() {
+	a.RunEnvironment()
+
+	http.Handle("/", a.GetHTTPHandler())
 
 	addr := fmt.Sprintf(":%d", a.cfg.GetInt("port", 3000))
 	a.log.Infof("Listening on %s...", addr)
@@ -356,8 +356,9 @@ func (a App) GetHooksInjector() *hooks.Injector {
 	return a.hooksInjector
 }
 
-func GetRoot() http.Handler {
-	h := manager.GetHTTPHandler()
+func (a App) GetHTTPHandler() http.Handler {
+	r := mux.NewRouter()
+	a.registerHandlers(r)
 
 	c := cors.New(cors.Options{
 		AllowedOrigins:   []string{"https://golangci.com", "https://dev.golangci.com"},
@@ -367,6 +368,6 @@ func GetRoot() http.Handler {
 
 	n := negroni.Classic()
 	n.Use(c)
-	n.UseHandler(h)
+	n.UseHandler(r)
 	return n
 }
