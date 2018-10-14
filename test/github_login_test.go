@@ -8,20 +8,20 @@ import (
 )
 
 func TestGithubLoginFirstTime(t *testing.T) {
-	u := sharedtest.StubLogin(t)
+	u := sharedtest.Login(t)
 	u.E.PUT("/v1/auth/unlink").Expect().Status(http.StatusOK)
 
 	// it's guaranteed first time login
-	sharedtest.StubLogin(t)
+	sharedtest.Login(t)
 }
 
 func TestGithubLoginNotFirstTime(t *testing.T) {
-	sharedtest.StubLogin(t)
-	sharedtest.StubLogin(t)
+	sharedtest.Login(t)
+	sharedtest.Login(t)
 }
 
 func TestLoginWithAnotherLogin(t *testing.T) {
-	u := sharedtest.StubLogin(t)
+	u := sharedtest.Login(t)
 	u.A.Equal("golangci", u.GithubLogin)
 
 	defer func(prevProfileHandler http.HandlerFunc) {
@@ -42,7 +42,7 @@ func TestLoginWithAnotherLogin(t *testing.T) {
 		wasSent = true
 	}
 
-	u2 := sharedtest.StubLogin(t)
+	u2 := sharedtest.Login(t)
 	u2.A.True(wasSent)
 	u2.A.Equal("AnotherLogin", u2.GithubLogin)
 	u2.A.Equal("another_email@golangci.com", u2.Email)

@@ -21,7 +21,6 @@ import (
 
 	"github.com/aws/aws-sdk-go/aws/session"
 	redigo "github.com/garyburd/redigo/redis"
-	"github.com/golangci/golangci-api/pkg/app/hooks"
 	"github.com/golangci/golangci-api/pkg/app/providers"
 	"github.com/golangci/golangci-api/pkg/app/workers/primaryqueue"
 	"github.com/golangci/golangci-api/pkg/app/workers/primaryqueue/repoanalyzes"
@@ -87,7 +86,6 @@ type App struct {
 	queues           queues
 	authSessFactory  *apisession.Factory
 	providerFactory  providers.Factory
-	hooksInjector    *hooks.Injector
 	distLockFactory  *redsync.Redsync
 	redisPool        *redigo.Pool
 
@@ -141,11 +139,8 @@ func (a *App) buildDeps() {
 		}
 	}
 
-	if a.hooksInjector == nil {
-		a.hooksInjector = &hooks.Injector{}
-	}
 	if a.providerFactory == nil {
-		a.providerFactory = providers.NewBasicFactory(a.hooksInjector, a.trackedLog)
+		a.providerFactory = providers.NewBasicFactory(a.trackedLog)
 	}
 
 	if a.redisPool == nil {
@@ -352,10 +347,6 @@ func (a App) RunForever() {
 		a.log.Errorf("Can't listen HTTP on %s: %s", addr, err)
 		os.Exit(1)
 	}
-}
-
-func (a App) GetHooksInjector() *hooks.Injector {
-	return a.hooksInjector
 }
 
 func (a App) GetHTTPHandler() http.Handler {

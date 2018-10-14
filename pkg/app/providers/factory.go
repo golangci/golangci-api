@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/golangci/golangci-api/pkg/app/hooks"
 	"github.com/golangci/golangci-api/pkg/app/models"
 	"github.com/golangci/golangci-api/pkg/app/providers/implementations"
 	"github.com/golangci/golangci-api/pkg/app/providers/provider"
@@ -19,14 +18,12 @@ type Factory interface {
 }
 
 type BasicFactory struct {
-	hooksInjector *hooks.Injector
-	log           logutil.Log
+	log logutil.Log
 }
 
-func NewBasicFactory(hooksInjector *hooks.Injector, log logutil.Log) *BasicFactory {
+func NewBasicFactory(log logutil.Log) *BasicFactory {
 	return &BasicFactory{
-		hooksInjector: hooksInjector,
-		log:           log,
+		log: log,
 	}
 }
 
@@ -43,10 +40,6 @@ func (f BasicFactory) Build(auth *models.Auth) (provider.Provider, error) {
 	p, err := f.buildImpl(auth)
 	if err != nil {
 		return nil, err
-	}
-
-	if err = f.hooksInjector.RunAfterProviderCreate(p); err != nil {
-		return nil, errors.Wrap(err, "failed to run hooks after provider creation")
 	}
 
 	return implementations.NewStableProvider(p, time.Second*30, 3), nil

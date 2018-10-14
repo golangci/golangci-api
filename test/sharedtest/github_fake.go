@@ -11,7 +11,6 @@ import (
 	"path"
 	"path/filepath"
 	"strings"
-	"sync"
 
 	"github.com/golangci/golangci-api/pkg/app/utils"
 	"github.com/gorilla/mux"
@@ -43,8 +42,6 @@ var FakeGithubCfg = FakeGithubServerConfig{
 	AddHookHandler:       addHookHandler,
 	DeleteHookHandler:    deleteHookHandler,
 }
-var fakeGithubServer *httptest.Server
-var fakeGithubServerOnce sync.Once
 
 func wrapF(f *http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
@@ -53,7 +50,7 @@ func wrapF(f *http.HandlerFunc) http.HandlerFunc {
 	}
 }
 
-func initFakeGithubServer() {
+func (ta *App) initFakeGithubServer() {
 	r := mux.NewRouter()
 	r.HandleFunc(authURL, FakeGithubCfg.AuthHandler)
 	r.HandleFunc(tokenURL, FakeGithubCfg.TokenHandler)
@@ -66,15 +63,12 @@ func initFakeGithubServer() {
 	r.HandleFunc("/user/repos", FakeGithubCfg.ListReposHandler)
 	r.HandleFunc("/repos/{owner}/{repo}/hooks/{hookID}", FakeGithubCfg.DeleteHookHandler)
 
-	fakeGithubServer = httptest.NewServer(r)
+	ta.fakeGithubServer = httptest.NewServer(r)
 
-	github.AuthURL = fakeGithubServer.URL + authURL
-	github.TokenURL = fakeGithubServer.URL + tokenURL
-	github.ProfileURL = fakeGithubServer.URL + profileURL
-	github.EmailURL = fakeGithubServer.URL + emailURL
-
-	os.Setenv("GITHUB_CALLBACK_HOST", server.URL)
-	os.Setenv("WEB_ROOT", server.URL)
+	github.AuthURL = ta.fakeGithubServer.URL + authURL
+	github.TokenURL = ta.fakeGithubServer.URL + tokenURL
+	github.ProfileURL = ta.fakeGithubServer.URL + profileURL
+	github.EmailURL = ta.fakeGithubServer.URL + emailURL
 }
 
 const (

@@ -7,11 +7,11 @@ import (
 )
 
 func TestListRepos(t *testing.T) {
-	u := sharedtest.StubLogin(t)
+	u := sharedtest.Login(t)
 	u.Repos()
 }
 
 func TestGithubPrivateLogin(t *testing.T) {
-	u := sharedtest.StubLogin(t)
+	u := sharedtest.Login(t)
 	u.A.True(u.GithubPrivateLogin().WerePrivateReposFetched())
 }

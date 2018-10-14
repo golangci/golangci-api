@@ -8,7 +8,7 @@ import (
 )
 
 func TestPostAnalytitcsEvent(t *testing.T) {
-	u := sharedtest.StubLogin(t)
+	u := sharedtest.Login(t)
 	u.E.POST("/v1/events/analytics").
 		WithJSON(map[string]interface{}{
 			"name": "test",

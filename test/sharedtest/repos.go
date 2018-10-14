@@ -21,8 +21,6 @@ type Repo struct {
 }
 
 func (u *User) Repos() []Repo {
-	initFakeGithubClient()
-
 	respStr := u.E.GET("/v1/repos").
 		Expect().
 		Status(http.StatusOK).
@@ -47,8 +45,6 @@ func (u *User) Repos() []Repo {
 }
 
 func (u *User) WerePrivateReposFetched() bool {
-	initFakeGithubClient()
-
 	respStr := u.E.GET("/v1/repos").
 		Expect().
 		Status(http.StatusOK).
@@ -155,7 +151,7 @@ func getWebhookURLPathForRepo(name, hookID string) string {
 
 func (r Repo) ExpectWebhook(eventType string, payload interface{}) *httpexpect.Response {
 	// Create new because GitHub makes request without authorization.
-	return NewHTTPExpect(r.u.t).
+	return r.u.testApp.newHTTPExpect(r.u.t).
 		POST(getWebhookURLPathForRepo(r.Name, r.HookID)).
 		WithJSON(payload).
 		WithHeader("X-GitHub-Delivery", uuid.NewV4().String()).
@@ -164,9 +160,8 @@ func (r Repo) ExpectWebhook(eventType string, payload interface{}) *httpexpect.R
 }
 
 func GetDeactivatedRepo(t *testing.T) (*Repo, *User) {
-	u := StubLogin(t)
+	u := Login(t)
 	r := u.Repos()[0]
-	log.Printf("r is %#v", r)
 	if r.IsActivated {
 		r.Deactivate()
 	}
@@ -175,7 +170,7 @@ func GetDeactivatedRepo(t *testing.T) (*Repo, *User) {
 }
 
 func GetActivatedRepo(t *testing.T) (*Repo, *User) {
-	u := StubLogin(t)
+	u := Login(t)
 	r := u.Repos()[0]
 	if r.IsActivated {
 		return &r, u
