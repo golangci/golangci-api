@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"net/http"
 
-	"github.com/golangci/golangci-api/pkg/returntypes"
+	"github.com/golangci/golangci-api/pkg/app/returntypes"
 )
 
 func EncodeError(ctx context.Context, err error, w http.ResponseWriter) {

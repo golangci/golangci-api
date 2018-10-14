@@ -1,6 +1,6 @@
 package hooks
 
-import "github.com/golangci/golangci-api/pkg/providers/provider"
+import "github.com/golangci/golangci-api/pkg/app/providers/provider"
 
 type afterProviderCreateFunc func(p provider.Provider) error
 

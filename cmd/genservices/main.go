@@ -98,10 +98,10 @@ func RegisterHandlers(svc Service, regCtx *transportutil.HandlerRegContext) {
 			decode{{.Name}}Request,
 			encode{{.Name}}Response,
 			httptransport.ServerBefore(transportutil.StoreHTTPRequestToContext),
+			httptransport.ServerAfter(transportutil.FinalizeSession),
 			{{if .Authorized}}
 			httptransport.ServerBefore(transportutil.MakeStoreAuthorizedRequestContext(regCtx.Log,
-				regCtx.ErrTracker, regCtx.DB, regCtx.SessFactory)),
-			httptransport.ServerAfter(transportutil.FinalizeSession),
+				regCtx.ErrTracker, regCtx.DB, regCtx.AuthSessFactory)),
 			{{else}}
 			httptransport.ServerBefore(transportutil.MakeStoreAnonymousRequestContext(
 				regCtx.Log, regCtx.ErrTracker, regCtx.DB)),
@@ -161,7 +161,7 @@ func encode{{.Name}}Response(ctx context.Context, w http.ResponseWriter, respons
 `
 
 func main() {
-	root := flag.String("root", "pkg/services", "root of services")
+	root := flag.String("root", "pkg/app/services", "root of services")
 	flag.Parse()
 
 	if err := generate(*root); err != nil {

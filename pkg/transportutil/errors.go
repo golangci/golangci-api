@@ -6,8 +6,8 @@ import (
 	"net/http"
 	"strconv"
 
-	"github.com/golangci/golangci-api/pkg/apierrors"
-	"github.com/golangci/golangci-api/pkg/providers/provider"
+	"github.com/golangci/golangci-api/pkg/app/providers/provider"
+	"github.com/golangci/golangci-api/pkg/endpoint/apierrors"
 	"github.com/pkg/errors"
 )
 

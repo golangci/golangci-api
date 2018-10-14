@@ -9,9 +9,9 @@ import (
 )
 
 type HandlerRegContext struct {
-	Router      *mux.Router
-	Log         logutil.Log
-	ErrTracker  apperrors.Tracker
-	DB          *gorm.DB
-	SessFactory *session.Factory
+	Router          *mux.Router
+	Log             logutil.Log
+	ErrTracker      apperrors.Tracker
+	DB              *gorm.DB
+	AuthSessFactory *session.Factory
 }

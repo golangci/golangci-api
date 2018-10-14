@@ -4,6 +4,8 @@ import (
 	"database/sql"
 	"strings"
 
+	"github.com/golangci/golangci-shared/pkg/logutil"
+
 	"github.com/golangci/golangci-shared/pkg/config"
 	"github.com/jinzhu/gorm"
 	"github.com/pkg/errors"
@@ -19,7 +21,7 @@ func GetDBConnString(cfg config.Config) (string, error) {
 	return dbURL, nil
 }
 
-func GetDB(cfg config.Config, connString string) (*gorm.DB, error) {
+func GetDB(cfg config.Config, log logutil.Log, connString string) (*gorm.DB, error) {
 	adapter := strings.Split(connString, "://")[0]
 
 	db, err := gorm.Open(adapter, connString)
@@ -30,6 +32,10 @@ func GetDB(cfg config.Config, connString string) (*gorm.DB, error) {
 	if cfg.GetBool("DEBUG_DB", false) {
 		db = db.Debug()
 	}
+
+	db.SetLogger(logger{
+		log: log,
+	})
 
 	return db, nil
 }

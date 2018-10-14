@@ -28,6 +28,10 @@ func (db *sqlDBWithContext) QueryRow(query string, args ...interface{}) *sql.Row
 	return db.underlying.QueryRowContext(db.ctx, query, args...)
 }
 
+func (db *sqlDBWithContext) Begin() (*sql.Tx, error) {
+	return db.underlying.BeginTx(db.ctx, nil)
+}
+
 func FromSQL(ctx context.Context, db *sql.DB) (*gorm.DB, error) {
 	return gorm.Open("postgres", &sqlDBWithContext{ // TODO
 		underlying: db,

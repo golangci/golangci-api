@@ -3,11 +3,12 @@ package transportutil
 import (
 	"context"
 	"net/http"
-	"strings"
 	"time"
 
+	"github.com/gorilla/sessions"
+
 	httptransport "github.com/go-kit/kit/transport/http"
-	"github.com/golangci/golangci-api/pkg/endpointutil"
+	"github.com/golangci/golangci-api/pkg/endpoint/endpointutil"
 	"github.com/golangci/golangci-api/pkg/session"
 	"github.com/golangci/golangci-shared/pkg/apperrors"
 	"github.com/golangci/golangci-shared/pkg/logutil"
@@ -15,29 +16,25 @@ import (
 	"github.com/pkg/errors"
 )
 
-func makeHeaders(r *http.Request) map[string]string {
-	ret := map[string]string{}
-	for hdr, values := range r.Header {
-		ret[strings.ToLower(hdr)] = values[0]
+func makeSessionContext(r *http.Request, log logutil.Log) *session.RequestContext {
+	return &session.RequestContext{
+		Saver:    session.NewSaver(log),
+		Registry: sessions.GetRegistry(r),
 	}
-	return ret
 }
 
 func MakeStoreAnonymousRequestContext(log logutil.Log, et apperrors.Tracker, db *gorm.DB) httptransport.RequestFunc {
 	return func(ctx context.Context, r *http.Request) context.Context {
-		rc := endpointutil.MakeAnonymousRequestContext(ctx, log, et.WithHTTPRequest(r), db, makeHeaders(r))
+		rc := endpointutil.MakeAnonymousRequestContext(ctx, log, et.WithHTTPRequest(r),
+			db, makeSessionContext(r, log))
 		return endpointutil.StoreRequestContext(ctx, rc)
 	}
 }
 
 func MakeStoreAuthorizedRequestContext(log logutil.Log, et apperrors.Tracker, db *gorm.DB, sf *session.Factory) httptransport.RequestFunc {
 	return func(ctx context.Context, r *http.Request) context.Context {
-		sess, err := sf.Build(r)
-		if err != nil {
-			return endpointutil.StoreError(ctx, errors.Wrap(err, "failed to build session"))
-		}
-
-		rc, err := endpointutil.MakeAuthorizedRequestContext(ctx, log, et.WithHTTPRequest(r), db, sess, makeHeaders(r))
+		rc, err := endpointutil.MakeAuthorizedRequestContext(ctx, log, et.WithHTTPRequest(r),
+			db, sf, makeSessionContext(r, log))
 		if err != nil {
 			return endpointutil.StoreError(ctx, errors.Wrap(err, "failed to make authorized request context"))
 		}

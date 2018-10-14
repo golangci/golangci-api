@@ -84,7 +84,7 @@ func (c ReflectConsumer) runHandler(ctx context.Context, handler, callArgValue r
 	defer cancel()
 
 	callArgMessage := callArgValue.Interface().(queue.Message)
-	lockID := fmt.Sprintf("locks/consumers/%s", callArgMessage.DeduplicationID())
+	lockID := fmt.Sprintf("locks/consumers/%s", callArgMessage.LockID())
 	distLock := c.distlockFactory.NewMutex(lockID, redsync.SetExpiry(c.timeout))
 	if err := distLock.Lock(); err != nil {
 		return errors.Wrapf(err, "failed to acquire distributed lock %s", lockID)

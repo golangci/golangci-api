@@ -10,7 +10,7 @@ type FinishTxFunc func(err *error)
 func StartTx(db *gorm.DB) (*gorm.DB, FinishTxFunc, error) {
 	tx := db.Begin()
 	if tx.Error != nil {
-		return nil, nil, errors.Wrap(tx.Error, "failed to start transaction")
+		return nil, nil, errors.Wrap(tx.Error, "failed to start gorm transaction")
 	}
 
 	return tx, func(err *error) {

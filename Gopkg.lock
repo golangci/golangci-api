@@ -300,13 +300,12 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:0da1c926df99e4e2a43ccb6b4681cf8acb4ec2fa2819165ff887eb9e6519b947"
+  digest = "1:4d0c6695ece81d5a45b06b2ea48e12e22790d47df4e3e0e79b6e96144283d99e"
   name = "github.com/golangci/golib"
   packages = [
     "server/cfg",
     "server/context",
     "server/database",
-    "server/handlers/helpers",
     "server/handlers/herrors",
     "server/handlers/manager",
   ]
@@ -837,7 +836,6 @@
     "github.com/go-kit/kit/endpoint",
     "github.com/go-kit/kit/log",
     "github.com/go-kit/kit/transport/http",
-    "github.com/golang/mock/gomock",
     "github.com/golangci/golangci-shared/pkg/apperrors",
     "github.com/golangci/golangci-shared/pkg/config",
     "github.com/golangci/golangci-shared/pkg/logutil",
@@ -845,10 +843,7 @@
     "github.com/golangci/golangci-worker/app/analyze/analyzequeue/task",
     "github.com/golangci/golangci-worker/app/lib/github",
     "github.com/golangci/golangci-worker/app/lib/queue",
-    "github.com/golangci/golib/server/context",
     "github.com/golangci/golib/server/database",
-    "github.com/golangci/golib/server/handlers/helpers",
-    "github.com/golangci/golib/server/handlers/herrors",
     "github.com/golangci/golib/server/handlers/manager",
     "github.com/google/go-github/github",
     "github.com/gorilla/mux",

@@ -1,3 +1,5 @@
+.PHONY: test
+
 build:
 	go build -v ./app/cmd/...
 
@@ -21,7 +23,7 @@ migrate_force_version:
 	godotenv -f .env.test sh -c 'migrate -database $${DATABASE_URL} -path ./migrations force $${V}'
 
 test:
-	go test -v -parallel 1 -p 1 ./app/test/
+	go test -v -parallel 1 -p 1 ./test/
 	golangci-lint run -v
 
 connect_to_local_db:

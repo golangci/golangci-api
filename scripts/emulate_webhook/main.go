@@ -15,7 +15,7 @@ import (
 
 	"github.com/satori/go.uuid"
 
-	"github.com/golangci/golangci-api/pkg/models"
+	"github.com/golangci/golangci-api/pkg/app/models"
 	"github.com/golangci/golib/server/database"
 	gh "github.com/google/go-github/github"
 	_ "github.com/joho/godotenv/autoload"
