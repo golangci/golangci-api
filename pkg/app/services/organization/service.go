@@ -1,7 +1,6 @@
 package organization
 
 import (
-	"encoding/json"
 	"fmt"
 	"time"
 
@@ -21,11 +20,6 @@ type Settings struct {
 	Seats []struct {
 		Email string `json:"email"`
 	} `json:"seats"`
-}
-
-func settingsFromOrg(org models.Org) (*Settings, error) {
-	var settings *Settings
-	return settings, errors.Wrapf(json.Unmarshal(org.Settings, settings), "failed to unmarshal settings for org(%d)", org.ID)
 }
 
 type SettingsWrapped struct {
@@ -159,9 +153,6 @@ func (s basicService) fetchOrg(rc *request.AuthorizedContext, provider string, i
 func (s basicService) fetchProviderOrgsCached(rc *request.AuthorizedContext, useCache bool, p provider.Provider) ([]provider.Org, error) {
 	const maxPages = 20
 	key := fmt.Sprintf("orgs/%s/fetch?user_id=%d&maxPage=%d&v=1", p.Name(), rc.Auth.UserID, maxPages)
-	if rc.Auth.PrivateAccessToken != "" {
-		key += "&private=true"
-	}
 
 	var orgs []provider.Org
 	if useCache {
@@ -195,7 +186,6 @@ func (s basicService) fetchProviderOrgsCached(rc *request.AuthorizedContext, use
 }
 
 func (s basicService) fetchProviderOrgsFromProvider(rc *request.AuthorizedContext, p provider.Provider, maxPages int) ([]provider.Org, error) {
-	// repos, err := p
 	orgs, err := p.ListOrgs(rc.Ctx, &provider.ListOrgsConfig{
 		MaxPages: maxPages,
 	})
