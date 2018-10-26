@@ -43,6 +43,7 @@ func (f Factory) BuildAuthorizer(providerName string, isPrivate bool) (*Authoriz
 			f.cfg.GetString("GITHUB_CALLBACK_HOST")+cbURL,
 			"user:email",
 			"repo",
+			"read:org",
 		)
 		return NewAuthorizer(providerName, provider, f.sessFactory, f.log), nil
 	}
