@@ -12,6 +12,7 @@ import (
 	"github.com/golangci/golangci-api/pkg/app/utils"
 	"github.com/golangci/golangci-api/pkg/app/workers/primaryqueue/repos"
 	"github.com/golangci/golangci-api/pkg/cache"
+	"github.com/golangci/golangci-api/pkg/endpoint/apierrors"
 	"github.com/golangci/golangci-api/pkg/endpoint/request"
 	"github.com/golangci/golangci-shared/pkg/config"
 	"github.com/golangci/golangci-shared/pkg/logutil"
@@ -80,13 +81,14 @@ func (s BasicService) sendToCreateQueue(rc *request.AuthorizedContext, repo *mod
 func (s BasicService) buildResponseRepo(repo *models.Repo) *returntypes.WrappedRepoInfo {
 	return &returntypes.WrappedRepoInfo{
 		Repo: returntypes.RepoInfo{
-			ID:          repo.ID,
-			Name:        repo.DisplayName,
-			HookID:      repo.HookID,
-			IsAdmin:     true, // otherwise can't create or delete, it's checked
-			IsDeleting:  repo.IsDeleting(),
-			IsCreating:  repo.IsCreating(),
-			IsActivated: repo.DeletedAt == nil,
+			ID:           repo.ID,
+			Name:         repo.DisplayName,
+			HookID:       repo.HookID,
+			Organization: repo.Owner(),
+			IsAdmin:      true, // otherwise can't create or delete, it's checked
+			IsDeleting:   repo.IsDeleting(),
+			IsCreating:   repo.IsCreating(),
+			IsActivated:  repo.DeletedAt == nil,
 		},
 	}
 }
@@ -107,16 +109,16 @@ func (s BasicService) createAlreadyExistingRepo(rc *request.AuthorizedContext, r
 }
 
 func (s BasicService) Create(rc *request.AuthorizedContext, reqRepo *request.BodyRepo) (*returntypes.WrappedRepoInfo, error) {
-	provider, err := s.ProviderFactory.Build(rc.Auth)
+	providerClient, err := s.ProviderFactory.Build(rc.Auth)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to build provider")
 	}
 
-	if provider.Name() != reqRepo.Provider {
-		return nil, fmt.Errorf("auth provider %s != request repo provider %s", provider.Name(), reqRepo.Provider)
+	if providerClient.Name() != reqRepo.Provider {
+		return nil, fmt.Errorf("auth provider %s != request repo provider %s", providerClient.Name(), reqRepo.Provider)
 	}
 
-	providerRepo, err := provider.GetRepoByName(rc.Ctx, reqRepo.Owner, reqRepo.Name)
+	providerRepo, err := providerClient.GetRepoByName(rc.Ctx, reqRepo.Owner, reqRepo.Name)
 	if err != nil {
 		//TODO: handle case when repo was removed (but not made private)
 		return nil, errors.Wrapf(err, "can't get repo %s from provider", reqRepo)
@@ -124,6 +126,63 @@ func (s BasicService) Create(rc *request.AuthorizedContext, reqRepo *request.Bod
 
 	if !providerRepo.IsAdmin {
 		return nil, errors.New("no admin permission on repo")
+	}
+
+	// TODO(zet4): Temporary reversion because I don't have any private repos to test against...
+	if !providerRepo.IsPrivate {
+		var personalOrg bool
+		providerOrg, err := providerClient.GetOrgByName(rc.Ctx, reqRepo.Owner)
+		if err == provider.ErrNotFound {
+			personalOrg = true
+		} else if err != nil {
+			return nil, errors.Wrapf(err, "can't get org %s from provider", reqRepo.Owner)
+		} else if !providerOrg.IsAdmin {
+			return nil, errors.New("no admin permission on org")
+		}
+
+		var org models.Org
+		baseQuery := models.NewOrgQuerySet(rc.DB).ProviderEq(providerClient.Name())
+		if personalOrg {
+			err = baseQuery.ProviderPersonalUserIDEq(int(rc.Auth.ProviderUserID)).One(&org)
+		} else {
+			err = baseQuery.ProviderIDEq(int(providerOrg.ID)).One(&org)
+		}
+		if err == gorm.ErrRecordNotFound {
+			org = models.Org{
+				Name:     strings.ToLower(reqRepo.Owner),
+				Provider: providerClient.Name(),
+				Settings: []byte("{}"),
+			}
+			if personalOrg {
+				org.ProviderPersonalUserID = int(rc.Auth.ProviderUserID)
+				org.DisplayName = rc.User.Name
+			} else {
+				org.ProviderID = providerOrg.ID
+				org.DisplayName = providerOrg.Name
+			}
+
+			if err = org.Create(rc.DB); err != nil {
+				return nil, errors.Wrap(err, "can't create org")
+			}
+
+			return nil, apierrors.NewContinueError(fmt.Sprintf("/orgs/%d?repo_id_to_connect=%d", org.ID, providerRepo.ID))
+		} else if err != nil {
+			return nil, errors.Wrap(err, "failed to fetch org from db")
+		} else {
+			// Org exists, check subscription...
+			var orgSub models.OrgSub
+			err = models.NewOrgSubQuerySet(rc.DB).OrgIDEq(org.ID).One(&orgSub)
+			if err == gorm.ErrRecordNotFound {
+				// Subscription doesn't exist...
+				return nil, apierrors.NewContinueError(fmt.Sprintf("/orgs/%d?repo_id_to_connect=%d", org.ID, providerRepo.ID))
+			} else if err != nil {
+				return nil, errors.Wrap(err, "failed to fetch org sub from db")
+			}
+			// TODO(all): Is this enough? Might need a better validation before letting user create a repo...
+			if orgSub.CommitState != models.OrgSubCommitStateCreateDone {
+				return nil, errors.New("org sub is still in process of creation...")
+			}
+		}
 	}
 
 	var repo models.Repo
@@ -145,7 +204,7 @@ func (s BasicService) Create(rc *request.AuthorizedContext, reqRepo *request.Bod
 		Name:            strings.ToLower(providerRepo.Name),
 		DisplayName:     providerRepo.Name,
 		HookID:          hookID,
-		Provider:        provider.Name(),
+		Provider:        providerClient.Name(),
 		ProviderID:      providerRepo.ID,
 		CommitState:     models.RepoCommitStateCreateInit,
 		StargazersCount: -1, // will be fetched later
@@ -264,9 +323,10 @@ func (s BasicService) List(rc *request.AuthorizedContext, req *listRequest) (*re
 	retPrivateRepos := []returntypes.RepoInfo{}
 	for _, pr := range providerRepos {
 		retRepo := returntypes.RepoInfo{
-			Name:      pr.Name, // TODO: update changed name in models.Repo
-			IsAdmin:   pr.IsAdmin,
-			IsPrivate: pr.IsPrivate,
+			Name:         pr.Name, // TODO: update changed name in models.Repo
+			Organization: strings.Split(pr.Name, "/")[0],
+			IsAdmin:      pr.IsAdmin,
+			IsPrivate:    pr.IsPrivate,
 		}
 
 		if ar, ok := activatedRepos[pr.ID]; pr.ID != 0 && ok {
