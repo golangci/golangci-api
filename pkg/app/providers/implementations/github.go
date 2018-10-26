@@ -14,6 +14,9 @@ import (
 	"golang.org/x/oauth2"
 )
 
+// Check the struct is implementing the Provider interface.
+var _ provider.Provider = &Github{}
+
 const GithubProviderName = "github.com"
 
 type Github struct {
@@ -97,6 +100,14 @@ func parseGithubRepository(r *github.Repository, root bool) *provider.Repo {
 	}
 }
 
+func parseGithubOrganization(m *github.Membership) *provider.Org {
+	return &provider.Org{
+		ID:      m.GetOrganization().GetID(),
+		Name:    m.GetOrganization().GetName(),
+		IsAdmin: m.GetRole() == "admin" && m.GetState() == "active",
+	}
+}
+
 func (p Github) GetRepoByName(ctx context.Context, owner, repo string) (*provider.Repo, error) {
 	r, _, err := p.client(ctx).Repositories.Get(ctx, owner, repo)
 	if err != nil {
@@ -104,6 +115,15 @@ func (p Github) GetRepoByName(ctx context.Context, owner, repo string) (*provide
 	}
 
 	return parseGithubRepository(r, true), nil
+}
+
+func (p Github) GetOrgByName(ctx context.Context, org string) (*provider.Org, error) {
+	m, _, err := p.client(ctx).Organizations.GetOrgMembership(ctx, "", org)
+	if err != nil {
+		return nil, p.unwrapError(err)
+	}
+
+	return parseGithubOrganization(m), nil
 }
 
 func (p Github) parseHook(h *github.Hook) *provider.Hook {
@@ -222,6 +242,40 @@ func (p Github) ListRepos(ctx context.Context, cfg *provider.ListReposConfig) ([
 
 		for _, r := range pageRepos {
 			ret = append(ret, *parseGithubRepository(r, true))
+		}
+
+		if resp.NextPage == 0 { // it's the last page
+			break
+		}
+
+		if opts.Page == cfg.MaxPages { // TODO: fetch all, now we limit it
+			p.log.Warnf("Limited repo list to %d entries (%d pages)", len(ret), cfg.MaxPages)
+			break
+		}
+
+		opts.Page = resp.NextPage
+	}
+
+	return ret, nil
+}
+
+func (p Github) ListOrgs(ctx context.Context, cfg *provider.ListOrgsConfig) ([]provider.Org, error) {
+	opts := github.ListOrgMembershipsOptions{
+		State: cfg.MembershipState,
+		ListOptions: github.ListOptions{
+			PerPage: 100, // 100 is a max allowed value
+		},
+	}
+
+	var ret []provider.Org
+	for {
+		pageMemberships, resp, err := p.client(ctx).Organizations.ListOrgMemberships(ctx, &opts)
+		if err != nil {
+			return nil, p.unwrapError(err)
+		}
+
+		for _, m := range pageMemberships {
+			ret = append(ret, *parseGithubOrganization(m))
 		}
 
 		if resp.NextPage == 0 { // it's the last page

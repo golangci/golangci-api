@@ -1,5 +1,11 @@
 package provider
 
+type Org struct {
+	ID      int
+	Name    string
+	IsAdmin bool
+}
+
 type Repo struct {
 	ID            int
 	Name          string
@@ -40,6 +46,14 @@ type ListReposConfig struct {
 	Visibility string // public|all
 	Sort       string
 	MaxPages   int
+}
+
+type ListOrgsConfig struct {
+	// MembershipState Indicates the state of the memberships to return.
+	// Can be either active or pending.
+	// If not specified, the API returns both active and pending memberships.
+	MembershipState string
+	MaxPages        int
 }
 
 type CommitStatus struct {
