@@ -7,49 +7,44 @@ import (
 	"os"
 	"time"
 
+	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/session"
+	redigo "github.com/garyburd/redigo/redis"
 	"github.com/golangci/golangci-api/pkg/app/analyzes/pranalyzes"
 	repoanalyzeslib "github.com/golangci/golangci-api/pkg/app/analyzes/repoanalyzes"
 	"github.com/golangci/golangci-api/pkg/app/auth/oauth"
-	"github.com/golangci/golangci-api/pkg/app/services/events"
-	"github.com/golangci/golangci-worker/app/lib/queue"
-	"github.com/rs/cors"
-	"github.com/urfave/negroni"
-
-	"github.com/golangci/golangci-api/pkg/app/services/pranalysis"
-
-	"github.com/aws/aws-sdk-go/aws"
-
-	"github.com/aws/aws-sdk-go/aws/session"
-	redigo "github.com/garyburd/redigo/redis"
 	"github.com/golangci/golangci-api/pkg/app/providers"
+	"github.com/golangci/golangci-api/pkg/app/services/auth"
+	"github.com/golangci/golangci-api/pkg/app/services/events"
+	"github.com/golangci/golangci-api/pkg/app/services/organization"
+	"github.com/golangci/golangci-api/pkg/app/services/pranalysis"
+	"github.com/golangci/golangci-api/pkg/app/services/repo"
+	"github.com/golangci/golangci-api/pkg/app/services/repoanalysis"
+	"github.com/golangci/golangci-api/pkg/app/services/repohook"
+	"github.com/golangci/golangci-api/pkg/app/services/subscription"
+	"github.com/golangci/golangci-api/pkg/app/utils"
 	"github.com/golangci/golangci-api/pkg/app/workers/primaryqueue"
 	"github.com/golangci/golangci-api/pkg/app/workers/primaryqueue/repoanalyzes"
 	"github.com/golangci/golangci-api/pkg/app/workers/primaryqueue/repos"
 	"github.com/golangci/golangci-api/pkg/cache"
 	"github.com/golangci/golangci-api/pkg/db/gormdb"
-	"github.com/golangci/golangci-api/pkg/db/redis"
-	apisession "github.com/golangci/golangci-api/pkg/session"
-
-	"github.com/golangci/golangci-api/pkg/app/utils"
-	"github.com/golangci/golangci-api/pkg/transportutil"
-	"github.com/golangci/golangci-shared/pkg/apperrors"
-
-	"github.com/gorilla/mux"
-
-	"github.com/golangci/golangci-api/pkg/app/services/auth"
-	"github.com/golangci/golangci-api/pkg/app/services/repo"
-	"github.com/golangci/golangci-api/pkg/app/services/repoanalysis"
-	"github.com/golangci/golangci-api/pkg/app/services/repohook"
 	"github.com/golangci/golangci-api/pkg/db/migrations"
-	"github.com/golangci/golangci-shared/pkg/config"
-	"github.com/golangci/golangci-shared/pkg/logutil"
-	"github.com/jinzhu/gorm"
-
+	"github.com/golangci/golangci-api/pkg/db/redis"
 	"github.com/golangci/golangci-api/pkg/queue/aws/consumer"
 	"github.com/golangci/golangci-api/pkg/queue/aws/sqs"
 	"github.com/golangci/golangci-api/pkg/queue/consumers"
 	"github.com/golangci/golangci-api/pkg/queue/producers"
+	apisession "github.com/golangci/golangci-api/pkg/session"
+	"github.com/golangci/golangci-api/pkg/transportutil"
+	"github.com/golangci/golangci-shared/pkg/apperrors"
+	"github.com/golangci/golangci-shared/pkg/config"
+	"github.com/golangci/golangci-shared/pkg/logutil"
+	"github.com/golangci/golangci-worker/app/lib/queue"
+	"github.com/gorilla/mux"
+	"github.com/jinzhu/gorm"
 	_ "github.com/mattes/migrate/database/postgres" // must be first
+	"github.com/rs/cors"
+	"github.com/urfave/negroni"
 	"gopkg.in/redsync.v1"
 )
 
@@ -60,6 +55,8 @@ type appServices struct {
 	pranalysis   pranalysis.Service
 	events       events.Service
 	auth         auth.Service
+	organisation organization.Service
+	subscription subscription.Service
 }
 
 type queues struct {
@@ -201,6 +198,12 @@ func (a *App) buildServices() {
 		OAuthFactory:    oauth.NewFactory(sf, a.trackedLog, a.cfg),
 		AuthSessFactory: a.authSessFactory,
 	}
+	a.services.organisation = organization.Configure(
+		a.providerFactory,
+		cache.NewRedis(a.cfg.GetString("REDIS_URL")+"/1"),
+		a.cfg,
+	)
+	a.services.subscription = subscription.Configure()
 
 	a.buildRepoService()
 }
@@ -282,6 +285,8 @@ func (a App) registerHandlers(r *mux.Router) {
 	pranalysis.RegisterHandlers(a.services.pranalysis, regCtx)
 	events.RegisterHandlers(a.services.events, regCtx)
 	auth.RegisterHandlers(a.services.auth, regCtx)
+	organization.RegisterHandlers(a.services.organisation, regCtx)
+	subscription.RegisterHandlers(a.services.subscription, regCtx)
 }
 
 func (a App) runMigrations() {
