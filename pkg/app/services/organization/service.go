@@ -157,18 +157,18 @@ func (s basicService) fetchProviderOrgsCached(rc *request.AuthorizedContext, use
 	var orgs []provider.Org
 	if useCache {
 		if err := s.Cache.Get(key, &orgs); err != nil {
-			rc.Log.Warnf("Can't fetch repos from cache by key %s: %s", key, err)
+			rc.Log.Warnf("Can't fetch orgs from cache by key %s: %s", key, err)
 			return s.fetchProviderOrgsFromProvider(rc, p, maxPages)
 		}
 
 		if len(orgs) != 0 {
-			rc.Log.Infof("Returning %d repos from cache", len(orgs))
+			rc.Log.Infof("Returning %d orgs from cache", len(orgs))
 			return orgs, nil
 		}
 
-		rc.Log.Infof("No repos in cache, fetching them from provider...")
+		rc.Log.Infof("No orgs in cache, fetching them from provider...")
 	} else {
-		rc.Log.Infof("Don't lookup repos in cache, refreshing repos from provider...")
+		rc.Log.Infof("Don't lookup orgs in cache, refreshing orgs from provider...")
 	}
 
 	var err error
@@ -179,7 +179,7 @@ func (s basicService) fetchProviderOrgsCached(rc *request.AuthorizedContext, use
 
 	cacheTTL := s.Cfg.GetDuration("ORGS_CACHE_TTL", time.Hour*24*7)
 	if err = s.Cache.Set(key, cacheTTL, orgs); err != nil {
-		rc.Log.Warnf("Can't save %d repos to cache by key %s: %s", len(orgs), key, err)
+		rc.Log.Warnf("Can't save %d orgs to cache by key %s: %s", len(orgs), key, err)
 	}
 
 	return orgs, nil
