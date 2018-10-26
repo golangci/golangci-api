@@ -8,6 +8,9 @@ import (
 	"github.com/golangci/golangci-api/pkg/app/providers/provider"
 )
 
+// Check the struct is implementing the Provider interface.
+var _ provider.Provider = &StableProvider{}
+
 type StableProvider struct {
 	underlying   provider.Provider
 	totalTimeout time.Duration
@@ -50,6 +53,14 @@ func (p StableProvider) GetRepoByName(ctx context.Context, owner, repo string) (
 	return
 }
 
+func (p StableProvider) GetOrgByName(ctx context.Context, org string) (retOrg *provider.Org, err error) {
+	_ = p.retry(func() error {
+		retOrg, err = p.underlying.GetOrgByName(ctx, org)
+		return err
+	})
+	return
+}
+
 func (p StableProvider) CreateRepoHook(ctx context.Context, owner, repo string,
 	hook *provider.HookConfig) (*provider.Hook, error) {
 
@@ -81,6 +92,14 @@ func (p StableProvider) DeleteRepoHook(ctx context.Context, owner, repo string, 
 func (p StableProvider) ListRepos(ctx context.Context, cfg *provider.ListReposConfig) (ret []provider.Repo, err error) {
 	_ = p.retry(func() error {
 		ret, err = p.underlying.ListRepos(ctx, cfg)
+		return err
+	})
+	return
+}
+
+func (p StableProvider) ListOrgs(ctx context.Context, cfg *provider.ListOrgsConfig) (ret []provider.Org, err error) {
+	_ = p.retry(func() error {
+		ret, err = p.underlying.ListOrgs(ctx, cfg)
 		return err
 	})
 	return

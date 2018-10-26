@@ -11,6 +11,7 @@ type Provider interface {
 
 	GetBranch(ctx context.Context, owner, repo, branch string) (*Branch, error)
 	GetRepoByName(ctx context.Context, owner, repo string) (*Repo, error)
+	GetOrgByName(ctx context.Context, org string) (*Org, error)
 	GetPullRequest(ctx context.Context, owner, repo string, number int) (*PullRequest, error)
 
 	ListRepoHooks(ctx context.Context, owner, repo string) ([]Hook, error)
@@ -18,6 +19,7 @@ type Provider interface {
 	DeleteRepoHook(ctx context.Context, owner, repo string, hookID int) error
 
 	ListRepos(ctx context.Context, cfg *ListReposConfig) ([]Repo, error)
+	ListOrgs(ctx context.Context, cfg *ListOrgsConfig) ([]Org, error)
 
 	SetCommitStatus(ctx context.Context, owner, repo, ref string, status *CommitStatus) error
 }
