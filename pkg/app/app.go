@@ -17,10 +17,12 @@ import (
 	"github.com/golangci/golangci-api/pkg/app/providers"
 	"github.com/golangci/golangci-api/pkg/app/services/auth"
 	"github.com/golangci/golangci-api/pkg/app/services/events"
+	"github.com/golangci/golangci-api/pkg/app/services/organization"
 	"github.com/golangci/golangci-api/pkg/app/services/pranalysis"
 	"github.com/golangci/golangci-api/pkg/app/services/repo"
 	"github.com/golangci/golangci-api/pkg/app/services/repoanalysis"
 	"github.com/golangci/golangci-api/pkg/app/services/repohook"
+	"github.com/golangci/golangci-api/pkg/app/services/subscription"
 	"github.com/golangci/golangci-api/pkg/app/utils"
 	"github.com/golangci/golangci-api/pkg/app/workers/primaryqueue"
 	"github.com/golangci/golangci-api/pkg/app/workers/primaryqueue/repoanalyzes"
@@ -54,6 +56,8 @@ type appServices struct {
 	pranalysis   pranalysis.Service
 	events       events.Service
 	auth         auth.Service
+	organisation organization.Service
+	subscription subscription.Service
 }
 
 type queues struct {
@@ -196,6 +200,12 @@ func (a *App) buildServices() {
 		OAuthFactory:    oauth.NewFactory(sf, a.trackedLog, a.cfg),
 		AuthSessFactory: a.authSessFactory,
 	}
+	a.services.organisation = organization.Configure(
+		a.providerFactory,
+		cache.NewRedis(a.cfg.GetString("REDIS_URL")+"/1"),
+		a.cfg,
+	)
+	a.services.subscription = subscription.Configure()
 
 	a.buildRepoService()
 }
@@ -283,6 +293,8 @@ func (a App) registerHandlers(r *mux.Router) {
 	pranalysis.RegisterHandlers(a.services.pranalysis, regCtx)
 	events.RegisterHandlers(a.services.events, regCtx)
 	auth.RegisterHandlers(a.services.auth, regCtx)
+	organization.RegisterHandlers(a.services.organisation, regCtx)
+	subscription.RegisterHandlers(a.services.subscription, regCtx)
 }
 
 func (a App) runMigrations() {
