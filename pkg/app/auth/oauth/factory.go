@@ -3,9 +3,8 @@ package oauth
 import (
 	"fmt"
 
-	"github.com/golangci/golangci-shared/pkg/config"
-
 	"github.com/golangci/golangci-api/pkg/session"
+	"github.com/golangci/golangci-shared/pkg/config"
 	"github.com/golangci/golangci-shared/pkg/logutil"
 	"github.com/markbates/goth/providers/github"
 )
@@ -44,6 +43,7 @@ func (f Factory) BuildAuthorizer(providerName string, isPrivate bool) (*Authoriz
 			f.cfg.GetString("GITHUB_CALLBACK_HOST")+cbURL,
 			"user:email",
 			"repo",
+			"read:org",
 		)
 		return NewAuthorizer(providerName, provider, f.sessFactory, f.log), nil
 	}
