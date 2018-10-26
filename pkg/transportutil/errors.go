@@ -2,6 +2,7 @@ package transportutil
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"strconv"
@@ -61,6 +62,10 @@ func HandleErrorLikeResult(ctx context.Context, w http.ResponseWriter, e error) 
 		}
 		http.Redirect(w, r, err.URL, code)
 		return nil
+	case *apierrors.ContinueError:
+		w.Header().Add("Content-Type", "application/json; charset=UTF-8")
+		w.WriteHeader(http.StatusAccepted)
+		return errors.Wrapf(json.NewEncoder(w).Encode(err), "while encoding '%s'", err.URL)
 	}
 
 	return fmt.Errorf("unknown error like result type: %#v", e)
