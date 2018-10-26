@@ -46,3 +46,23 @@ func NewTemporaryRedirectError(url string) *RedirectError {
 		URL:       url,
 	}
 }
+
+// ContinueError behaves like RedirectError but instead it's API friendly
+// and uses status code 202 with json body.
+type ContinueError struct {
+	URL string `json:"continueUrl"`
+}
+
+func (e ContinueError) Error() string {
+	return fmt.Sprintf("continue to %s", e.URL)
+}
+
+func (e ContinueError) IsErrorLikeResult() bool {
+	return true
+}
+
+func NewContinueError(url string) *ContinueError {
+	return &ContinueError{
+		URL: url,
+	}
+}
