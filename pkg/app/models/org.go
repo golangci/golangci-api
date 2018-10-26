@@ -1,7 +1,10 @@
 package models
 
 import (
+	"encoding/json"
+
 	"github.com/jinzhu/gorm"
+	"github.com/pkg/errors"
 )
 
 //go:generate goqueryset -in org.go
@@ -22,4 +25,8 @@ type Org struct {
 
 func (o *Org) IsFake() bool {
 	return o.ProviderPersonalUserID != 0
+}
+
+func (o *Org) UnmarshalSettings(v interface{}) error {
+	return errors.Wrapf(json.Unmarshal(o.Settings, v), "failed to unmarshal settings for org(%d)", o.ID)
 }

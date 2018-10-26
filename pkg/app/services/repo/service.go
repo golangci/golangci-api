@@ -131,7 +131,8 @@ func (s BasicService) Create(rc *request.AuthorizedContext, reqRepo *request.Bod
 	// TODO(zet4): Temporary reversion because I don't have any private repos to test against...
 	if !providerRepo.IsPrivate {
 		var personalOrg bool
-		providerOrg, err := providerClient.GetOrgByName(rc.Ctx, reqRepo.Owner)
+		var providerOrg *provider.Org
+		providerOrg, err = providerClient.GetOrgByName(rc.Ctx, reqRepo.Owner)
 		if err == provider.ErrNotFound {
 			personalOrg = true
 		} else if err != nil {
@@ -145,7 +146,7 @@ func (s BasicService) Create(rc *request.AuthorizedContext, reqRepo *request.Bod
 		if personalOrg {
 			err = baseQuery.ProviderPersonalUserIDEq(int(rc.Auth.ProviderUserID)).One(&org)
 		} else {
-			err = baseQuery.ProviderIDEq(int(providerOrg.ID)).One(&org)
+			err = baseQuery.ProviderIDEq(providerOrg.ID).One(&org)
 		}
 		if err == gorm.ErrRecordNotFound {
 			org = models.Org{
@@ -180,7 +181,7 @@ func (s BasicService) Create(rc *request.AuthorizedContext, reqRepo *request.Bod
 			}
 			// TODO(all): Is this enough? Might need a better validation before letting user create a repo...
 			if orgSub.CommitState != models.OrgSubCommitStateCreateDone {
-				return nil, errors.New("org sub is still in process of creation...")
+				return nil, errors.New("org sub is still in process of creation")
 			}
 		}
 	}
