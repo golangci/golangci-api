@@ -1,20 +1,25 @@
 package returntypes
 
-import "time"
+import (
+	"time"
+
+	"github.com/golangci/golangci-api/pkg/app/models"
+)
 
 type Error struct {
 	Error string `json:"error,omitempty"`
 }
 
 type RepoInfo struct {
-	ID          uint   `json:"id"`
-	HookID      string `json:"hookId"` // needed only for tests
-	Name        string `json:"name"`
-	IsAdmin     bool   `json:"isAdmin"`
-	IsActivated bool   `json:"isActivated,omitempty"`
-	IsPrivate   bool   `json:"isPrivate,omitempty"`
-	IsCreating  bool   `json:"isCreating,omitempty"`
-	IsDeleting  bool   `json:"isDeleting,omitempty"`
+	ID           uint   `json:"id"`
+	HookID       string `json:"hookId"` // needed only for tests
+	Name         string `json:"name"`
+	Organization string `json:"organization,omitempty"`
+	IsAdmin      bool   `json:"isAdmin"`
+	IsActivated  bool   `json:"isActivated,omitempty"`
+	IsPrivate    bool   `json:"isPrivate,omitempty"`
+	IsCreating   bool   `json:"isCreating,omitempty"`
+	IsDeleting   bool   `json:"isDeleting,omitempty"`
 }
 
 type WrappedRepoInfo struct {
@@ -38,4 +43,36 @@ type AuthorizedUser struct {
 
 type CheckAuthResponse struct {
 	User AuthorizedUser `json:"user"`
+}
+
+type SubInfo struct {
+	ID         uint   `json:"id"`
+	SeatsCount int    `json:"seatsCount"`
+	Status     string `json:"status"`
+}
+
+func SubFromModel(sub models.OrgSub) *SubInfo {
+	status := "active"
+	if sub.IsCreating() {
+		status = "creating"
+	} else if sub.IsDeleting() || sub.CommitState == models.OrgSubCommitStateDeleteDone {
+		status = "deleted"
+	}
+	return &SubInfo{sub.ID, sub.SeatsCount, status}
+}
+
+type OrgInfo struct {
+	ID           uint     `json:"id"`
+	Name         string   `json:"name"`
+	DisplayName  string   `json:"displayName"`
+	IsAdmin      bool     `json:"isAdmin"`
+	Subscription *SubInfo `json:"subscription"`
+}
+
+func OrgFromModel(org models.Org, admin bool) *OrgInfo {
+	return &OrgInfo{org.ID, org.Name, org.DisplayName, admin, nil}
+}
+
+type IDResponse struct {
+	ID int `json:"id"`
 }
