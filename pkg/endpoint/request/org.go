@@ -3,7 +3,7 @@ package request
 import "github.com/golangci/golangci-shared/pkg/logutil"
 
 type OrgID struct {
-	OrgID string `request:"org_id,urlPart,"`
+	OrgID uint `request:"org_id,urlPart,"`
 }
 
 func (o OrgID) FillLogContext(lctx logutil.Context) {
@@ -11,7 +11,7 @@ func (o OrgID) FillLogContext(lctx logutil.Context) {
 }
 
 type SubID struct {
-	SubID string `request:"sub_id,urlPart,"`
+	SubID uint `request:"sub_id,urlPart,"`
 }
 
 func (s SubID) FillLogContext(lctx logutil.Context) {
