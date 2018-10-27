@@ -30,3 +30,12 @@ func (o *Org) IsFake() bool {
 func (o *Org) UnmarshalSettings(v interface{}) error {
 	return errors.Wrapf(json.Unmarshal(o.Settings, v), "failed to unmarshal settings for org(%d)", o.ID)
 }
+
+func (o *Org) MarshalSettings(v interface{}) error {
+	data, err := json.Marshal(v)
+	if err != nil {
+		return errors.Wrapf(err, "failed to marshal %#v as settings", v)
+	}
+	o.Settings = data
+	return nil
+}
