@@ -14,7 +14,8 @@ import (
 )
 
 type UpdateRequest struct {
-	ReqOrg *OrgSettingsBody
+	Context  *request.OrgID
+	Settings *SettingsWrapped
 }
 
 type UpdateResponse struct {
@@ -49,9 +50,10 @@ func makeUpdateEndpoint(svc Service, log logutil.Log) endpoint.Endpoint {
 		rc := endpointutil.RequestContext(ctx).(*request.AuthorizedContext)
 		reqLogger = rc.Log
 
-		req.ReqOrg.FillLogContext(rc.Lctx)
+		req.Context.FillLogContext(rc.Lctx)
+		req.Settings.FillLogContext(rc.Lctx)
 
-		err = svc.Update(rc, req.ReqOrg)
+		err = svc.Update(rc, req.Context, req.Settings)
 		if err != nil {
 			if !apierrors.IsErrorLikeResult(err) {
 				rc.Log.Errorf("organization.Service.Update failed: %s", err)

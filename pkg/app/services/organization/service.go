@@ -19,20 +19,15 @@ import (
 type Settings struct {
 	Seats []struct {
 		Email string `json:"email"`
-	} `json:"seats"`
+	} `json:"seats,omitempty"`
 }
 
 type SettingsWrapped struct {
-	Settings Settings `json:"settings"`
+	Settings *Settings `json:"settings"`
 }
 
-type OrgSettingsBody struct {
-	SettingsWrapped
-	request.OrgID
-}
+func (r SettingsWrapped) FillLogContext(lctx logutil.Context) {
 
-func (r OrgSettingsBody) FillLogContext(lctx logutil.Context) {
-	r.OrgID.FillLogContext(lctx)
 }
 
 type OrgList struct {
@@ -49,7 +44,7 @@ func (r OrgListRequest) FillLogContext(lctx logutil.Context) {
 
 type Service interface {
 	//url:/v1/orgs/{org_id} method:PUT
-	Update(rc *request.AuthorizedContext, reqOrg *OrgSettingsBody) error
+	Update(rc *request.AuthorizedContext, context *request.OrgID, settings *SettingsWrapped) error
 
 	//url:/v1/orgs/{org_id}
 	Get(rc *request.AuthorizedContext, reqOrg *request.OrgID) (*SettingsWrapped, error)
@@ -68,12 +63,55 @@ type basicService struct {
 	Cfg             config.Config
 }
 
-func (s *basicService) Update(rc *request.AuthorizedContext, reqOrg *OrgSettingsBody) error {
-	return errors.New("not implemented")
+func (s *basicService) Update(rc *request.AuthorizedContext, context *request.OrgID, settings *SettingsWrapped) error {
+	var org models.Org
+	if err := models.NewOrgQuerySet(rc.DB).IDEq(context.OrgID).One(&org); err != nil {
+		return errors.Wrapf(err, "failed to get org from db with id %d", context.OrgID)
+	}
+	if org.ProviderPersonalUserID != 0 {
+		if rc.Auth.ProviderUserID != uint64(org.ProviderPersonalUserID) {
+			return errors.New("this is a personal org and this user doesn't own it")
+		}
+	} else {
+		provider, err := s.ProviderFactory.Build(rc.Auth)
+		if err != nil {
+			return errors.Wrap(err, "failed to build provider")
+		}
+
+		if provider.Name() != org.Provider {
+			return errors.Wrapf(err, "auth provider %s != request org provider %s", provider.Name(), org.Provider)
+		}
+
+		org, err := s.fetchProviderOrgCached(rc, false, provider, org.ProviderID)
+
+		if !org.IsAdmin {
+			return errors.New("no admin permission on org")
+		}
+	}
+
+	if err := org.MarshalSettings(settings.Settings); err != nil {
+		return errors.Wrapf(err, "failed to set settings for %d", org.ID)
+	}
+
+	if err := org.Update(rc.DB, models.OrgDBSchema.Settings); err != nil {
+		return errors.Wrapf(err, "failed to commit settings change for %d", org.ID)
+	}
+
+	return nil
 }
 
 func (s *basicService) Get(rc *request.AuthorizedContext, reqOrg *request.OrgID) (*SettingsWrapped, error) {
-	return nil, errors.New("not implemented")
+	var org models.Org
+	if err := models.NewOrgQuerySet(rc.DB.Unscoped()).IDEq(reqOrg.OrgID).One(&org); err != nil {
+		return nil, errors.Wrapf(err, "failed to to get org from db with id %d", reqOrg.OrgID)
+	}
+
+	var settings Settings
+	if err := org.UnmarshalSettings(&settings); err != nil {
+		return nil, err
+	}
+
+	return &SettingsWrapped{&settings}, nil
 }
 
 func (s *basicService) List(rc *request.AuthorizedContext, req *OrgListRequest) (*OrgList, error) {
@@ -194,4 +232,48 @@ func (s basicService) fetchProviderOrgsFromProvider(rc *request.AuthorizedContex
 	}
 
 	return orgs, nil
+}
+
+func (s basicService) fetchProviderOrgCached(rc *request.AuthorizedContext, useCache bool, p provider.Provider, oid int) (*provider.Org, error) {
+	const maxPages = 20
+	key := fmt.Sprintf("orgs/%s/fetch?user_id=%d&org_id=%d&v=1", p.Name(), oid, rc.Auth.UserID, maxPages)
+
+	var org *provider.Org
+	if useCache {
+		if err := s.Cache.Get(key, &org); err != nil {
+			rc.Log.Warnf("Can't fetch org from cache by key %s: %s", key, err)
+			return s.fetchProviderOrgFromProvider(rc, p, oid)
+		}
+
+		if org != nil {
+			rc.Log.Infof("Returning org(%d) from cache", org.ID)
+			return org, nil
+		}
+
+		rc.Log.Infof("No org in cache, fetching them from provider...")
+	} else {
+		rc.Log.Infof("Don't lookup org in cache, refreshing org from provider...")
+	}
+
+	var err error
+	org, err = s.fetchProviderOrgFromProvider(rc, p, oid)
+	if err != nil {
+		return nil, err
+	}
+
+	cacheTTL := s.Cfg.GetDuration("ORG_CACHE_TTL", time.Hour*24*7)
+	if err = s.Cache.Set(key, cacheTTL, org); err != nil {
+		rc.Log.Warnf("Can't save org to cache by key %s: %s", key, err)
+	}
+
+	return org, nil
+}
+
+func (s basicService) fetchProviderOrgFromProvider(rc *request.AuthorizedContext, p provider.Provider, oid int) (*provider.Org, error) {
+	org, err := p.GetOrgByID(rc.Ctx, oid)
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to fetch org from provider by id %d", oid)
+	}
+
+	return org, nil
 }
