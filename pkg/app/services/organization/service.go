@@ -84,6 +84,10 @@ func (s *basicService) Update(rc *request.AuthorizedContext, context *request.Or
 
 		org, err := s.fetchProviderOrgCached(rc, false, provider, org.ProviderID)
 
+		if err != nil {
+			return errors.Wrap(err, "failed to fetch org from provider")
+		}
+
 		if !org.IsAdmin {
 			return errors.New("no admin permission on org")
 		}
@@ -235,8 +239,7 @@ func (s basicService) fetchProviderOrgsFromProvider(rc *request.AuthorizedContex
 }
 
 func (s basicService) fetchProviderOrgCached(rc *request.AuthorizedContext, useCache bool, p provider.Provider, oid int) (*provider.Org, error) {
-	const maxPages = 20
-	key := fmt.Sprintf("orgs/%s/fetch?user_id=%d&org_id=%d&v=1", p.Name(), oid, rc.Auth.UserID, maxPages)
+	key := fmt.Sprintf("orgs/%s/fetch?user_id=%d&org_id=%d&v=1", p.Name(), oid, rc.Auth.UserID)
 
 	var org *provider.Org
 	if useCache {
