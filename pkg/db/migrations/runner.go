@@ -3,11 +3,10 @@ package migrations
 import (
 	"fmt"
 
-	"github.com/pkg/errors"
-
 	"github.com/golangci/golangci-shared/pkg/logutil"
 	"github.com/mattes/migrate"
 	_ "github.com/mattes/migrate/source/file" // must have for migrations
+	"github.com/pkg/errors"
 	redsync "gopkg.in/redsync.v1"
 )
 

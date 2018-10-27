@@ -7,7 +7,6 @@ import (
 	"github.com/garyburd/redigo/redis"
 	"github.com/golangci/golangci-shared/pkg/config"
 	"github.com/pkg/errors"
-
 	redistore "gopkg.in/boj/redistore.v1"
 )
 

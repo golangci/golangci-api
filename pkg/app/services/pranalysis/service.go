@@ -3,12 +3,12 @@ package pranalysis
 import (
 	"encoding/json"
 
-	"github.com/golangci/golangci-shared/pkg/logutil"
-	"github.com/pkg/errors"
-
 	"github.com/golangci/golangci-api/pkg/app/models"
+	"github.com/golangci/golangci-api/pkg/endpoint/apierrors"
 	"github.com/golangci/golangci-api/pkg/endpoint/request"
+	"github.com/golangci/golangci-shared/pkg/logutil"
 	"github.com/jinzhu/gorm"
+	"github.com/pkg/errors"
 )
 
 type State struct {
@@ -75,22 +75,34 @@ func (s BasicService) GetAnalysisStateByAnalysisGUID(rc *request.AnonymousContex
 }
 
 func (s BasicService) GetAnalysisStateByPRNumber(rc *request.AnonymousContext, req *RepoPullRequest) (*State, error) {
-	var repo models.Repo
-	err := models.NewRepoQuerySet(rc.DB).NameEq(req.FullName()).ProviderEq(req.Provider).One(&repo)
+	var repos []models.Repo // use could have reconnected repo so we would have two repos
+	err := models.NewRepoQuerySet(rc.DB.Unscoped()).
+		NameEq(req.FullName()).ProviderEq(req.Provider).
+		OrderDescByCreatedAt().
+		All(&repos)
 	if err != nil {
 		return nil, errors.Wrapf(err, "can't get repo from db")
+	}
+
+	if len(repos) == 0 {
+		return nil, errors.Wrapf(apierrors.ErrNotFound, "failed to find repos with name %s", req.FullName())
+	}
+
+	var repoIDs []uint
+	for _, r := range repos {
+		repoIDs = append(repoIDs, r.ID)
 	}
 
 	var analysis models.PullRequestAnalysis
 	err = models.NewPullRequestAnalysisQuerySet(rc.DB).
 		PullRequestNumberEq(req.PullRequestNumber).
-		RepoIDEq(repo.ID).
+		RepoIDIn(repoIDs...).
 		OrderDescByID(). // get last
 		Limit(1).
 		One(&analysis)
 	if err != nil {
-		return nil, errors.Wrapf(err, "can't get pull request analysis with number %d and repo id %d",
-			req.PullRequestNumber, repo.ID)
+		return nil, errors.Wrapf(err, "can't get pull request analysis with number %d and repo ids %v",
+			req.PullRequestNumber, repoIDs)
 	}
 
 	return &State{
@@ -100,7 +112,7 @@ func (s BasicService) GetAnalysisStateByPRNumber(rc *request.AnonymousContext, r
 		ResultJSON:              analysis.ResultJSON,
 		CommitSHA:               analysis.CommitSHA,
 		GithubPullRequestNumber: analysis.PullRequestNumber,
-		GithubRepoName:          repo.Name,
+		GithubRepoName:          repos[0].Name,
 	}, nil
 }
 

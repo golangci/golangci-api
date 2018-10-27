@@ -4,14 +4,13 @@ import (
 	"context"
 	"time"
 
+	"github.com/golangci/golangci-api/pkg/app/models"
 	"github.com/golangci/golangci-api/pkg/app/providers"
 	"github.com/golangci/golangci-api/pkg/app/providers/provider"
 	"github.com/golangci/golangci-shared/pkg/logutil"
+	"github.com/golangci/golangci-worker/app/lib/github"
 	"github.com/jinzhu/gorm"
 	"github.com/pkg/errors"
-
-	"github.com/golangci/golangci-api/pkg/app/models"
-	"github.com/golangci/golangci-worker/app/lib/github"
 )
 
 type Restarter struct {

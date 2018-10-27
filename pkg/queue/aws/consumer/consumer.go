@@ -7,16 +7,15 @@ import (
 	"strings"
 	"time"
 
-	"github.com/golangci/golangci-shared/pkg/config"
-	"github.com/pkg/errors"
-
 	"github.com/aws/aws-lambda-go/events"
 	awslambda "github.com/aws/aws-lambda-go/lambda"
 	"github.com/aws/aws-sdk-go/aws"
 	awssqs "github.com/aws/aws-sdk-go/service/sqs"
 	"github.com/golangci/golangci-api/pkg/queue/aws/sqs"
 	"github.com/golangci/golangci-api/pkg/queue/consumers"
+	"github.com/golangci/golangci-shared/pkg/config"
 	"github.com/golangci/golangci-shared/pkg/logutil"
+	"github.com/pkg/errors"
 )
 
 type SQS struct {

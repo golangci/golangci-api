@@ -5,7 +5,6 @@ import (
 	"time"
 
 	"github.com/golangci/golangci-api/pkg/app/auth"
-
 	"github.com/golangci/golangci-api/pkg/app/models"
 	"github.com/golangci/golangci-api/pkg/endpoint/request"
 	"github.com/golangci/golangci-api/pkg/session"

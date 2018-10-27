@@ -1,22 +1,20 @@
 package repoanalyzes
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"time"
 
+	"github.com/golangci/golangci-api/pkg/app/models"
 	"github.com/golangci/golangci-api/pkg/app/workers/primaryqueue"
 	"github.com/golangci/golangci-api/pkg/db/gormdb"
 	"github.com/golangci/golangci-api/pkg/queue/consumers"
-	"github.com/golangci/golangci-shared/pkg/logutil"
-	"github.com/jinzhu/gorm"
-
-	"context"
-
-	"github.com/golangci/golangci-api/pkg/app/models"
 	"github.com/golangci/golangci-api/pkg/queue/producers"
+	"github.com/golangci/golangci-shared/pkg/logutil"
 	"github.com/golangci/golangci-worker/app/analyze/analyzequeue"
 	"github.com/golangci/golangci-worker/app/analyze/analyzequeue/task"
+	"github.com/jinzhu/gorm"
 	"github.com/pkg/errors"
 	uuid "github.com/satori/go.uuid"
 	"gopkg.in/redsync.v1"

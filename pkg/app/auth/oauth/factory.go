@@ -3,9 +3,8 @@ package oauth
 import (
 	"fmt"
 
-	"github.com/golangci/golangci-shared/pkg/config"
-
 	"github.com/golangci/golangci-api/pkg/session"
+	"github.com/golangci/golangci-shared/pkg/config"
 	"github.com/golangci/golangci-shared/pkg/logutil"
 	"github.com/markbates/goth/providers/github"
 )

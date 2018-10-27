@@ -1,14 +1,11 @@
 package auth
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"strconv"
 	"time"
-
-	"github.com/golangci/golangci-shared/pkg/config"
-
-	"context"
 
 	"github.com/golangci/golangci-api/pkg/app/auth"
 	"github.com/golangci/golangci-api/pkg/app/auth/oauth"
@@ -19,6 +16,7 @@ import (
 	"github.com/golangci/golangci-api/pkg/endpoint/apierrors"
 	"github.com/golangci/golangci-api/pkg/endpoint/request"
 	"github.com/golangci/golangci-api/pkg/session"
+	"github.com/golangci/golangci-shared/pkg/config"
 	"github.com/golangci/golangci-shared/pkg/logutil"
 	"github.com/jinzhu/gorm"
 	"github.com/markbates/goth"

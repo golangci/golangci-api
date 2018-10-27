@@ -6,9 +6,8 @@ import (
 
 	"github.com/golangci/golangci-api/pkg/app/models"
 	"github.com/golangci/golangci-api/pkg/session"
-	"github.com/jinzhu/gorm"
-
 	"github.com/golangci/golangci-shared/pkg/logutil"
+	"github.com/jinzhu/gorm"
 )
 
 type Context interface {

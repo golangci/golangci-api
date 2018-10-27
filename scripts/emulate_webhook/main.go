@@ -9,17 +9,14 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/sirupsen/logrus"
-
-	"github.com/jinzhu/gorm"
-
-	"github.com/satori/go.uuid"
-
 	"github.com/golangci/golangci-api/pkg/app/models"
 	"github.com/golangci/golib/server/database"
 	gh "github.com/google/go-github/github"
+	"github.com/jinzhu/gorm"
 	_ "github.com/joho/godotenv/autoload"
 	_ "github.com/lib/pq"
+	"github.com/satori/go.uuid"
+	"github.com/sirupsen/logrus"
 )
 
 const (

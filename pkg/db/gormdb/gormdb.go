@@ -4,11 +4,10 @@ import (
 	"database/sql"
 	"strings"
 
-	"github.com/golangci/golangci-shared/pkg/logutil"
-	_ "github.com/mattes/migrate/database/postgres" // init pg driver
-
 	"github.com/golangci/golangci-shared/pkg/config"
+	"github.com/golangci/golangci-shared/pkg/logutil"
 	"github.com/jinzhu/gorm"
+	_ "github.com/mattes/migrate/database/postgres" // init pg driver
 	"github.com/pkg/errors"
 )
 
