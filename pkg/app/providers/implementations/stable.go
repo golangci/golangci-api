@@ -61,6 +61,14 @@ func (p StableProvider) GetOrgByName(ctx context.Context, org string) (retOrg *p
 	return
 }
 
+func (p StableProvider) GetOrgByID(ctx context.Context, orgID int) (retOrg *provider.Org, err error) {
+	_ = p.retry(func() error {
+		retOrg, err = p.underlying.GetOrgByID(ctx, orgID)
+		return err
+	})
+	return
+}
+
 func (p StableProvider) CreateRepoHook(ctx context.Context, owner, repo string,
 	hook *provider.HookConfig) (*provider.Hook, error) {
 
