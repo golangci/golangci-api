@@ -15,8 +15,10 @@ type Provider interface {
 
 	GetBranch(ctx context.Context, owner, repo, branch string) (*Branch, error)
 	GetRepoByName(ctx context.Context, owner, repo string) (*Repo, error)
-	GetOrgByName(ctx context.Context, org string) (*Org, error)
 	GetPullRequest(ctx context.Context, owner, repo string, number int) (*PullRequest, error)
+
+	GetOrgByName(ctx context.Context, org string) (*Org, error)
+	GetOrgByID(ctx context.Context, orgID int) (*Org, error)
 
 	ListRepoHooks(ctx context.Context, owner, repo string) ([]Hook, error)
 	CreateRepoHook(ctx context.Context, owner, repo string, hook *HookConfig) (*Hook, error)

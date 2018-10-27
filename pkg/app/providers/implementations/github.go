@@ -126,6 +126,15 @@ func (p Github) GetOrgByName(ctx context.Context, org string) (*provider.Org, er
 	return parseGithubOrganization(m), nil
 }
 
+func (p Github) GetOrgByID(ctx context.Context, orgID int) (*provider.Org, error) {
+	o, _, err := p.client(ctx).Organizations.GetByID(ctx, orgID)
+	if err != nil {
+		return nil, p.unwrapError(err)
+	}
+
+	return p.GetOrgByName(ctx, o.GetName())
+}
+
 func (p Github) parseHook(h *github.Hook) *provider.Hook {
 	ctObj := h.Config["content_type"]
 	ct := ""
