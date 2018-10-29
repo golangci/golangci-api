@@ -15,7 +15,7 @@ import (
 )
 
 type ListRequest struct {
-	ReqOrg *request.OrgID
+	Context *request.OrgID
 }
 
 type ListResponse struct {
@@ -51,9 +51,9 @@ func makeListEndpoint(svc Service, log logutil.Log) endpoint.Endpoint {
 		rc := endpointutil.RequestContext(ctx).(*request.AuthorizedContext)
 		reqLogger = rc.Log
 
-		req.ReqOrg.FillLogContext(rc.Lctx)
+		req.Context.FillLogContext(rc.Lctx)
 
-		v, err := svc.List(rc, req.ReqOrg)
+		v, err := svc.List(rc, req.Context)
 		if err != nil {
 			rc.Log.Errorf("subscription.Service.List failed: %s", err)
 			return ListResponse{err, v}, nil
@@ -65,7 +65,7 @@ func makeListEndpoint(svc Service, log logutil.Log) endpoint.Endpoint {
 }
 
 type GetRequest struct {
-	ReqSub *request.OrgSubID
+	Context *request.OrgSubID
 }
 
 type GetResponse struct {
@@ -101,9 +101,9 @@ func makeGetEndpoint(svc Service, log logutil.Log) endpoint.Endpoint {
 		rc := endpointutil.RequestContext(ctx).(*request.AuthorizedContext)
 		reqLogger = rc.Log
 
-		req.ReqSub.FillLogContext(rc.Lctx)
+		req.Context.FillLogContext(rc.Lctx)
 
-		v, err := svc.Get(rc, req.ReqSub)
+		v, err := svc.Get(rc, req.Context)
 		if err != nil {
 			rc.Log.Errorf("subscription.Service.Get failed: %s", err)
 			return GetResponse{err, v}, nil
@@ -115,7 +115,8 @@ func makeGetEndpoint(svc Service, log logutil.Log) endpoint.Endpoint {
 }
 
 type CreateRequest struct {
-	ReqSub *SubCreateRequest
+	Context *request.OrgID
+	Payload *SubPayload
 }
 
 type CreateResponse struct {
@@ -151,9 +152,10 @@ func makeCreateEndpoint(svc Service, log logutil.Log) endpoint.Endpoint {
 		rc := endpointutil.RequestContext(ctx).(*request.AuthorizedContext)
 		reqLogger = rc.Log
 
-		req.ReqSub.FillLogContext(rc.Lctx)
+		req.Context.FillLogContext(rc.Lctx)
+		req.Payload.FillLogContext(rc.Lctx)
 
-		v, err := svc.Create(rc, req.ReqSub)
+		v, err := svc.Create(rc, req.Context, req.Payload)
 		if err != nil {
 			rc.Log.Errorf("subscription.Service.Create failed: %s", err)
 			return CreateResponse{err, v}, nil
@@ -165,7 +167,8 @@ func makeCreateEndpoint(svc Service, log logutil.Log) endpoint.Endpoint {
 }
 
 type UpdateRequest struct {
-	ReqSub *SubUpdateRequest
+	Context *request.OrgSubID
+	Payload *SubPayload
 }
 
 type UpdateResponse struct {
@@ -200,9 +203,10 @@ func makeUpdateEndpoint(svc Service, log logutil.Log) endpoint.Endpoint {
 		rc := endpointutil.RequestContext(ctx).(*request.AuthorizedContext)
 		reqLogger = rc.Log
 
-		req.ReqSub.FillLogContext(rc.Lctx)
+		req.Context.FillLogContext(rc.Lctx)
+		req.Payload.FillLogContext(rc.Lctx)
 
-		err = svc.Update(rc, req.ReqSub)
+		err = svc.Update(rc, req.Context, req.Payload)
 		if err != nil {
 			if !apierrors.IsErrorLikeResult(err) {
 				rc.Log.Errorf("subscription.Service.Update failed: %s", err)
@@ -216,7 +220,7 @@ func makeUpdateEndpoint(svc Service, log logutil.Log) endpoint.Endpoint {
 }
 
 type DeleteRequest struct {
-	ReqSub *request.OrgSubID
+	Context *request.OrgSubID
 }
 
 type DeleteResponse struct {
@@ -251,9 +255,9 @@ func makeDeleteEndpoint(svc Service, log logutil.Log) endpoint.Endpoint {
 		rc := endpointutil.RequestContext(ctx).(*request.AuthorizedContext)
 		reqLogger = rc.Log
 
-		req.ReqSub.FillLogContext(rc.Lctx)
+		req.Context.FillLogContext(rc.Lctx)
 
-		err = svc.Delete(rc, req.ReqSub)
+		err = svc.Delete(rc, req.Context)
 		if err != nil {
 			if !apierrors.IsErrorLikeResult(err) {
 				rc.Log.Errorf("subscription.Service.Delete failed: %s", err)
