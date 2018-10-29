@@ -5,22 +5,19 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/golangci/golangci-api/pkg/app/providers/provider"
-
-	"github.com/golangci/golangci-api/pkg/endpoint/apierrors"
-	"github.com/jinzhu/gorm"
-	"github.com/pkg/errors"
-
 	"github.com/golangci/golangci-api/pkg/app/models"
 	"github.com/golangci/golangci-api/pkg/app/providers"
+	"github.com/golangci/golangci-api/pkg/app/providers/provider"
 	"github.com/golangci/golangci-api/pkg/app/workers/primaryqueue/repoanalyzes"
+	"github.com/golangci/golangci-api/pkg/endpoint/apierrors"
 	"github.com/golangci/golangci-api/pkg/endpoint/request"
-
 	"github.com/golangci/golangci-shared/pkg/logutil"
 	"github.com/golangci/golangci-worker/app/analyze/analyzequeue"
 	"github.com/golangci/golangci-worker/app/analyze/analyzequeue/task"
 	"github.com/golangci/golangci-worker/app/lib/github"
 	gh "github.com/google/go-github/github"
+	"github.com/jinzhu/gorm"
+	"github.com/pkg/errors"
 )
 
 type GithubWebhook struct {

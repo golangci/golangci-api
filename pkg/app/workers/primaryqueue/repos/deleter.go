@@ -6,23 +6,18 @@ import (
 	"fmt"
 	"time"
 
-	"gopkg.in/redsync.v1"
-
-	"github.com/golangci/golangci-api/pkg/app/providers/provider"
-	"github.com/golangci/golangci-api/pkg/db/gormdb"
-	"github.com/jinzhu/gorm"
-
-	"github.com/golangci/golangci-api/pkg/app/workers/primaryqueue"
-
-	"github.com/golangci/golangci-api/pkg/app/providers"
-
-	"github.com/golangci/golangci-api/pkg/queue/producers"
-
 	"github.com/golangci/golangci-api/pkg/app/models"
+	"github.com/golangci/golangci-api/pkg/app/providers"
+	"github.com/golangci/golangci-api/pkg/app/providers/provider"
+	"github.com/golangci/golangci-api/pkg/app/workers/primaryqueue"
+	"github.com/golangci/golangci-api/pkg/db/gormdb"
 	"github.com/golangci/golangci-api/pkg/queue/consumers"
+	"github.com/golangci/golangci-api/pkg/queue/producers"
 	"github.com/golangci/golangci-shared/pkg/config"
 	"github.com/golangci/golangci-shared/pkg/logutil"
+	"github.com/jinzhu/gorm"
 	"github.com/pkg/errors"
+	"gopkg.in/redsync.v1"
 )
 
 const deleteQueueID = "repos/delete"

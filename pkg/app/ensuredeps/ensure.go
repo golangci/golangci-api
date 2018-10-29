@@ -8,9 +8,8 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/sirupsen/logrus"
-
 	"github.com/pkg/errors"
+	"github.com/sirupsen/logrus"
 )
 
 type Message struct {
@@ -33,7 +32,7 @@ type tool struct {
 
 var defaultTool = tool{
 	name:    "go get",
-	syncCmd: []string{"go", "get", "-t", "./..."},
+	syncCmd: []string{"go", "get", "-d", "-t", "./..."},
 }
 
 func (t tool) sync(ctx context.Context) error {
@@ -165,7 +164,9 @@ func (r Runner) checkDeps(ctx context.Context) error {
 	lines := strings.Split(outStr, "\n")
 	for _, line := range lines {
 		line = strings.TrimSpace(strings.ToLower(line))
-		if strings.Contains(line, "could not import") && !strings.Contains(line, r.repoName) {
+		if (strings.Contains(line, "could not import") && !strings.Contains(line, r.repoName)) ||
+			strings.Contains(line, "cannot find package") {
+
 			r.infof("deps checking: bad: %s", line)
 			return errors.New(line)
 		}

@@ -4,15 +4,13 @@ import (
 	"math"
 	"time"
 
+	"github.com/golangci/golangci-api/pkg/app/models"
 	"github.com/golangci/golangci-shared/pkg/config"
 	"github.com/golangci/golangci-shared/pkg/logutil"
-	"github.com/jinzhu/gorm"
-
-	"github.com/pkg/errors"
-
-	"github.com/golangci/golangci-api/pkg/app/models"
 	"github.com/golangci/golangci-worker/app/analyze/analyzequeue"
 	"github.com/golangci/golangci-worker/app/analyze/analyzequeue/task"
+	"github.com/jinzhu/gorm"
+	"github.com/pkg/errors"
 )
 
 type Restarter struct {

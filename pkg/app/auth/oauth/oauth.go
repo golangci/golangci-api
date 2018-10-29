@@ -11,9 +11,8 @@ import (
 	"github.com/golangci/golangci-api/pkg/endpoint/apierrors"
 	"github.com/golangci/golangci-api/pkg/session"
 	"github.com/golangci/golangci-shared/pkg/logutil"
-	"github.com/pkg/errors"
-
 	"github.com/markbates/goth"
+	"github.com/pkg/errors"
 )
 
 type Authorizer struct {

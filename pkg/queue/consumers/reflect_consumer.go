@@ -7,10 +7,9 @@ import (
 	"reflect"
 	"time"
 
-	"gopkg.in/redsync.v1"
-
 	"github.com/golangci/golangci-api/pkg/queue"
 	"github.com/pkg/errors"
+	"gopkg.in/redsync.v1"
 )
 
 type ReflectConsumer struct {

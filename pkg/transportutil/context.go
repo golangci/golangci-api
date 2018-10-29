@@ -5,13 +5,12 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/gorilla/sessions"
-
 	httptransport "github.com/go-kit/kit/transport/http"
 	"github.com/golangci/golangci-api/pkg/endpoint/endpointutil"
 	"github.com/golangci/golangci-api/pkg/session"
 	"github.com/golangci/golangci-shared/pkg/apperrors"
 	"github.com/golangci/golangci-shared/pkg/logutil"
+	"github.com/gorilla/sessions"
 	"github.com/jinzhu/gorm"
 	"github.com/pkg/errors"
 )
