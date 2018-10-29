@@ -10,6 +10,7 @@ import (
 	"github.com/golangci/golangci-api/pkg/queue/producers"
 	"github.com/golangci/golangci-shared/pkg/config"
 	"github.com/golangci/golangci-shared/pkg/logutil"
+	"github.com/pkg/errors"
 	redsync "gopkg.in/redsync.v1"
 )
 
@@ -55,7 +56,10 @@ func (cc CreatorConsumer) Register(m *consumers.Multiplexer, df *redsync.Redsync
 	return primaryqueue.RegisterConsumer(cc.consumeMessage, createQueueID, m, df)
 }
 
-func (cc CreatorConsumer) consumeMessage(ctx context.Context, m *createMessage) error {
+func (cc CreatorConsumer) consumeMessage(_ context.Context, m *createMessage) error {
+	if m == nil {
+		return errors.New("just a temp")
+	}
 	cc.log.Warnf("got a creator message %#v", *m)
 	// gormDB, err := gormdb.FromSQL(ctx, cc.db)
 	// if err != nil {

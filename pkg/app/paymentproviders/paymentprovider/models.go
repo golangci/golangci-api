@@ -20,7 +20,10 @@ type Subscription struct {
 	Status SubscriptionStatus
 }
 
-type UpdatePayload struct {
+type SubscriptionUpdatePayload struct {
 	CardToken  string
 	SeatsCount int
+}
+
+type CustomerUpdatePayload struct {
 }

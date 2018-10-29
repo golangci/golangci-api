@@ -160,12 +160,8 @@ func (s basicService) sendToCreateQueue(rc *request.AuthorizedContext, sub *mode
 }
 
 func (s *basicService) Create(rc *request.AuthorizedContext, context *request.OrgID, payload *SubPayload) (*returntypes.SubInfo, error) {
-	if payload.PaymentGatewayCardToken == "" {
-		return nil, errors.New("card token is required for new subscriptions")
-	}
-
-	if payload.IdempotencyKey == "" {
-		return nil, errors.New("idempotency key is required for new subscriptions")
+	if payload.PaymentGatewayCardToken == "" || payload.IdempotencyKey == "" {
+		return nil, errors.New("idempotency key and card token are required for new subscriptions")
 	}
 
 	var org models.Org
@@ -180,7 +176,7 @@ func (s *basicService) Create(rc *request.AuthorizedContext, context *request.Or
 
 	// TODO: This is probably not the best way to do this.
 	var idRequest idempotentRequest
-	cacheTTL := s.Cfg.GetDuration("ORG_CACHE_TTL", time.Hour*24)
+	cacheTTL := s.Cfg.GetDuration("SUB_CACHE_TTL", time.Hour*24)
 	key := fmt.Sprintf("subs/create?org_id=%d&user_id=%d&idempotency=%s", context.OrgID, rc.User.ID, payload.IdempotencyKey)
 	if err := s.Cache.Get(key, &idRequest); err == nil {
 		if idRequest.Sub != nil {
@@ -249,6 +245,10 @@ func (s *basicService) Update(rc *request.AuthorizedContext, context *request.Or
 		return errors.Wrap(err, "failed to fetch scoped org sub")
 	}
 
+	if sub.IsUpdating() {
+		return errors.New("sub is already in process of updating")
+	}
+
 	query := models.NewOrgSubQuerySet(rc.DB).
 		IDEq(sub.ID).GetUpdater().
 		SetCommitState(models.OrgSubCommitStateUpdateInit)
@@ -270,13 +270,6 @@ func (s *basicService) Update(rc *request.AuthorizedContext, context *request.Or
 	}
 
 	return s.sendToUpdateQueue(rc, &sub)
-}
-
-func (s basicService) sendToDeleteQueue(rc *request.AuthorizedContext, sub *models.OrgSub) (*returntypes.SubInfo, error) {
-	if err := s.DeleteQueue.Put(sub.ID); err != nil {
-		return nil, errors.Wrap(err, "failed to put to create repos queue")
-	}
-	return s.finishQueueSending(rc, sub, models.OrgSubCommitStateDeleteInit, models.OrgSubCommitStateDeleteSentToQueue)
 }
 
 func (s *basicService) Delete(rc *request.AuthorizedContext, context *request.OrgSubID) error {
