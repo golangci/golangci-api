@@ -55,6 +55,8 @@ func SubFromModel(sub models.OrgSub) *SubInfo {
 	status := "active"
 	if sub.IsCreating() {
 		status = "creating"
+	} else if sub.IsUpdating() {
+		status = "updating"
 	} else if sub.IsDeleting() || sub.CommitState == models.OrgSubCommitStateDeleteDone {
 		status = "deleted"
 	}
