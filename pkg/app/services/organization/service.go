@@ -1,4 +1,4 @@
-package organization
+package organization // nolint:dupl
 
 import (
 	"fmt"

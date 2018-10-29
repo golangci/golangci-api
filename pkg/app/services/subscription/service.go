@@ -1,4 +1,4 @@
-package subscription
+package subscription // nolint:dupl
 
 import (
 	"fmt"
@@ -159,6 +159,7 @@ func (s basicService) sendToCreateQueue(rc *request.AuthorizedContext, sub *mode
 	return s.finishQueueSending(rc, sub, models.OrgSubCommitStateCreateInit, models.OrgSubCommitStateCreateSentToQueue)
 }
 
+//nolint:gocyclo
 func (s *basicService) Create(rc *request.AuthorizedContext, context *request.OrgID, payload *SubPayload) (*returntypes.SubInfo, error) {
 	if payload.PaymentGatewayCardToken == "" || payload.IdempotencyKey == "" {
 		return nil, errors.New("idempotency key and card token are required for new subscriptions")
