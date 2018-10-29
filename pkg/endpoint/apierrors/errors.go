@@ -66,3 +66,13 @@ func NewContinueError(url string) *ContinueError {
 		URL: url,
 	}
 }
+
+type PendingError struct{}
+
+func (e PendingError) Error() string {
+	return fmt.Sprintf("request is still processing")
+}
+
+func (e PendingError) IsErrorLikeResult() bool {
+	return true
+}
