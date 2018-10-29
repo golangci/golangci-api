@@ -1,7 +1,6 @@
 package subscription
 
 import (
-	"encoding/json"
 	"fmt"
 	"time"
 
@@ -97,7 +96,7 @@ func (s *basicService) List(rc *request.AuthorizedContext, context *request.OrgI
 
 	if err == gorm.ErrRecordNotFound {
 		// No sub, try to get oldest probably deleted sub and use that in math for trial.
-		err := models.NewOrgSubQuerySet(rc.DB.Unscoped()).OrgIDEq(context.OrgID).One(&sub)
+		err = models.NewOrgSubQuerySet(rc.DB.Unscoped()).OrgIDEq(context.OrgID).One(&sub)
 		if err == gorm.ErrRecordNotFound {
 			return newTrialSubInfo(int(trialPeriod.Hours() / 24)), nil
 		} else if err != nil {
@@ -177,20 +176,6 @@ func (s *basicService) Create(rc *request.AuthorizedContext, context *request.Or
 		return nil, errors.Wrap(err, "failed to check for admin")
 	}
 
-	if payload.SeatsCount == 0 {
-		seatsSettings := struct {
-			Seats []json.RawMessage `json:"seats,omitempty"`
-		}{}
-		if err := org.UnmarshalSettings(&seatsSettings); err != nil {
-			return nil, errors.Wrap(err, "seats settings unmarshal for org failed")
-		}
-		if seatsSettings.Seats != nil {
-			payload.SeatsCount = len(seatsSettings.Seats)
-		} else {
-			payload.SeatsCount = 1
-		}
-	}
-
 	var retSub *returntypes.SubInfo
 
 	// TODO: This is probably not the best way to do this.
@@ -203,14 +188,17 @@ func (s *basicService) Create(rc *request.AuthorizedContext, context *request.Or
 		} else if idRequest.Processing {
 			return nil, &apierrors.PendingError{}
 		}
-		s.Cache.Set(key, cacheTTL, &idempotentRequest{
-			Processing: true,
-		})
+		if err := s.Cache.Set(key, cacheTTL, &idempotentRequest{Processing: true}); err != nil {
+			rc.Log.Warnf("Can't save sub idempotency to cache by key %s: %s", key, err)
+		}
 		defer func() {
-			s.Cache.Set(key, cacheTTL, &idempotentRequest{
+			err := s.Cache.Set(key, cacheTTL, &idempotentRequest{
 				Sub:        retSub,
 				Processing: false,
 			})
+			if err != nil {
+				rc.Log.Warnf("Can't save sub idempotency to cache by key %s: %s", key, err)
+			}
 		}()
 	}
 
