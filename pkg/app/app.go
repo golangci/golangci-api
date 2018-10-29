@@ -27,6 +27,7 @@ import (
 	"github.com/golangci/golangci-api/pkg/app/workers/primaryqueue"
 	"github.com/golangci/golangci-api/pkg/app/workers/primaryqueue/repoanalyzes"
 	"github.com/golangci/golangci-api/pkg/app/workers/primaryqueue/repos"
+	"github.com/golangci/golangci-api/pkg/app/workers/primaryqueue/subs"
 	"github.com/golangci/golangci-api/pkg/cache"
 	"github.com/golangci/golangci-api/pkg/db/gormdb"
 	"github.com/golangci/golangci-api/pkg/db/migrations"
@@ -202,12 +203,36 @@ func (a *App) buildServices() {
 	}
 	a.services.organisation = organization.Configure(
 		a.providerFactory,
-		cache.NewRedis(a.cfg.GetString("REDIS_URL")+"/1"),
+		cache.Get(),
 		a.cfg,
 	)
-	a.services.subscription = subscription.Configure()
 
 	a.buildRepoService()
+	a.buildSubService()
+}
+
+func (a *App) buildSubService() {
+	createSubQP := &subs.CreatorProducer{}
+	if err := createSubQP.Register(a.queues.producers.primaryMultiplexer); err != nil {
+		a.log.Fatalf("Failed to create 'create sub' producer: %s", err)
+	}
+	deleteSubQP := &subs.DeleterProducer{}
+	if err := deleteSubQP.Register(a.queues.producers.primaryMultiplexer); err != nil {
+		a.log.Fatalf("Failed to create 'delete sub' producer: %s", err)
+	}
+	updateSubQP := &subs.UpdaterProducer{}
+	if err := updateSubQP.Register(a.queues.producers.primaryMultiplexer); err != nil {
+		a.log.Fatalf("Failed to create 'update sub' producer: %s", err)
+	}
+
+	a.services.subscription = subscription.Configure(
+		a.providerFactory,
+		cache.Get(),
+		a.cfg,
+		createSubQP,
+		deleteSubQP,
+		updateSubQP,
+	)
 }
 
 func (a *App) buildRepoService() {
@@ -314,6 +339,11 @@ func (a App) buildMultiplexedConsumer() *consumers.Multiplexer {
 	repoDeleterConsumer := repos.NewDeleterConsumer(a.trackedLog, a.sqlDB, a.cfg, a.providerFactory)
 	if err := repoDeleterConsumer.Register(primaryQueueConsumerMultiplexer, a.distLockFactory); err != nil {
 		a.log.Fatalf("Failed to register repo deleter consumer: %s", err)
+	}
+
+	subCreatorConsumer := subs.NewCreatorConsumer(a.trackedLog, a.sqlDB, a.cfg)
+	if err := subCreatorConsumer.Register(primaryQueueConsumerMultiplexer, a.distLockFactory); err != nil {
+		a.log.Fatalf("Failed to register sub creator consumer: %s", err)
 	}
 
 	analyzesLauncherConsumer := repoanalyzes.NewLauncherConsumer(a.trackedLog, a.sqlDB)
