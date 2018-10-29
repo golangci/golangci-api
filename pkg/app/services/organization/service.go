@@ -239,7 +239,7 @@ func (s basicService) fetchProviderOrgsFromProvider(rc *request.AuthorizedContex
 }
 
 func (s basicService) fetchProviderOrgCached(rc *request.AuthorizedContext, useCache bool, p provider.Provider, oid int) (*provider.Org, error) {
-	key := fmt.Sprintf("orgs/%s/fetch?user_id=%d&org_id=%d&v=1", p.Name(), oid, rc.Auth.UserID)
+	key := fmt.Sprintf("orgs/%s/fetch?user_id=%d&org_id=%d&v=1", p.Name(), rc.Auth.UserID, oid)
 
 	var org *provider.Org
 	if useCache {
