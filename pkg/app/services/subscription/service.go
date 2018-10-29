@@ -1,4 +1,4 @@
-package subscription // nolint:dupl
+package subscription
 
 import (
 	"fmt"
@@ -281,6 +281,7 @@ func (s *basicService) Delete(rc *request.AuthorizedContext, context *request.Or
 // Ought to figure out a better way to handle this,
 // but this method depends on cache and config which are only in services(?)
 
+//nolint:dupl
 func (s basicService) isAdminCached(rc *request.AuthorizedContext, org *models.Org) error {
 	if org.ProviderPersonalUserID != 0 {
 		if rc.Auth.ProviderUserID != uint64(org.ProviderPersonalUserID) {

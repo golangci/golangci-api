@@ -1,4 +1,4 @@
-package organization // nolint:dupl
+package organization
 
 import (
 	"fmt"
@@ -63,6 +63,7 @@ type basicService struct {
 	Cfg             config.Config
 }
 
+//nolint:dupl
 func (s *basicService) Update(rc *request.AuthorizedContext, context *request.OrgID, settings *SettingsWrapped) error {
 	var org models.Org
 	if err := models.NewOrgQuerySet(rc.DB).IDEq(context.OrgID).One(&org); err != nil {
