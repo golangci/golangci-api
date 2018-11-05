@@ -28,6 +28,7 @@ type Result struct {
 type tool struct {
 	name    string
 	syncCmd []string
+	syncEnv []string
 }
 
 var defaultTool = tool{
@@ -36,7 +37,18 @@ var defaultTool = tool{
 }
 
 func (t tool) sync(ctx context.Context) error {
-	return exec.CommandContext(ctx, t.syncCmd[0], t.syncCmd[1:]...).Run()
+	cmd := exec.CommandContext(ctx, t.syncCmd[0], t.syncCmd[1:]...)
+	if t.syncEnv != nil {
+		cmd.Env = append([]string{}, os.Environ()...)
+		cmd.Env = append(cmd.Env, t.syncEnv...)
+	}
+
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		return errors.Wrapf(err, "command failed: %s", string(out))
+	}
+
+	return nil
 }
 
 type Runner struct {
@@ -225,6 +237,14 @@ func (r Runner) detectTool() (*tool, string, error) {
 		filePath string
 		tool     tool
 	}{
+		{
+			filePath: "go.mod",
+			tool: tool{
+				name:    "go mod",
+				syncCmd: []string{"go", "mod", "vendor"},
+				syncEnv: []string{"GO111MODULE=on"},
+			},
+		},
 		{
 			filePath: "Gopkg.toml",
 			tool: tool{
