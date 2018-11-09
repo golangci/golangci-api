@@ -14,6 +14,7 @@ import (
 	"github.com/golangci/golangci-api/pkg/app/crons/pranalyzes"
 	repoanalyzeslib "github.com/golangci/golangci-api/pkg/app/crons/repoanalyzes"
 	"github.com/golangci/golangci-api/pkg/app/crons/repoinfo"
+	"github.com/golangci/golangci-api/pkg/app/paymentproviders"
 	"github.com/golangci/golangci-api/pkg/app/providers"
 	"github.com/golangci/golangci-api/pkg/app/services/auth"
 	"github.com/golangci/golangci-api/pkg/app/services/events"
@@ -25,6 +26,7 @@ import (
 	"github.com/golangci/golangci-api/pkg/app/services/subscription"
 	"github.com/golangci/golangci-api/pkg/app/utils"
 	"github.com/golangci/golangci-api/pkg/app/workers/primaryqueue"
+	"github.com/golangci/golangci-api/pkg/app/workers/primaryqueue/paymentevents"
 	"github.com/golangci/golangci-api/pkg/app/workers/primaryqueue/repoanalyzes"
 	"github.com/golangci/golangci-api/pkg/app/workers/primaryqueue/repos"
 	"github.com/golangci/golangci-api/pkg/app/workers/primaryqueue/subs"
@@ -73,20 +75,21 @@ type queues struct {
 }
 
 type App struct {
-	cfg              config.Config
-	log              logutil.Log
-	trackedLog       logutil.Log
-	errTracker       apperrors.Tracker
-	gormDB           *gorm.DB
-	sqlDB            *sql.DB
-	migrationsRunner *migrations.Runner
-	services         appServices
-	awsSess          *session.Session
-	queues           queues
-	authSessFactory  *apisession.Factory
-	providerFactory  providers.Factory
-	distLockFactory  *redsync.Redsync
-	redisPool        *redigo.Pool
+	cfg                    config.Config
+	log                    logutil.Log
+	trackedLog             logutil.Log
+	errTracker             apperrors.Tracker
+	gormDB                 *gorm.DB
+	sqlDB                  *sql.DB
+	migrationsRunner       *migrations.Runner
+	services               appServices
+	awsSess                *session.Session
+	queues                 queues
+	authSessFactory        *apisession.Factory
+	providerFactory        providers.Factory
+	paymentProviderFactory paymentproviders.Factory
+	distLockFactory        *redsync.Redsync
+	redisPool              *redigo.Pool
 
 	PRAnalyzesStaler      *pranalyzes.Staler // TODO: make private
 	repoInfoUpdater       *repoinfo.Updater
@@ -141,6 +144,10 @@ func (a *App) buildDeps() {
 
 	if a.providerFactory == nil {
 		a.providerFactory = providers.NewBasicFactory(a.trackedLog)
+	}
+
+	if a.paymentProviderFactory == nil {
+		a.paymentProviderFactory = paymentproviders.NewBasicFactory(a.trackedLog)
 	}
 
 	if a.redisPool == nil {
@@ -225,6 +232,11 @@ func (a *App) buildSubService() {
 		a.log.Fatalf("Failed to create 'update sub' producer: %s", err)
 	}
 
+	createEventQP := &paymentevents.CreatorProducer{}
+	if err := createEventQP.Register(a.queues.producers.primaryMultiplexer); err != nil {
+		a.log.Fatalf("Failed to create 'create payment event' producer: %s", err)
+	}
+
 	a.services.subscription = subscription.Configure(
 		a.providerFactory,
 		cache.Get(),
@@ -232,6 +244,7 @@ func (a *App) buildSubService() {
 		createSubQP,
 		deleteSubQP,
 		updateSubQP,
+		createEventQP,
 	)
 }
 
@@ -341,9 +354,24 @@ func (a App) buildMultiplexedConsumer() *consumers.Multiplexer {
 		a.log.Fatalf("Failed to register repo deleter consumer: %s", err)
 	}
 
-	subCreatorConsumer := subs.NewCreatorConsumer(a.trackedLog, a.sqlDB, a.cfg)
+	subCreatorConsumer := subs.NewCreatorConsumer(a.trackedLog, a.sqlDB, a.cfg, a.paymentProviderFactory)
 	if err := subCreatorConsumer.Register(primaryQueueConsumerMultiplexer, a.distLockFactory); err != nil {
 		a.log.Fatalf("Failed to register sub creator consumer: %s", err)
+	}
+
+	subUpdaterConsumer := subs.NewUpdaterConsumer(a.trackedLog, a.sqlDB, a.cfg, a.paymentProviderFactory)
+	if err := subUpdaterConsumer.Register(primaryQueueConsumerMultiplexer, a.distLockFactory); err != nil {
+		a.log.Fatalf("Failed to register sub updater consumer: %s", err)
+	}
+
+	subDeleterConsumer := subs.NewDeleterConsumer(a.trackedLog, a.sqlDB, a.cfg, a.paymentProviderFactory)
+	if err := subDeleterConsumer.Register(primaryQueueConsumerMultiplexer, a.distLockFactory); err != nil {
+		a.log.Fatalf("Failed to register sub deleter consumer: %s", err)
+	}
+
+	paymentEventCreatorConsumer := paymentevents.NewCreatorConsumer(a.trackedLog, a.sqlDB, a.cfg, a.paymentProviderFactory)
+	if err := paymentEventCreatorConsumer.Register(primaryQueueConsumerMultiplexer, a.distLockFactory); err != nil {
+		a.log.Fatalf("Failed to register payment event creator consumer: %s", err)
 	}
 
 	analyzesLauncherConsumer := repoanalyzes.NewLauncherConsumer(a.trackedLog, a.sqlDB)
