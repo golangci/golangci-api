@@ -57,7 +57,7 @@ func (r EventRequestPayload) FillLogContext(lctx logutil.Context) {
 	lctx["event"] = r.ID
 }
 
-// TODO: Should probably move payment gateway webhook to a seperate service
+// TODO: Should probably move payment gateway webhook to a separate service
 // But it's a single endpoint so idk...
 
 type Service interface {
@@ -244,6 +244,7 @@ func (s basicService) sendToUpdateQueue(rc *request.AuthorizedContext, sub *mode
 	return err
 }
 
+//nolint:gocyclo
 func (s *basicService) Update(rc *request.AuthorizedContext, context *request.OrgSubID, payload *SubPayload) error {
 	var org models.Org
 	if err := models.NewOrgQuerySet(rc.DB).IDEq(context.OrgID.OrgID).One(&org); err != nil {
@@ -300,6 +301,7 @@ func (s basicService) sendToDeleteQueue(rc *request.AuthorizedContext, sub *mode
 	return err
 }
 
+//nolint:gocyclo
 func (s *basicService) Delete(rc *request.AuthorizedContext, context *request.OrgSubID) error {
 	var org models.Org
 	if err := models.NewOrgQuerySet(rc.DB).IDEq(context.OrgID.OrgID).One(&org); err != nil {

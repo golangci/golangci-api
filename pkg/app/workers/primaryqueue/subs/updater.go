@@ -67,6 +67,7 @@ func (cc UpdaterConsumer) Register(m *consumers.Multiplexer, df *redsync.Redsync
 	return primaryqueue.RegisterConsumer(cc.consumeMessage, updateQueueID, m, df)
 }
 
+//nolint:dupl
 func (cc UpdaterConsumer) consumeMessage(ctx context.Context, m *updateMessage) error {
 	gormDB, err := gormdb.FromSQL(ctx, cc.db)
 	if err != nil {
@@ -75,7 +76,8 @@ func (cc UpdaterConsumer) consumeMessage(ctx context.Context, m *updateMessage) 
 
 	if err = cc.run(ctx, m, gormDB); err != nil {
 		if errors.Cause(err) == consumers.ErrPermanent {
-			n, err := models.NewOrgSubQuerySet(gormDB).IDEq(m.SubID).
+			var n int64
+			n, err = models.NewOrgSubQuerySet(gormDB).IDEq(m.SubID).
 				GetUpdater().
 				SetCommitState(models.OrgSubCommitStateCreateDone).
 				UpdateNum()
@@ -83,9 +85,8 @@ func (cc UpdaterConsumer) consumeMessage(ctx context.Context, m *updateMessage) 
 				cc.log.Warnf("failed to reset local sub %d state after remote update fail: %s", m.SubID, err.Error())
 			} else if n == 0 {
 				cc.log.Warnf("failed to reset local sub %d state after remote update fail", m.SubID)
-			} else {
-				// TODO(all): Should notify end-user about their failed subscription, probably email them...
 			}
+			// TODO(all): Should notify end-user about their failed subscription, probably email them...
 		}
 		return errors.Wrapf(err, "create of sub %d failed", m.SubID)
 	}

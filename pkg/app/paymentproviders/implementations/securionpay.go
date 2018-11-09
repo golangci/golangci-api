@@ -85,9 +85,10 @@ func (s *securionPay) CreateCustomer(ctx context.Context, email string, token st
 		switch temp.Error.Type {
 		case "invalid_request":
 			return nil, paymentprovider.ErrInvalidCardToken
+		default:
+			err := fmt.Errorf("%s: %s", temp.Error.Type, temp.Error.Message)
+			return nil, errors.Wrap(err, "request to /customers failed")
 		}
-		err := fmt.Errorf("%s: %s", temp.Error.Type, temp.Error.Message)
-		return nil, errors.Wrap(err, "request to /customers failed")
 	}
 
 	return &paymentprovider.Customer{ID: temp.ID}, nil

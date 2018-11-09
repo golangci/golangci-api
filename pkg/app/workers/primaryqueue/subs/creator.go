@@ -71,11 +71,10 @@ func (cc CreatorConsumer) consumeMessage(ctx context.Context, m *createMessage) 
 
 	if err = cc.run(ctx, m, gormDB); err != nil {
 		if errors.Cause(err) == consumers.ErrPermanent {
-			if err := models.NewOrgSubQuerySet(gormDB).IDEq(m.SubID).Delete(); err != nil {
+			if err = models.NewOrgSubQuerySet(gormDB).IDEq(m.SubID).Delete(); err != nil {
 				cc.log.Warnf("failed to delete local sub %d after remote create fail: %s", m.SubID, err.Error())
-			} else {
-				// TODO(all): Should notify end-user about their failed subscription, probably email them...
 			}
+			// TODO(all): Should notify end-user about their failed subscription, probably email them...
 		}
 		return errors.Wrapf(err, "create of sub %d failed", m.SubID)
 	}
@@ -100,13 +99,13 @@ func (cc CreatorConsumer) run(ctx context.Context, m *createMessage, db *gorm.DB
 	}
 
 	if sub.PaymentGatewayCustomerID == "" {
-		if err := cc.createCustomer(ctx, m, db, &sub, payments); err != nil {
+		if err = cc.createCustomer(ctx, db, &sub, payments); err != nil {
 			return errors.Wrap(err, "failed to create customer")
 		}
 	}
 
 	if sub.PaymentGatewaySubscriptionID == "" {
-		if err := cc.createSubscription(ctx, m, db, &sub, payments); err != nil {
+		if err = cc.createSubscription(ctx, db, &sub, payments); err != nil {
 			return errors.Wrap(err, "failed to create subscription")
 		}
 	}
@@ -128,7 +127,7 @@ func (cc CreatorConsumer) run(ctx context.Context, m *createMessage, db *gorm.DB
 	return nil
 }
 
-func (cc CreatorConsumer) createCustomer(ctx context.Context, m *createMessage, db *gorm.DB, sub *models.OrgSub, payments paymentprovider.Provider) error {
+func (cc CreatorConsumer) createCustomer(ctx context.Context, db *gorm.DB, sub *models.OrgSub, payments paymentprovider.Provider) error {
 	var user models.User
 	if err := models.NewUserQuerySet(db).IDEq(sub.BillingUserID).One(&user); err != nil {
 		if err == gorm.ErrRecordNotFound {
@@ -156,7 +155,7 @@ func (cc CreatorConsumer) createCustomer(ctx context.Context, m *createMessage, 
 	return nil
 }
 
-func (cc CreatorConsumer) createSubscription(ctx context.Context, m *createMessage, db *gorm.DB, sub *models.OrgSub, payments paymentprovider.Provider) error {
+func (cc CreatorConsumer) createSubscription(ctx context.Context, db *gorm.DB, sub *models.OrgSub, payments paymentprovider.Provider) error {
 	psub, err := payments.CreateSubscription(ctx, sub.PaymentGatewayCustomerID, sub.SeatsCount)
 	if err != nil {
 		return errors.Wrapf(err, "call to payment gateway to create subscription for sub:%d failed", sub.ID)
