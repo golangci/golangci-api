@@ -51,6 +51,7 @@ type SubInfo struct {
 	Status     string `json:"status"`
 }
 
+//nolint:gocritic
 func SubFromModel(sub models.OrgSub) *SubInfo {
 	status := "active"
 	if sub.IsCreating() {
