@@ -175,28 +175,22 @@ func (s *basicService) Create(rc *request.AuthorizedContext, context *request.Or
 
 	var retSub *returntypes.SubInfo
 
-	// TODO: This is probably not the best way to do this.
-	var idRequest idempotentRequest
-	cacheTTL := s.Cfg.GetDuration("SUB_CACHE_TTL", time.Hour*24)
-	key := fmt.Sprintf("subs/create?org_id=%d&user_id=%d&idempotency=%s", context.OrgID, rc.User.ID, payload.IdempotencyKey)
-	if err := s.Cache.Get(key, &idRequest); err == nil {
-		if idRequest.Sub != nil {
-			return idRequest.Sub, nil
-		} else if idRequest.Processing {
-			return nil, &apierrors.PendingError{}
-		}
-		if err := s.Cache.Set(key, cacheTTL, &idempotentRequest{Processing: true}); err != nil {
-			rc.Log.Warnf("Can't save sub idempotency to cache by key %s: %s", key, err)
-		}
-		defer func() {
-			err := s.Cache.Set(key, cacheTTL, &idempotentRequest{
-				Sub:        retSub,
-				Processing: false,
-			})
+	var orgSub models.OrgSub
+	if err := models.NewOrgSubQuerySet(rc.DB).IdempotencyKeyEq(payload.IdempotencyKey).One(&orgSub); err == gorm.ErrRecordNotFound {
+		// Doesn't exist, carry on...
+	} else if err != nil {
+		return nil, errors.Wrap(err, "failed to check for idempotency key")
+	} else {
+		switch orgSub.CommitState {
+		case models.OrgSubCommitStateCreateInit:
+			retSub, err = s.sendToCreateQueue(rc, &orgSub)
 			if err != nil {
-				rc.Log.Warnf("Can't save sub idempotency to cache by key %s: %s", key, err)
+				return nil, err
 			}
-		}()
+			return retSub, nil
+		default:
+			return returntypes.SubFromModel(orgSub), nil
+	}
 	}
 
 	sub := models.OrgSub{
@@ -205,6 +199,7 @@ func (s *basicService) Create(rc *request.AuthorizedContext, context *request.Or
 		PaymentGatewayCardToken: payload.PaymentGatewayCardToken,
 		SeatsCount:              payload.SeatsCount,
 		CommitState:             models.OrgSubCommitStateCreateInit,
+		IdempotencyKey:          payload.IdempotencyKey,
 	}
 
 	var err error
