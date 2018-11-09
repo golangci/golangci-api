@@ -1,5 +1,7 @@
 package paymentprovider
 
+import "encoding/json"
+
 type SubscriptionStatus string
 
 const (
@@ -18,6 +20,12 @@ type Customer struct {
 type Subscription struct {
 	ID     string
 	Status SubscriptionStatus
+}
+
+type Event struct {
+	ID   string
+	Type string
+	Data json.RawMessage
 }
 
 type SubscriptionUpdatePayload struct {
