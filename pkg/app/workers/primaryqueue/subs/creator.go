@@ -5,11 +5,16 @@ import (
 	"database/sql"
 	"fmt"
 
+	"github.com/golangci/golangci-api/pkg/app/models"
+	"github.com/golangci/golangci-api/pkg/app/paymentproviders"
+	"github.com/golangci/golangci-api/pkg/app/paymentproviders/paymentprovider"
 	"github.com/golangci/golangci-api/pkg/app/workers/primaryqueue"
+	"github.com/golangci/golangci-api/pkg/db/gormdb"
 	"github.com/golangci/golangci-api/pkg/queue/consumers"
 	"github.com/golangci/golangci-api/pkg/queue/producers"
 	"github.com/golangci/golangci-shared/pkg/config"
 	"github.com/golangci/golangci-shared/pkg/logutil"
+	"github.com/jinzhu/gorm"
 	"github.com/pkg/errors"
 	redsync "gopkg.in/redsync.v1"
 )
@@ -42,13 +47,15 @@ type CreatorConsumer struct {
 	log logutil.Log
 	db  *sql.DB
 	cfg config.Config
+	pp  paymentproviders.Factory
 }
 
-func NewCreatorConsumer(log logutil.Log, db *sql.DB, cfg config.Config) *CreatorConsumer {
+func NewCreatorConsumer(log logutil.Log, db *sql.DB, cfg config.Config, pp paymentproviders.Factory) *CreatorConsumer {
 	return &CreatorConsumer{
 		log: log,
 		db:  db,
 		cfg: cfg,
+		pp:  pp,
 	}
 }
 
@@ -56,19 +63,110 @@ func (cc CreatorConsumer) Register(m *consumers.Multiplexer, df *redsync.Redsync
 	return primaryqueue.RegisterConsumer(cc.consumeMessage, createQueueID, m, df)
 }
 
-func (cc CreatorConsumer) consumeMessage(_ context.Context, m *createMessage) error {
-	if m == nil {
-		return errors.New("just a temp")
+func (cc CreatorConsumer) consumeMessage(ctx context.Context, m *createMessage) error {
+	gormDB, err := gormdb.FromSQL(ctx, cc.db)
+	if err != nil {
+		return errors.Wrap(err, "failed to get gorm db")
 	}
-	cc.log.Warnf("got a creator message %#v", *m)
-	// gormDB, err := gormdb.FromSQL(ctx, cc.db)
-	// if err != nil {
-	// 	return errors.Wrap(err, "failed to get gorm db")
-	// }
 
-	// if err = cc.run(ctx, m, gormDB); err != nil {
-	// 	return errors.Wrapf(err, "create of repo %d failed", m.RepoID)
-	// }
+	if err = cc.run(ctx, m, gormDB); err != nil {
+		if errors.Cause(err) == consumers.ErrPermanent {
+			if err := models.NewOrgSubQuerySet(gormDB).IDEq(m.SubID).Delete(); err != nil {
+				cc.log.Warnf("failed to delete local sub %d after remote create fail: %s", m.SubID, err.Error())
+			} else {
+				// TODO(all): Should notify end-user about their failed subscription, probably email them...
+			}
+		}
+		return errors.Wrapf(err, "create of sub %d failed", m.SubID)
+	}
 
+	return nil
+}
+
+func (cc CreatorConsumer) run(ctx context.Context, m *createMessage, db *gorm.DB) error {
+	// TODO(all): Consider adding paymentprovider entry to sub table, for now defaulting to securionpay
+
+	var sub models.OrgSub
+	if err := models.NewOrgSubQuerySet(db).IDEq(m.SubID).One(&sub); err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return errors.Wrapf(consumers.ErrPermanent, "failed to fetch from db sub with id %d", m.SubID)
+		}
+		return errors.Wrapf(err, "failed to fetch from db sub with id %d", m.SubID)
+	}
+
+	payments, err := cc.pp.Build("securionpay")
+	if err != nil {
+		return errors.Wrap(err, "failed to create payment gateway")
+	}
+
+	if sub.PaymentGatewayCustomerID == "" {
+		if err := cc.createCustomer(ctx, m, db, &sub, payments); err != nil {
+			return errors.Wrap(err, "failed to create customer")
+		}
+	}
+
+	if sub.PaymentGatewaySubscriptionID == "" {
+		if err := cc.createSubscription(ctx, m, db, &sub, payments); err != nil {
+			return errors.Wrap(err, "failed to create subscription")
+		}
+	}
+
+	n, err := models.NewOrgSubQuerySet(db).
+		IDEq(sub.ID).CommitStateEq(models.OrgSubCommitStateCreateSentToQueue).
+		GetUpdater().
+		SetCommitState(models.OrgSubCommitStateCreateDone).
+		UpdateNum()
+	if err != nil {
+		return errors.Wrapf(err, "failed to update commit state to %s for sub with id %d",
+			models.OrgSubCommitStateCreateDone, sub.ID)
+	}
+	if n == 0 {
+		cc.log.Infof("Not updating sub %#v commit state to %s because it's already updated by queue consumer",
+			sub, models.OrgSubCommitStateCreateDone)
+	}
+
+	return nil
+}
+
+func (cc CreatorConsumer) createCustomer(ctx context.Context, m *createMessage, db *gorm.DB, sub *models.OrgSub, payments paymentprovider.Provider) error {
+	var user models.User
+	if err := models.NewUserQuerySet(db).IDEq(sub.BillingUserID).One(&user); err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return errors.Wrapf(consumers.ErrPermanent, "failed to fetch from db user via billing user id %d", sub.BillingUserID)
+		}
+		return errors.Wrapf(err, "failed to fetch from db user via billing user id %d", sub.BillingUserID)
+	}
+	if user.Email == "" {
+		return errors.Errorf("expected email for user with id %d not to be empty", user.ID)
+	}
+	cust, err := payments.CreateCustomer(ctx, user.Email, sub.PaymentGatewayCardToken)
+	if err != nil {
+		if err == paymentprovider.ErrInvalidCardToken {
+			return errors.Wrapf(consumers.ErrPermanent, "call to create customer for sub:%d user:%d failed", sub.ID, user.ID)
+		}
+		return errors.Wrapf(err, "call to create customer for sub:%d user:%d failed", sub.ID, user.ID)
+	}
+	sub.PaymentGatewayCustomerID = cust.ID
+	n, err := models.NewOrgSubQuerySet(db).IDEq(sub.ID).GetUpdater().SetPaymentGatewayCustomerID(cust.ID).UpdateNum()
+	if err != nil {
+		return errors.Wrapf(err, "failed to update sub with id %d", sub.ID)
+	} else if n != 1 {
+		return errors.New("no rows were updated, this really shouldn't happen")
+	}
+	return nil
+}
+
+func (cc CreatorConsumer) createSubscription(ctx context.Context, m *createMessage, db *gorm.DB, sub *models.OrgSub, payments paymentprovider.Provider) error {
+	psub, err := payments.CreateSubscription(ctx, sub.PaymentGatewayCustomerID, sub.SeatsCount)
+	if err != nil {
+		return errors.Wrapf(err, "call to payment gateway to create subscription for sub:%d failed", sub.ID)
+	}
+	sub.PaymentGatewaySubscriptionID = psub.ID
+	n, err := models.NewOrgSubQuerySet(db).IDEq(sub.ID).GetUpdater().SetPaymentGatewaySubscriptionID(psub.ID).UpdateNum()
+	if err != nil {
+		return errors.Wrapf(err, "failed to update sub with id %d", sub.ID)
+	} else if n != 1 {
+		return errors.New("no rows were updated, this really shouldn't happen")
+	}
 	return nil
 }
