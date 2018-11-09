@@ -11,7 +11,6 @@ type OrgSubCommitState string
 const (
 	OrgSubCommitStateCreateInit        OrgSubCommitState = "create/init"
 	OrgSubCommitStateCreateSentToQueue OrgSubCommitState = "create/sent_to_queue"
-	OrgSubCommitStateCreateCreatedSub  OrgSubCommitState = "create/created_sub"
 	OrgSubCommitStateCreateDone        OrgSubCommitState = "create/done"
 
 	OrgSubCommitStateUpdateInit        OrgSubCommitState = "update/init"
@@ -28,8 +27,7 @@ func (s OrgSubCommitState) IsDeleteState() bool {
 }
 
 func (s OrgSubCommitState) IsCreateState() bool {
-	return s == OrgSubCommitStateCreateInit || s == OrgSubCommitStateCreateSentToQueue ||
-		s == OrgSubCommitStateCreateCreatedSub || s == OrgSubCommitStateCreateDone
+	return s == OrgSubCommitStateCreateInit || s == OrgSubCommitStateCreateSentToQueue || s == OrgSubCommitStateCreateDone
 }
 
 func (s OrgSubCommitState) IsUpdateState() bool {
@@ -54,6 +52,8 @@ type OrgSub struct {
 	OrgID         uint
 	SeatsCount    int
 	CommitState   OrgSubCommitState
+
+	IdempotencyKey string
 }
 
 func (s *OrgSub) GoString() string {
