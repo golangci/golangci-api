@@ -94,6 +94,22 @@ func RegisterHandlers(svc Service, regCtx *transportutil.HandlerRegContext) {
 	)
 	regCtx.Router.Methods("DELETE").Path("/v1/orgs/{org_id}/subs/{sub_id}").Handler(hDelete)
 
+	hEventCreate := httptransport.NewServer(
+		makeEventCreateEndpoint(svc, regCtx.Log),
+		decodeEventCreateRequest,
+		encodeEventCreateResponse,
+		httptransport.ServerBefore(transportutil.StoreHTTPRequestToContext),
+		httptransport.ServerAfter(transportutil.FinalizeSession),
+
+		httptransport.ServerBefore(transportutil.MakeStoreAnonymousRequestContext(
+			regCtx.Log, regCtx.ErrTracker, regCtx.DB)),
+
+		httptransport.ServerFinalizer(transportutil.FinalizeRequest),
+		httptransport.ServerErrorEncoder(transportutil.EncodeError),
+		httptransport.ServerErrorLogger(transportutil.AdaptErrorLogger(regCtx.Log)),
+	)
+	regCtx.Router.Methods("POST").Path("/v1/payments/{provider}/events").Handler(hEventCreate)
+
 }
 
 func decodeListRequest(_ context.Context, r *http.Request) (interface{}, error) {
@@ -291,6 +307,48 @@ func encodeDeleteResponse(ctx context.Context, w http.ResponseWriter, response i
 		DeleteResponse
 	}{
 		DeleteResponse: resp,
+	}
+
+	if resp.err != nil {
+		if apierrors.IsErrorLikeResult(resp.err) {
+			return transportutil.HandleErrorLikeResult(ctx, w, resp.err)
+		}
+
+		terr := transportutil.MakeError(resp.err)
+		wrappedResp.Error = terr
+		w.WriteHeader(terr.HTTPCode)
+	}
+
+	return json.NewEncoder(w).Encode(wrappedResp)
+}
+
+func decodeEventCreateRequest(_ context.Context, r *http.Request) (interface{}, error) {
+	var request EventCreateRequest
+	if err := transportutil.DecodeRequest(&request, r); err != nil {
+		return nil, errors.Wrap(err, "can't decode request")
+	}
+
+	return request, nil
+}
+
+func encodeEventCreateResponse(ctx context.Context, w http.ResponseWriter, response interface{}) error {
+	w.Header().Add("Content-Type", "application/json; charset=UTF-8")
+	if err := transportutil.GetContextError(ctx); err != nil {
+		wrappedResp := struct {
+			Error *transportutil.Error
+		}{
+			Error: transportutil.MakeError(err),
+		}
+		w.WriteHeader(wrappedResp.Error.HTTPCode)
+		return json.NewEncoder(w).Encode(wrappedResp)
+	}
+
+	resp := response.(EventCreateResponse)
+	wrappedResp := struct {
+		transportutil.ErrorResponse
+		EventCreateResponse
+	}{
+		EventCreateResponse: resp,
 	}
 
 	if resp.err != nil {

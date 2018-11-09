@@ -269,3 +269,56 @@ func makeDeleteEndpoint(svc Service, log logutil.Log) endpoint.Endpoint {
 
 	}
 }
+
+type EventCreateRequest struct {
+	Context *EventRequestContext
+	Payload *EventRequestPayload
+}
+
+type EventCreateResponse struct {
+	err error
+}
+
+func makeEventCreateEndpoint(svc Service, log logutil.Log) endpoint.Endpoint {
+	return func(ctx context.Context, reqObj interface{}) (resp interface{}, err error) {
+
+		req := reqObj.(EventCreateRequest)
+
+		reqLogger := log
+		defer func() {
+			if rerr := recover(); rerr != nil {
+				reqLogger.Errorf("Panic occured")
+				reqLogger.Infof("%s", debug.Stack())
+				resp = EventCreateResponse{
+					err: errors.New("panic occured"),
+				}
+				err = nil
+			}
+		}()
+
+		if err := endpointutil.Error(ctx); err != nil {
+			log.Warnf("Error occurred during request context creation: %s", err)
+			resp = EventCreateResponse{
+				err: err,
+			}
+			return resp, nil
+		}
+
+		rc := endpointutil.RequestContext(ctx).(*request.AnonymousContext)
+		reqLogger = rc.Log
+
+		req.Context.FillLogContext(rc.Lctx)
+		req.Payload.FillLogContext(rc.Lctx)
+
+		err = svc.EventCreate(rc, req.Context, req.Payload)
+		if err != nil {
+			if !apierrors.IsErrorLikeResult(err) {
+				rc.Log.Errorf("subscription.Service.EventCreate failed: %s", err)
+			}
+			return EventCreateResponse{err}, nil
+		}
+
+		return EventCreateResponse{nil}, nil
+
+	}
+}
