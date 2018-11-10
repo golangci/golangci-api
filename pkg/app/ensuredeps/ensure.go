@@ -34,6 +34,7 @@ type tool struct {
 var defaultTool = tool{
 	name:    "go get",
 	syncCmd: []string{"go", "get", "-d", "-t", "./..."},
+	syncEnv: []string{"GO111MODULE=on"}, // just to disable warning about it not set
 }
 
 func (t tool) sync(ctx context.Context) error {
