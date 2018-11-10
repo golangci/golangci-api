@@ -22,3 +22,7 @@ linters:
     - lll
     - prealloc
     - gosec
+    - gocritic
+    - gochecknoglobals
+    - gochecknoinits
+    - scopelint
