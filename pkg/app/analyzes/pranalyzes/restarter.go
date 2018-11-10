@@ -78,6 +78,11 @@ func (r Restarter) setGithubStatus(ctx context.Context, analysis models.PullRequ
 		Context:     "GolangCI",
 	})
 	if err != nil {
+		if err == provider.ErrUnauthorized || err == provider.ErrNotFound {
+			r.Log.Warnf("Unrecoverable error setting github status to processing timeout for %s#%d: %s", repo.String(), analysis.PullRequestNumber, err)
+			return nil
+		}
+
 		return errors.Wrap(err, "can't set github status")
 	}
 
