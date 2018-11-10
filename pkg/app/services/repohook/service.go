@@ -75,7 +75,7 @@ func (s BasicService) HandleGithubWebhook(rc *request.AnonymousContext, req *Git
 		return nil
 	}
 
-	return fmt.Errorf("got unknown github webhook event type %s", eventType)
+	return fmt.Errorf("got unknown github webhook event type %s, body: %s", eventType, string(body))
 }
 
 //nolint:gocyclo
