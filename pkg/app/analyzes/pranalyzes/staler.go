@@ -13,13 +13,13 @@ import (
 	"github.com/pkg/errors"
 )
 
-type Restarter struct {
+type Staler struct {
 	DB              *gorm.DB
 	Log             logutil.Log
 	ProviderFactory providers.Factory
 }
 
-func (r Restarter) Run() {
+func (r Staler) Run() {
 	// If you change it don't forget to change it golangci-worker
 	const taskProcessingTimeout = time.Minute * 40 // 4x as in golangci-worker: need time for queue processing
 
@@ -31,7 +31,7 @@ func (r Restarter) Run() {
 	}
 }
 
-func (r Restarter) RunIteration(taskProcessingTimeout time.Duration) (int, error) {
+func (r Staler) RunIteration(taskProcessingTimeout time.Duration) (int, error) {
 	var analyzes []models.PullRequestAnalysis
 	err := models.NewPullRequestAnalysisQuerySet(r.DB).
 		StatusIn("sent_to_queue", "processing").
@@ -56,7 +56,7 @@ func (r Restarter) RunIteration(taskProcessingTimeout time.Duration) (int, error
 	return len(analyzes), nil
 }
 
-func (r Restarter) setGithubStatus(ctx context.Context, analysis models.PullRequestAnalysis, repo *models.Repo) error {
+func (r Staler) setGithubStatus(ctx context.Context, analysis models.PullRequestAnalysis, repo *models.Repo) error {
 	p, err := r.ProviderFactory.BuildForUser(r.DB, repo.UserID)
 	if err != nil {
 		return errors.Wrapf(err, "failed to build provider for user %d", repo.UserID)
@@ -89,7 +89,7 @@ func (r Restarter) setGithubStatus(ctx context.Context, analysis models.PullRequ
 	return nil
 }
 
-func (r Restarter) updateStaleAnalysis(analysis models.PullRequestAnalysis) error {
+func (r Staler) updateStaleAnalysis(analysis models.PullRequestAnalysis) error {
 	var repo models.Repo
 	if err := models.NewRepoQuerySet(r.DB.Unscoped()).IDEq(analysis.RepoID).One(&repo); err != nil {
 		return errors.Wrap(err, "failed to fetch repo")

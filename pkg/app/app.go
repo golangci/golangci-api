@@ -82,7 +82,7 @@ type App struct {
 	distLockFactory  *redsync.Redsync
 	redisPool        *redigo.Pool
 
-	PRAnalyzesRestarter   *pranalyzes.Restarter // TODO: make private
+	PRAnalyzesStaler      *pranalyzes.Staler // TODO: make private
 	repoAnalyzesRestarter *repoanalyzeslib.Restarter
 }
 
@@ -247,7 +247,7 @@ func NewApp(modifiers ...Modifier) *App {
 	a.buildServices()
 	a.buildMigrationsRunner()
 
-	a.PRAnalyzesRestarter = &pranalyzes.Restarter{
+	a.PRAnalyzesStaler = &pranalyzes.Staler{
 		DB:              a.gormDB,
 		Log:             a.trackedLog,
 		ProviderFactory: a.providerFactory,
@@ -320,12 +320,21 @@ func (a App) RunDeadLetterConsumers() {
 	primaryDLQConsumer.Run()
 }
 
-func (a App) RunEnvironment() {
+func (a App) RecoverAnalyzes() error {
+	r := pranalyzes.NewReanalyzer(a.gormDB, a.cfg, a.log, a.providerFactory)
+	return r.RunOnce()
+}
+
+func (a App) InitQueue() {
 	queue.Init()
+}
+
+func (a App) RunEnvironment() {
+	a.InitQueue()
 	a.runMigrations()
 	a.runConsumers()
 
-	go a.PRAnalyzesRestarter.Run()
+	go a.PRAnalyzesStaler.Run()
 	go a.repoAnalyzesRestarter.Run()
 }
 

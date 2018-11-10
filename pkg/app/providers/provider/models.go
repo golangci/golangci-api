@@ -14,6 +14,7 @@ type Branch struct {
 
 type PullRequest struct {
 	HeadCommitSHA string
+	State         string // MERGED|CLOSED
 }
 
 type HookConfig struct {
