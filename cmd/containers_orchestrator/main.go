@@ -16,7 +16,7 @@ func main() {
 	token := cfg.GetString("TOKEN")
 	r := containers.NewOrchestrator(log, token)
 
-	port := cfg.GetInt("PORT", 8000)
+	port := cfg.GetInt("PORT", 8001)
 	if err := r.Run(port); err != nil {
 		log.Warnf("Orchestrator running error: %s", err)
 	}

@@ -5,9 +5,11 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"net/http"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"time"
 
 	"github.com/golangci/golangci-shared/pkg/logutil"
@@ -25,7 +27,7 @@ type Request struct {
 	WorkDir string
 	Env     []string
 
-	Name string
+	Kind string
 	Args []string
 }
 
@@ -35,7 +37,12 @@ type Response struct {
 	StdOut       string
 }
 
-const TokenHeaderName = "X-Golangci-Token"
+const (
+	TokenHeaderName = "X-Golangci-Token"
+
+	RequestKindRun  = "run"
+	RequestKindCopy = "copy"
+)
 
 func NewRunner(log logutil.Log, token string) *Runner {
 	return &Runner{
@@ -45,12 +52,16 @@ func NewRunner(log logutil.Log, token string) *Runner {
 }
 
 func (r Runner) Run(port int, maxLifetime time.Duration) error {
+	if r.token == "" {
+		return errors.New("no token")
+	}
+
 	addr := fmt.Sprintf(":%d", port)
 	srv := &http.Server{Addr: addr}
 	r.log.Infof("Listening on %s...", addr)
 	go func() {
 		time.Sleep(maxLifetime)
-		if err := srv.Shutdown(nil); err != nil {
+		if err := srv.Shutdown(context.TODO()); err != nil {
 			r.log.Warnf("HTTP server shutdown failed: %s", err)
 		} else {
 			r.log.Infof("HTTP server shutdown succeeded")
@@ -119,11 +130,30 @@ func (r Runner) parseRequest(hr *http.Request) (*Request, error) {
 }
 
 func (r Runner) executeRequest(req *Request) (string, error) {
+	switch req.Kind {
+	case RequestKindRun:
+		return r.executeRunRequest(req)
+	case RequestKindCopy:
+		return r.executeCopyRequest(req)
+	}
+
+	return "", fmt.Errorf("invalid request kind %s", req.Kind)
+}
+
+func (r Runner) executeRunRequest(req *Request) (string, error) {
 	timeout := time.Millisecond * time.Duration(req.TimeoutMs)
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 
-	cmd := exec.CommandContext(ctx, req.Name, req.Args...)
+	if len(req.Args) == 0 {
+		return "", errors.New("empty args")
+	}
+	var args []string
+	if len(req.Args) > 1 {
+		args = req.Args[1:]
+	}
+
+	cmd := exec.CommandContext(ctx, req.Args[0], args...)
 	var stderrBuf bytes.Buffer
 	cmd.Stderr = &stderrBuf
 
@@ -136,9 +166,31 @@ func (r Runner) executeRequest(req *Request) (string, error) {
 
 	out, err := cmd.Output()
 	if err != nil {
-		return "", fmt.Errorf("can't execute command %s %v: err: %s, stdout: %s, stderr: %s",
-			req.Name, req.Args, err, string(out), stderrBuf.String())
+		return "", fmt.Errorf("can't execute command %v: err: %s, stdout: %s, stderr: %s",
+			req.Args, err, string(out), stderrBuf.String())
+	}
+
+	if stderrBuf.Len() != 0 {
+		r.log.Warnf("Command %v stderr: %s", req.Args, stderrBuf.String())
 	}
 
 	return string(out), nil
+}
+
+func (r Runner) executeCopyRequest(req *Request) (string, error) {
+	if len(req.Args) != 2 {
+		return "", fmt.Errorf("invalid args count: %d != 2", len(req.Args))
+	}
+
+	destFile := req.Args[0]
+	if req.WorkDir != "" {
+		destFile = filepath.Join(req.WorkDir, destFile)
+	}
+	fileContent := req.Args[1]
+
+	if err := ioutil.WriteFile(destFile, []byte(fileContent), os.ModePerm); err != nil {
+		return "", errors.Wrapf(err, "failed to write to file %s", destFile)
+	}
+
+	return "", nil
 }
