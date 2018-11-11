@@ -300,20 +300,6 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:4d0c6695ece81d5a45b06b2ea48e12e22790d47df4e3e0e79b6e96144283d99e"
-  name = "github.com/golangci/golib"
-  packages = [
-    "server/cfg",
-    "server/context",
-    "server/database",
-    "server/handlers/herrors",
-    "server/handlers/manager",
-  ]
-  pruneopts = "UT"
-  revision = "c4351f552d01ff20c3db46ffab6f02323194bfe3"
-
-[[projects]]
-  branch = "master"
   digest = "1:9fbd6dbf230b51f30e7cf4c7bdb5fac52f8422863e8636d20d96233ff0e7b147"
   name = "github.com/google/go-github"
   packages = ["github"]
@@ -843,8 +829,6 @@
     "github.com/golangci/golangci-worker/app/analyze/analyzequeue/task",
     "github.com/golangci/golangci-worker/app/lib/github",
     "github.com/golangci/golangci-worker/app/lib/queue",
-    "github.com/golangci/golib/server/database",
-    "github.com/golangci/golib/server/handlers/manager",
     "github.com/google/go-github/github",
     "github.com/gorilla/mux",
     "github.com/gorilla/securecookie",

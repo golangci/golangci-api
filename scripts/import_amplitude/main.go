@@ -11,7 +11,11 @@ import (
 	"time"
 
 	"github.com/golangci/golangci-api/pkg/app/models"
-	"github.com/golangci/golib/server/database"
+	"github.com/pkg/errors"
+
+	"github.com/golangci/golangci-api/pkg/db/gormdb"
+	"github.com/golangci/golangci-shared/pkg/config"
+	"github.com/golangci/golangci-shared/pkg/logutil"
 	"github.com/jinzhu/gorm"
 	uuid "github.com/satori/go.uuid"
 )
@@ -95,8 +99,15 @@ func importEvent(eventJSON string) error {
 }
 
 func storeEvent(event *Event) error {
+	log := logutil.NewStderrLog("")
+	cfg := config.NewEnvConfig(log)
+	db, err := gormdb.GetDB(cfg, log, "")
+	if err != nil {
+		return errors.Wrap(err, "failed to get gorm db")
+	}
+
 	var gr models.Repo
-	err := models.NewRepoQuerySet(database.GetDB().Unscoped()).
+	err = models.NewRepoQuerySet(db.Unscoped()).
 		NameEq(event.EventProperties.RepoName).
 		One(&gr)
 	if err != nil {
@@ -122,10 +133,10 @@ func storeEvent(event *Event) error {
 		// TODO: ResultJSON
 	}
 
-	if err = ga.Create(database.GetDB()); err != nil {
+	if err = ga.Create(db); err != nil {
 		return fmt.Errorf("can't create pull request analysis: %s", err)
 	}
 
-	log.Print(ga)
+	log.Infof("ga is %#v", ga)
 	return nil
 }

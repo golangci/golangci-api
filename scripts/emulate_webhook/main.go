@@ -9,8 +9,13 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/pkg/errors"
+
+	"github.com/golangci/golangci-shared/pkg/config"
+	"github.com/golangci/golangci-shared/pkg/logutil"
+
 	"github.com/golangci/golangci-api/pkg/app/models"
-	"github.com/golangci/golib/server/database"
+	"github.com/golangci/golangci-api/pkg/db/gormdb"
 	gh "github.com/google/go-github/github"
 	"github.com/jinzhu/gorm"
 	_ "github.com/joho/godotenv/autoload"
@@ -137,9 +142,15 @@ func sendWebhookPayload(repoName, event, hookID string, isProd bool, payload int
 }
 
 func getOrCreateRepo(repoName string) (*models.Repo, error) {
+	log := logutil.NewStderrLog("")
+	cfg := config.NewEnvConfig(log)
+	db, err := gormdb.GetDB(cfg, log, "")
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to get gorm db")
+	}
+
 	var repo models.Repo
-	err := models.NewRepoQuerySet(database.GetDB()).NameEq(repoName).One(&repo)
-	if err == nil {
+	if err = models.NewRepoQuerySet(db).NameEq(repoName).One(&repo); err != nil {
 		return &repo, nil
 	}
 
@@ -149,7 +160,7 @@ func getOrCreateRepo(repoName string) (*models.Repo, error) {
 
 	// repo not found, create it
 	var u models.User
-	err = models.NewUserQuerySet(database.GetDB()).EmailEq("idenx@yandex.com").One(&u)
+	err = models.NewUserQuerySet(db).EmailEq("idenx@yandex.com").One(&u)
 	if err != nil {
 		return nil, fmt.Errorf("can't get user: %s", err)
 	}
@@ -159,7 +170,7 @@ func getOrCreateRepo(repoName string) (*models.Repo, error) {
 	repo.UserID = u.ID
 	repo.ProviderHookID = 1
 	repo.HookID = uuid.NewV4().String()[:32]
-	if err = repo.Create(database.GetDB()); err != nil {
+	if err = repo.Create(db); err != nil {
 		return nil, fmt.Errorf("can't create repo %#v: %s", repo, err)
 	}
 

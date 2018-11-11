@@ -22,6 +22,13 @@ func GetDBConnString(cfg config.Config) (string, error) {
 }
 
 func GetDB(cfg config.Config, log logutil.Log, connString string) (*gorm.DB, error) {
+	if connString == "" {
+		var err error
+		connString, err = GetDBConnString(cfg)
+		if err != nil {
+			return nil, err
+		}
+	}
 	adapter := strings.Split(connString, "://")[0]
 
 	db, err := gorm.Open(adapter, connString)
