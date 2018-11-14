@@ -31,7 +31,7 @@ type SetupContainerRequest struct {
 	TimeoutMs uint
 }
 
-type errorResponse struct {
+type ErrorResponse struct {
 	Error string `json:"omitempty"`
 }
 
@@ -43,6 +43,7 @@ type ContainerID struct {
 
 type SetupContainerResponse struct {
 	ContainerID
+	ErrorResponse
 }
 
 type BuildCommandRequest struct {
@@ -52,6 +53,7 @@ type BuildCommandRequest struct {
 
 type BuildCommandResponse struct {
 	BuildResponse build.Response
+	ErrorResponse
 }
 
 type ShutdownContainerRequest struct {
@@ -59,7 +61,7 @@ type ShutdownContainerRequest struct {
 	ContainerID
 }
 
-type ShutdownContainerResponse errorResponse
+type ShutdownContainerResponse ErrorResponse
 
 func NewOrchestrator(log logutil.Log, token string) *Orchestrator {
 	return &Orchestrator{
@@ -106,7 +108,7 @@ func (o Orchestrator) wrapHTTPHandler(w io.Writer, hr *http.Request,
 	}()
 
 	if err != nil {
-		resp = &errorResponse{
+		resp = &ErrorResponse{
 			Error: err.Error(),
 		}
 		o.log.Errorf("[%s] Respond with error %#v for %s", hr.URL.RequestURI(), resp, time.Since(startedAt))
