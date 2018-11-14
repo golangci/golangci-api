@@ -150,7 +150,7 @@ func getOrCreateRepo(repoName string) (*models.Repo, error) {
 	}
 
 	var repo models.Repo
-	if err = models.NewRepoQuerySet(db).NameEq(repoName).One(&repo); err != nil {
+	if err = models.NewRepoQuerySet(db).NameEq(repoName).One(&repo); err == nil {
 		return &repo, nil
 	}
 

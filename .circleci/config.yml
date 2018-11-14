@@ -12,9 +12,7 @@ jobs:
     working_directory: /go/src/github.com/golangci/golangci-api
     steps:
       - checkout
-
-      - run: curl https://raw.githubusercontent.com/golang/dep/master/install.sh | sh
-      - run: dep ensure -v
+      - run: GO111MODULE=on go mod vendor
       - run: go get github.com/golangci/golangci-lint/cmd/golangci-lint
       - run: echo 'REDIS_URL="redis://localhost:6379"' >.env
       - run: echo 'DATABASE_URL="postgresql://postgres:test@localhost:5432/api_prod?sslmode=disable"' >.env.test

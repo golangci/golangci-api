@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"math/rand"
 	"net/http"
 	"os/exec"
@@ -23,7 +24,7 @@ type Orchestrator struct {
 }
 
 const TokenHeaderName = "X-Golangci-Token"
-const minDockerPort = 70001
+const minDockerPort = 7001
 const maxDockerPort = 8000
 
 type SetupContainerRequest struct {
@@ -31,33 +32,31 @@ type SetupContainerRequest struct {
 }
 
 type errorResponse struct {
-	Error string
+	Error string `json:"omitempty"`
 }
 
-type containerID struct {
+type ContainerID struct {
 	ID         string
 	Port       int
 	BuildToken string
 }
 
 type SetupContainerResponse struct {
-	containerID
-	errorResponse
+	ContainerID
 }
 
 type BuildCommandRequest struct {
-	containerID
+	ContainerID
 	build.Request
 }
 
 type BuildCommandResponse struct {
-	errorResponse
 	BuildResponse build.Response
 }
 
 type ShutdownContainerRequest struct {
 	TimeoutMs uint
-	ID        string
+	ContainerID
 }
 
 type ShutdownContainerResponse errorResponse
@@ -70,6 +69,10 @@ func NewOrchestrator(log logutil.Log, token string) *Orchestrator {
 }
 
 func (o Orchestrator) Run(port int) error {
+	if o.token == "" {
+		return errors.New("no token")
+	}
+
 	addr := fmt.Sprintf(":%d", port)
 	srv := &http.Server{Addr: addr}
 	o.log.Infof("Listening on %s...", addr)
@@ -80,7 +83,7 @@ func (o Orchestrator) Run(port int) error {
 	return srv.ListenAndServe()
 }
 
-func (o Orchestrator) wrapHTTPHandler(w http.ResponseWriter, hr *http.Request,
+func (o Orchestrator) wrapHTTPHandler(w io.Writer, hr *http.Request,
 	h func(hr *http.Request) (interface{}, error)) {
 
 	startedAt := time.Now()
@@ -106,9 +109,9 @@ func (o Orchestrator) wrapHTTPHandler(w http.ResponseWriter, hr *http.Request,
 		resp = &errorResponse{
 			Error: err.Error(),
 		}
-		o.log.Errorf("Respond with error %#v for %s", resp, time.Since(startedAt))
+		o.log.Errorf("[%s] Respond with error %#v for %s", hr.URL.RequestURI(), resp, time.Since(startedAt))
 	} else {
-		o.log.Infof("Respond ok %#v for %s", resp, time.Since(startedAt))
+		o.log.Infof("[%s] Respond ok %#v for %s", hr.URL.RequestURI(), resp, time.Since(startedAt))
 	}
 
 	if err := json.NewEncoder(w).Encode(resp); err != nil {
@@ -121,6 +124,7 @@ func (o Orchestrator) parseRequest(hr *http.Request, req interface{}) error {
 		return errors.Wrap(err, "failed to decode http request body as json to request")
 	}
 
+	o.log.Infof("Parsed request %#v", req)
 	return nil
 }
 
@@ -152,33 +156,35 @@ func (o Orchestrator) setupContainer(req *SetupContainerRequest) (*SetupContaine
 		port := genRandomDockerPort()
 		const runnerPort = 7000
 		portsMapping := fmt.Sprintf("127.0.0.1:%d:%d", port, runnerPort)
-		cmd := exec.CommandContext(ctx, "docker", "run", "-d", "--rm",
+		dockerArgs := []string{"run", "-d", "--rm",
 			"-e", fmt.Sprintf("TOKEN=%s", buildToken),
-			"-p", portsMapping, "golangci/build-runner")
+			"-p", portsMapping, "golangci/build-runner"}
+		o.log.Infof("Docker setup args: %v", dockerArgs)
+		cmd := exec.CommandContext(ctx, "docker", dockerArgs...)
 		var stderrBuf bytes.Buffer
 		cmd.Stderr = &stderrBuf
 
 		out, err := cmd.Output()
 		if err != nil {
 			if ctx.Err() != nil {
-				return nil, fmt.Errorf("timeouted running container: err: %s, ctx err: %s, stderr: %s, stdout: %s",
-					err, ctx.Err(), stderrBuf.String(), string(out))
+				return nil, fmt.Errorf("timeouted running container with args %v: err: %s, ctx err: %s, stderr: %s, stdout: %s",
+					dockerArgs, err, ctx.Err(), stderrBuf.String(), string(out))
 			}
 
 			if i == attemptsN-1 {
-				return nil, errors.Wrapf(err, "failed running container, stderr: %s, stdout: %s",
-					stderrBuf.String(), string(out))
+				return nil, errors.Wrapf(err, "failed running container with args %s, stderr: %s, stdout: %s",
+					dockerArgs, stderrBuf.String(), string(out))
 			}
 
-			o.log.Warnf("Failed running container, try again: err: %s, stderr: %s, stdout: %s",
-				err, stderrBuf.String(), string(out))
+			o.log.Warnf("Failed running container with args %s, try again: err: %s, stderr: %s, stdout: %s",
+				dockerArgs, err, stderrBuf.String(), string(out))
 			time.Sleep(time.Second * 3)
 			continue
 		}
 
 		outStr := strings.TrimSpace(string(out))
 		return &SetupContainerResponse{
-			containerID: containerID{
+			ContainerID: ContainerID{
 				ID:         outStr,
 				Port:       port,
 				BuildToken: buildToken,
@@ -200,7 +206,7 @@ func (o Orchestrator) handleShutdownRequest(w http.ResponseWriter, hr *http.Requ
 			return nil, err
 		}
 
-		return &SetupContainerResponse{}, nil
+		return &ShutdownContainerResponse{}, nil
 	})
 }
 
@@ -247,7 +253,7 @@ func (o Orchestrator) handleBuildCommandRequest(w http.ResponseWriter, hr *http.
 }
 
 func (o Orchestrator) runBuildCommand(req *BuildCommandRequest) (*BuildCommandResponse, error) {
-	cID := req.containerID
+	cID := req.ContainerID
 	if cID.Port < minDockerPort || cID.Port > maxDockerPort {
 		return nil, fmt.Errorf("invalid port %d", cID.Port)
 	}
