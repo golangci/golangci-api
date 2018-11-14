@@ -8,14 +8,12 @@ require (
 	github.com/Microsoft/go-winio v0.4.11 // indirect
 	github.com/RichardKnop/logging v0.0.0-20171219150333-66aaaba18258 // indirect
 	github.com/RichardKnop/machinery v0.0.0-20180221144734-c5e057032f00 // indirect
-	github.com/StackExchange/wmi v0.0.0-20180116203802-5d049714c4a6 // indirect
 	github.com/ajg/form v0.0.0-20160822230020-523a5da1a92f // indirect
 	github.com/aws/aws-lambda-go v1.6.0
 	github.com/aws/aws-sdk-go v0.0.0-20180126231901-00cca3f093a8
 	github.com/bradfitz/gomemcache v0.0.0-20170208213004-1952afaa557d // indirect
 	github.com/cenkalti/backoff v2.0.0+incompatible
 	github.com/certifi/gocertifi v0.0.0-20180118203423-deb3ae2ef261 // indirect
-	github.com/davecgh/go-spew v0.0.0-20171005155431-ecdeabc65495 // indirect
 	github.com/denisenkom/go-mssqldb v0.0.0-20181014144952-4e0d7dc8888f // indirect
 	github.com/docker/distribution v2.6.2+incompatible // indirect
 	github.com/docker/docker v1.13.1 // indirect
@@ -32,11 +30,9 @@ require (
 	github.com/go-ini/ini v1.32.0 // indirect
 	github.com/go-kit/kit v0.7.0
 	github.com/go-logfmt/logfmt v0.3.0 // indirect
-	github.com/go-ole/go-ole v1.2.1 // indirect
 	github.com/go-sql-driver/mysql v1.4.1 // indirect
 	github.com/go-stack/stack v1.7.0 // indirect
-	github.com/golang/mock v0.0.0-20171216012612-b3e60bcdc577 // indirect
-	github.com/golangci/golangci-lint v1.9.3 // indirect
+	github.com/golangci/golangci-lint v0.0.0-20181114200623-a84578d603c7
 	github.com/golangci/golangci-shared v0.0.0-20181003182622-9200811537b3
 	github.com/golangci/golangci-worker v0.0.0-20180812155933-97fc92d30cca
 	github.com/google/go-cmp v0.2.0 // indirect
@@ -64,25 +60,20 @@ require (
 	github.com/lib/pq v0.0.0-20180201184707-88edab080323
 	github.com/markbates/goth v0.0.0-20180113214406-24f8ac10e57e
 	github.com/mattes/migrate v0.0.0-20171208214826-d23f71b03c4a
-	github.com/mattn/go-colorable v0.0.9 // indirect
-	github.com/mattn/go-isatty v0.0.3 // indirect
 	github.com/mattn/go-sqlite3 v1.10.0 // indirect
 	github.com/moul/http2curl v1.0.0 // indirect
-	github.com/onsi/gomega v1.4.2 // indirect
 	github.com/pkg/errors v0.8.0
-	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/rs/cors v0.0.0-20170801073201-eabcc6af4bbe
 	github.com/satori/go.uuid v1.2.0
 	github.com/savaki/amplitude-go v0.0.0-20160610055645-f62e3b57c0e4
 	github.com/sergi/go-diff v1.0.0 // indirect
 	github.com/shirou/gopsutil v0.0.0-20180801053943-8048a2e9c577 // indirect
-	github.com/shirou/w32 v0.0.0-20160930032740-bb4de0191aa4 // indirect
-	github.com/sirupsen/logrus v1.0.4
+	github.com/sirupsen/logrus v1.0.5
 	github.com/smartystreets/assertions v0.0.0-20180927180507-b2de0cb4f26d // indirect
 	github.com/smartystreets/goconvey v0.0.0-20181108003508-044398e4856c // indirect
 	github.com/stevvooe/resumable v0.0.0-20180830230917-22b14a53ba50 // indirect
 	github.com/streadway/amqp v0.0.0-20180131094250-fc7fda2371f5 // indirect
-	github.com/stretchr/testify v0.0.0-20161117074351-18a02ba4a312
+	github.com/stretchr/testify v1.2.1
 	github.com/stvp/rollbar v0.5.1 // indirect
 	github.com/stvp/tempredis v0.0.0-20160122230306-83f7aae7ea49 // indirect
 	github.com/urfave/negroni v0.0.0-20180105164225-ff85fb036d90
@@ -95,15 +86,12 @@ require (
 	github.com/yudai/gojsondiff v0.0.0-20171126075747-e21612694bdd // indirect
 	github.com/yudai/golcs v0.0.0-20170316035057-ecda9a501e82 // indirect
 	github.com/yudai/pp v2.0.1+incompatible // indirect
-	golang.org/x/crypto v0.0.0-20180119165957-a66000089151 // indirect
 	golang.org/x/oauth2 v0.0.0-20180118004544-b28fcf2b08a1
 	golang.org/x/sync v0.0.0-20181108010431-42b317875d0f // indirect
-	golang.org/x/tools v0.0.0-20180826000951-f6ba57429505
+	golang.org/x/tools v0.0.0-20180831211245-5d4988d199e2
 	google.golang.org/appengine v1.0.0 // indirect
-	gopkg.in/airbrake/gobrake.v2 v2.0.9 // indirect
 	gopkg.in/boj/redistore.v1 v1.0.0-20160128113310-fc113767cd6b
 	gopkg.in/check.v1 v1.0.0-20180628173108-788fd7840127 // indirect
-	gopkg.in/gemnasium/logrus-airbrake-hook.v2 v2.1.2 // indirect
 	gopkg.in/ini.v1 v1.39.0 // indirect
 	gopkg.in/mgo.v2 v2.0.0-20160818020120-3f83fa500528 // indirect
 	gopkg.in/redsync.v1 v1.0.1
