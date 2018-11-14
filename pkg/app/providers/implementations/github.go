@@ -33,6 +33,10 @@ func (p Github) Name() string {
 	return GithubProviderName
 }
 
+func (p Github) LinkToPullRequest(repo *models.Repo, num int) string {
+	return fmt.Sprintf("https://github.com/%s/pull/%d", repo.DisplayName, num)
+}
+
 func (p *Github) SetBaseURL(s string) error {
 	baseURL, err := url.Parse(s)
 	if err != nil {
@@ -236,5 +240,6 @@ func (p Github) GetPullRequest(ctx context.Context, owner, repo string, number i
 
 	return &provider.PullRequest{
 		HeadCommitSHA: pr.GetHead().GetSHA(),
+		State:         pr.GetState(),
 	}, nil
 }

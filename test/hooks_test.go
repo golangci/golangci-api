@@ -58,18 +58,18 @@ func TestStaleAnalyzes(t *testing.T) {
 	r.ExpectWebhook("pull_request", getTestPREvent()).Status(http.StatusOK)
 
 	timeout := 3 * time.Second
-	restarter := pranalyzes.Restarter{
+	staler := pranalyzes.Staler{
 		DB:              deps.DB,
 		Log:             deps.Log,
 		ProviderFactory: deps.ProviderFactory,
 	}
-	staleCount, err := restarter.RunIteration(timeout)
+	staleCount, err := staler.RunIteration(timeout)
 	assert.NoError(t, err)
 	assert.Zero(t, staleCount)
 
 	time.Sleep(timeout + time.Millisecond)
 
-	staleCount, err = restarter.RunIteration(timeout)
+	staleCount, err = staler.RunIteration(timeout)
 	assert.NoError(t, err)
 	assert.Equal(t, 1, staleCount)
 }

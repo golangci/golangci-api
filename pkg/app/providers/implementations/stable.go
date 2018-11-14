@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/cenkalti/backoff"
+	"github.com/golangci/golangci-api/pkg/app/models"
 	"github.com/golangci/golangci-api/pkg/app/providers/provider"
 )
 
@@ -24,6 +25,10 @@ func NewStableProvider(underlying provider.Provider, totalTimeout time.Duration,
 
 func (p StableProvider) Name() string {
 	return p.underlying.Name()
+}
+
+func (p StableProvider) LinkToPullRequest(repo *models.Repo, num int) string {
+	return p.underlying.LinkToPullRequest(repo, num)
 }
 
 func (p StableProvider) SetBaseURL(s string) error {

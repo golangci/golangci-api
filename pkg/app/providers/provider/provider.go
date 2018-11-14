@@ -2,10 +2,14 @@ package provider
 
 import (
 	"context"
+
+	"github.com/golangci/golangci-api/pkg/app/models"
 )
 
 type Provider interface {
 	Name() string
+
+	LinkToPullRequest(repo *models.Repo, num int) string
 
 	SetBaseURL(url string) error
 
