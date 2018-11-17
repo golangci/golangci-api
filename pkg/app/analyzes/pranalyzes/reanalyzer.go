@@ -45,7 +45,7 @@ func (r Reanalyzer) RunOnce() error {
 	dur := r.cfg.GetDuration("PR_REANALYZER_DURATION", time.Hour*24*9)
 	var analyzes []models.PullRequestAnalysis
 	err := models.NewPullRequestAnalysisQuerySet(r.db).
-		//StatusEq("forced_stale").
+		StatusEq("forced_stale").
 		CreatedAtGte(time.Now().Add(-dur)).OrderDescByID().All(&analyzes)
 	if err != nil {
 		return errors.Wrapf(err, "failed to fetch last pr analyzes for %s", dur)

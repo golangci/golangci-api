@@ -32,7 +32,7 @@ type SetupContainerRequest struct {
 }
 
 type ErrorResponse struct {
-	Error string `json:"omitempty"`
+	Error string `json:",omitempty"`
 }
 
 type ContainerID struct {
