@@ -26,18 +26,31 @@ type Reanalyzer struct {
 	cfg config.Config
 	log logutil.Log
 	pf  providers.Factory
-
-	seenPullRequests map[string]bool
 }
 
 func NewReanalyzer(db *gorm.DB, cfg config.Config, log logutil.Log, pf providers.Factory) *Reanalyzer {
 	return &Reanalyzer{
-		db:               db,
-		cfg:              cfg,
-		log:              log,
-		pf:               pf,
-		seenPullRequests: map[string]bool{},
+		db:  db,
+		cfg: cfg,
+		log: log,
+		pf:  pf,
 	}
+}
+
+func (r Reanalyzer) mergeAnalyzes(analyzes []models.PullRequestAnalysis) []models.PullRequestAnalysis {
+	var ret []models.PullRequestAnalysis
+	seen := map[string]bool{}
+	for _, a := range analyzes {
+		key := fmt.Sprintf("repoID=%d prNumber=%d", a.RepoID, a.PullRequestNumber)
+		if seen[key] {
+			continue
+		}
+		seen[key] = true
+		ret = append(ret, a)
+	}
+
+	r.log.Infof("Combined %d analyzes to %d uniq-pr analyzes", len(analyzes), len(ret))
+	return ret
 }
 
 func (r Reanalyzer) RunOnce() error {
@@ -45,14 +58,15 @@ func (r Reanalyzer) RunOnce() error {
 	dur := r.cfg.GetDuration("PR_REANALYZER_DURATION", time.Hour*24*9)
 	var analyzes []models.PullRequestAnalysis
 	err := models.NewPullRequestAnalysisQuerySet(r.db).
-		StatusEq("forced_stale").
+		StatusIn("processed/error", "forced_stale").
 		CreatedAtGte(time.Now().Add(-dur)).OrderDescByID().All(&analyzes)
 	if err != nil {
 		return errors.Wrapf(err, "failed to fetch last pr analyzes for %s", dur)
 	}
 
-	statusesDistribution := map[string]int{}
+	analyzes = r.mergeAnalyzes(analyzes)
 
+	statusesDistribution := map[string]int{}
 	for _, a := range analyzes {
 		statusesDistribution[a.Status]++
 	}
@@ -108,12 +122,6 @@ func (r *Reanalyzer) processAnalysis(ctx context.Context, a *models.PullRequestA
 	}
 
 	prLink := p.LinkToPullRequest(&repo, a.PullRequestNumber)
-	if r.seenPullRequests[prLink] {
-		r.log.Infof("%s was already seen", prLink)
-		return nil
-	}
-	r.seenPullRequests[prLink] = true
-
 	link := fmt.Sprintf("%s ID=%d", prLink, a.ID)
 	if repo.DeletedAt != nil {
 		r.log.Warnf("#%d: %s repo was disconnected, skip (%s ago)", i, link, time.Since(a.CreatedAt))
@@ -171,10 +179,8 @@ func (r *Reanalyzer) processAnalysis(ctx context.Context, a *models.PullRequestA
 		var updatedAnalysis models.PullRequestAnalysis
 		err = models.NewPullRequestAnalysisQuerySet(r.db).IDEq(a.ID).One(&updatedAnalysis)
 		if err == nil && updatedAnalysis.UpdatedAt.After(a.UpdatedAt) {
-			sleepDur := 5 * time.Second
-			r.log.Infof("%s was reanalyzed for %s, sleeping %s",
-				link, time.Since(startedPollingAt), sleepDur)
-			time.Sleep(sleepDur)
+			r.log.Infof("%s was reanalyzed for %s, status: %s -> %s",
+				link, time.Since(startedPollingAt), a.Status, updatedAnalysis.Status)
 			break
 		}
 		r.log.Infof("Polling: err: %s, updated at: new=%s, prev=%s", err, updatedAnalysis.UpdatedAt, a.UpdatedAt)
