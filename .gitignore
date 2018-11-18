@@ -4,3 +4,4 @@
 /golangci-api
 /*.log
 /logs/
+/tmp/

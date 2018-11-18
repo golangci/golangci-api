@@ -6,7 +6,7 @@ import (
 	"log"
 	"os"
 
-	"github.com/golangci/golangci-api/pkg/app/ensuredeps"
+	"github.com/golangci/golangci-api/pkg/goenv/ensuredeps"
 )
 
 func main() {
