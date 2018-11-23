@@ -80,13 +80,19 @@ func (p Github) unwrapError(err error) error {
 	return err
 }
 
-func parseGithubRepository(r *github.Repository) *provider.Repo {
+func parseGithubRepository(r *github.Repository, root bool) *provider.Repo {
+	var source *provider.Repo
+	if root && r.GetSource() != nil { // repository is a fork, select source
+		source = parseGithubRepository(r.GetSource(), false)
+	}
+
 	return &provider.Repo{
 		ID:            r.GetID(),
 		Name:          r.GetFullName(),
 		IsAdmin:       r.GetPermissions()["admin"],
 		IsPrivate:     r.GetPrivate(),
 		DefaultBranch: r.GetDefaultBranch(),
+		Source:        source,
 	}
 }
 
@@ -96,7 +102,7 @@ func (p Github) GetRepoByName(ctx context.Context, owner, repo string) (*provide
 		return nil, p.unwrapError(err)
 	}
 
-	return parseGithubRepository(r), nil
+	return parseGithubRepository(r, true), nil
 }
 
 func (p Github) parseHook(h *github.Hook) *provider.Hook {
@@ -214,7 +220,7 @@ func (p Github) ListRepos(ctx context.Context, cfg *provider.ListReposConfig) ([
 		}
 
 		for _, r := range pageRepos {
-			ret = append(ret, *parseGithubRepository(r))
+			ret = append(ret, *parseGithubRepository(r, true))
 		}
 
 		if resp.NextPage == 0 { // it's the last page

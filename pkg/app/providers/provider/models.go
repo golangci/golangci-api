@@ -6,6 +6,11 @@ type Repo struct {
 	IsAdmin       bool
 	IsPrivate     bool
 	DefaultBranch string
+
+	// The parent and source objects are present when the repository is a fork.
+	// parent is the repository this repository was forked from,
+	// source is the ultimate source for the network.
+	Source *Repo
 }
 
 type Branch struct {
