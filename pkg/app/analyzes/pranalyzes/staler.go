@@ -48,8 +48,6 @@ func (r Staler) RunIteration(taskProcessingTimeout time.Duration) (int, error) {
 	for _, analysis := range analyzes {
 		if err = r.updateStaleAnalysis(analysis); err != nil {
 			r.Log.Errorf("Can't update stale analysis %+v: %s", analysis, err)
-		} else {
-			r.Log.Warnf("Fixed stale analysis %+v", analysis)
 		}
 	}
 
@@ -105,5 +103,6 @@ func (r Staler) updateStaleAnalysis(analysis models.PullRequestAnalysis) error {
 		return errors.Wrap(err, "can't update stale analysis")
 	}
 
+	r.Log.Warnf("Fixed stale analysis for repo %s: %+v", repo.String(), analysis)
 	return nil
 }
