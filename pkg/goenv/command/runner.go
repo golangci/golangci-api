@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"context"
 	"io"
+	"os"
 	"os/exec"
 	"strings"
 
@@ -21,7 +22,7 @@ func NewStreamingRunner(step *result.Step) *StreamingRunner {
 	}
 }
 
-func (r StreamingRunner) wait(ctx context.Context, name string, childPid int, outReader io.Reader) ([]string, error) {
+func (r StreamingRunner) wait(outReader io.Reader) ([]string, error) {
 	scanner := bufio.NewScanner(outReader)
 	lines := []string{}
 	for scanner.Scan() {
@@ -38,8 +39,8 @@ func (r StreamingRunner) wait(ctx context.Context, name string, childPid int, ou
 	return lines, nil
 }
 
-func (r StreamingRunner) Run(ctx context.Context, env []string, name string, args ...string) (string, error) {
-	pid, outReader, finish, err := r.runAsync(ctx, env, name, args...)
+func (r StreamingRunner) Run(ctx context.Context, env []string, wd string, name string, args ...string) (string, error) {
+	_, outReader, finish, err := r.runAsync(ctx, env, wd, name, args...)
 	if err != nil {
 		return "", err
 	}
@@ -55,7 +56,7 @@ func (r StreamingRunner) Run(ctx context.Context, env []string, name string, arg
 		}
 	}()
 
-	lines, waitErr := r.wait(ctx, name, pid, outReader)
+	lines, waitErr := r.wait(outReader)
 
 	err = finish()
 
@@ -69,9 +70,12 @@ func (r StreamingRunner) Run(ctx context.Context, env []string, name string, arg
 
 type finishFunc func() error
 
-func (r StreamingRunner) runAsync(ctx context.Context, env []string, name string, args ...string) (int, io.ReadCloser, finishFunc, error) {
+func (r StreamingRunner) runAsync(ctx context.Context, env []string, wd string, name string, args ...string) (int, io.ReadCloser, finishFunc, error) {
 	cmd := exec.CommandContext(ctx, name, args...)
-	cmd.Env = env
+	if env != nil {
+		cmd.Env = append(os.Environ(), env...)
+	}
+	cmd.Dir = wd
 
 	outReader, err := cmd.StdoutPipe()
 	if err != nil {
