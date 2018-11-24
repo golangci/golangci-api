@@ -29,7 +29,7 @@ var availableGolangciLintVersions = map[int]map[int][]int{
 	1: {
 		10: {0, 1, 2},
 		11: {0, 1, 2, 3},
-		12: {0, 1, 2},
+		12: {0, 1, 2, 3},
 	},
 }
 
@@ -440,9 +440,9 @@ func (p Preparer) setupWorkDir(sg *result.StepGroup, log logutil.Log, projectAdd
 	}
 
 	copyDest := projectDir + string(filepath.Separator)
-	sg.AddStep("cp -r . " + copyDest)
+	sg.AddStep("cp -R . " + copyDest)
 	runner := command.NewStreamingRunner(sg.LastStep())
-	if _, err := runner.Run(context.TODO(), nil, "", "cp", "-r", ".", copyDest); err != nil {
+	if _, err := runner.Run(context.TODO(), nil, "", "cp", "-R", ".", copyDest); err != nil {
 		return "", err
 	}
 
