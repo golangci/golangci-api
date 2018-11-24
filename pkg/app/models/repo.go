@@ -53,6 +53,8 @@ type Repo struct {
 	ProviderID     int // provider repo id: use it (not name) as repo identifier because of repo renaming
 
 	CommitState RepoCommitState // state of creation or deletion
+
+	StargazersCount int
 }
 
 func (r *Repo) Owner() string {

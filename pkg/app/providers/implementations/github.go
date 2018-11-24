@@ -87,12 +87,13 @@ func parseGithubRepository(r *github.Repository, root bool) *provider.Repo {
 	}
 
 	return &provider.Repo{
-		ID:            r.GetID(),
-		Name:          r.GetFullName(),
-		IsAdmin:       r.GetPermissions()["admin"],
-		IsPrivate:     r.GetPrivate(),
-		DefaultBranch: r.GetDefaultBranch(),
-		Source:        source,
+		ID:              r.GetID(),
+		Name:            r.GetFullName(),
+		IsAdmin:         r.GetPermissions()["admin"],
+		IsPrivate:       r.GetPrivate(),
+		DefaultBranch:   r.GetDefaultBranch(),
+		Source:          source,
+		StargazersCount: r.GetStargazersCount(),
 	}
 }
 

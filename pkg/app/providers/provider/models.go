@@ -11,6 +11,8 @@ type Repo struct {
 	// parent is the repository this repository was forked from,
 	// source is the ultimate source for the network.
 	Source *Repo
+
+	StargazersCount int
 }
 
 type Branch struct {

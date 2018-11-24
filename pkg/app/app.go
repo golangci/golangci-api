@@ -10,9 +10,10 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	redigo "github.com/garyburd/redigo/redis"
-	"github.com/golangci/golangci-api/pkg/app/analyzes/pranalyzes"
-	repoanalyzeslib "github.com/golangci/golangci-api/pkg/app/analyzes/repoanalyzes"
 	"github.com/golangci/golangci-api/pkg/app/auth/oauth"
+	"github.com/golangci/golangci-api/pkg/app/crons/pranalyzes"
+	repoanalyzeslib "github.com/golangci/golangci-api/pkg/app/crons/repoanalyzes"
+	"github.com/golangci/golangci-api/pkg/app/crons/repoinfo"
 	"github.com/golangci/golangci-api/pkg/app/providers"
 	"github.com/golangci/golangci-api/pkg/app/services/auth"
 	"github.com/golangci/golangci-api/pkg/app/services/events"
@@ -83,6 +84,7 @@ type App struct {
 	redisPool        *redigo.Pool
 
 	PRAnalyzesStaler      *pranalyzes.Staler // TODO: make private
+	repoInfoUpdater       *repoinfo.Updater
 	repoAnalyzesRestarter *repoanalyzeslib.Restarter
 }
 
@@ -257,6 +259,12 @@ func NewApp(modifiers ...Modifier) *App {
 		Log: a.trackedLog,
 		Cfg: a.cfg,
 	}
+	a.repoInfoUpdater = &repoinfo.Updater{
+		DB:  a.gormDB,
+		Cfg: a.cfg,
+		Log: a.trackedLog,
+		Pf:  a.providerFactory,
+	}
 
 	return &a
 }
@@ -336,6 +344,7 @@ func (a App) RunEnvironment() {
 
 	go a.PRAnalyzesStaler.Run()
 	go a.repoAnalyzesRestarter.Run()
+	go a.repoInfoUpdater.Run()
 }
 
 func (a App) RunForever() {

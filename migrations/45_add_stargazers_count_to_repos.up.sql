@@ -1,0 +1,1 @@
+ALTER TABLE repos ADD COLUMN stargazers_count INT NOT NULL DEFAULT -1;

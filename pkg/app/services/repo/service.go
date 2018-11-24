@@ -141,13 +141,14 @@ func (s BasicService) Create(rc *request.AuthorizedContext, reqRepo *request.Bod
 	}
 
 	repo = models.Repo{
-		UserID:      rc.Auth.UserID,
-		Name:        strings.ToLower(providerRepo.Name),
-		DisplayName: providerRepo.Name,
-		HookID:      hookID,
-		Provider:    provider.Name(),
-		ProviderID:  providerRepo.ID,
-		CommitState: models.RepoCommitStateCreateInit,
+		UserID:          rc.Auth.UserID,
+		Name:            strings.ToLower(providerRepo.Name),
+		DisplayName:     providerRepo.Name,
+		HookID:          hookID,
+		Provider:        provider.Name(),
+		ProviderID:      providerRepo.ID,
+		CommitState:     models.RepoCommitStateCreateInit,
+		StargazersCount: -1, // will be fetched later
 	}
 	if err = repo.Create(rc.DB); err != nil {
 		return nil, errors.Wrap(err, "can't create repo")

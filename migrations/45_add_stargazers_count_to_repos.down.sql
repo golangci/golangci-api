@@ -1,0 +1,1 @@
+ALTER TABLE repos DROP COLUMN stargazers_count;
