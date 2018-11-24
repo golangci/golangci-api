@@ -2,6 +2,7 @@ package repoinfo
 
 import (
 	"context"
+	"strings"
 	"time"
 
 	"github.com/golangci/golangci-api/pkg/app/providers"
@@ -82,8 +83,25 @@ func (u Updater) updateRepoInfo(r *models.Repo) error {
 		return errors.Wrapf(err, "failed to get repo by name %s/%s", r.Owner(), r.Repo())
 	}
 
-	r.StargazersCount = providerRepo.StargazersCount
-	if err = r.Update(u.DB, models.RepoDBSchema.StargazersCount); err != nil {
+	up := models.NewRepoQuerySet(u.DB).IDEq(r.ID).GetUpdater()
+	if r.StargazersCount != providerRepo.StargazersCount {
+		r.StargazersCount = providerRepo.StargazersCount
+		up = up.SetStargazersCount(r.StargazersCount)
+	}
+
+	if r.DisplayName != providerRepo.Name {
+		r.DisplayName = providerRepo.Name
+		up = up.SetDisplayName(r.DisplayName)
+	}
+
+	lcName := strings.ToLower(providerRepo.Name)
+	if r.Name != lcName {
+		u.Log.Infof("Updating repo ID=%d name from %s to %s", r.ID, r.Name, lcName)
+		r.Name = lcName
+		up = up.SetName(r.Name)
+	}
+
+	if err = up.Update(); err != nil {
 		return errors.Wrap(err, "failed to update stargazers count")
 	}
 
