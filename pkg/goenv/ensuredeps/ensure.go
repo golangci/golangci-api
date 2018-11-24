@@ -106,7 +106,7 @@ func (r Runner) Run(ctx context.Context, repoName string) *Result {
 }
 
 func (r *Runner) syncDeps(ctx context.Context, repoName string) error {
-	r.log.Infof("Syncing deps...")
+	r.log.Infof("Finding dependency management tool...")
 	detectedTool, reason, err := r.detectTool()
 	if err != nil {
 		r.log.Warnf("Failed to detect tool: %s", err)
@@ -115,7 +115,9 @@ func (r *Runner) syncDeps(ctx context.Context, repoName string) error {
 	}
 	r.depTool = detectedTool
 	r.depToolReason = reason
+
 	r.log.Infof("Detected tool is %s (%s)", detectedTool.name, reason)
+	r.log.Infof("Syncing deps...")
 
 	if err = detectedTool.sync(ctx, r.cr); err != nil {
 		if detectedTool == &defaultTool {
