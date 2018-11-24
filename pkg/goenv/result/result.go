@@ -91,6 +91,10 @@ func (lg *Log) AddStepGroup(name string) *StepGroup {
 	return sg
 }
 
+func (lg *Log) LastStepGroup() *StepGroup {
+	return lg.Groups[len(lg.Groups)-1]
+}
+
 type Result struct {
 	ServiceConfig goenvconfig.Service
 

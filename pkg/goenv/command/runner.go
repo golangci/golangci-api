@@ -3,6 +3,7 @@ package command
 import (
 	"bufio"
 	"context"
+	"fmt"
 	"io"
 	"os"
 	"os/exec"
@@ -13,22 +14,45 @@ import (
 )
 
 type StreamingRunner struct {
-	step *result.Step
+	log *result.Log
+	wd  string
+	env []string
 }
 
-func NewStreamingRunner(step *result.Step) *StreamingRunner {
+func NewStreamingRunner(log *result.Log) *StreamingRunner {
 	return &StreamingRunner{
-		step: step,
+		log: log,
+	}
+}
+
+func (r StreamingRunner) WithEnv(k, v string) *StreamingRunner {
+	return r.WithEnvPair(fmt.Sprintf("%s=%s", k, v))
+}
+
+func (r StreamingRunner) WithEnvPair(envPair string) *StreamingRunner {
+	return &StreamingRunner{
+		log: r.log,
+		wd:  r.wd,
+		env: append([]string{envPair}, r.env...),
+	}
+}
+
+func (r StreamingRunner) WithWD(wd string) *StreamingRunner {
+	return &StreamingRunner{
+		log: r.log,
+		wd:  wd,
+		env: r.env,
 	}
 }
 
 func (r StreamingRunner) wait(outReader io.Reader) ([]string, error) {
 	scanner := bufio.NewScanner(outReader)
 	lines := []string{}
+	step := r.log.LastStepGroup().LastStep()
 	for scanner.Scan() {
 		line := strings.TrimSpace(scanner.Text())
 		if line != "" {
-			r.step.AddOutputLine(line)
+			step.AddOutputLine(line)
 		}
 		lines = append(lines, line)
 	}
@@ -39,8 +63,8 @@ func (r StreamingRunner) wait(outReader io.Reader) ([]string, error) {
 	return lines, nil
 }
 
-func (r StreamingRunner) Run(ctx context.Context, env []string, wd string, name string, args ...string) (string, error) {
-	_, outReader, finish, err := r.runAsync(ctx, env, wd, name, args...)
+func (r StreamingRunner) Run(ctx context.Context, name string, args ...string) (string, error) {
+	_, outReader, finish, err := r.runAsync(ctx, r.env, r.wd, name, args...)
 	if err != nil {
 		return "", err
 	}

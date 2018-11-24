@@ -4,12 +4,14 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 
+	"github.com/golangci/golangci-api/pkg/goenv/command"
+
+	"github.com/golangci/golangci-shared/pkg/logutil"
+
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 )
 
 type Message struct {
@@ -18,8 +20,7 @@ type Message struct {
 }
 
 type Result struct {
-	Success  bool
-	Warnings []Message `json:",omitempty"`
+	Success bool
 
 	UsedTool       string
 	UsedToolReason string
@@ -37,16 +38,14 @@ var defaultTool = tool{
 	syncEnv: []string{"GO111MODULE=off"}, // checksum troubles
 }
 
-func (t tool) sync(ctx context.Context) error {
-	cmd := exec.CommandContext(ctx, t.syncCmd[0], t.syncCmd[1:]...)
-	if t.syncEnv != nil {
-		cmd.Env = append([]string{}, os.Environ()...)
-		cmd.Env = append(cmd.Env, t.syncEnv...)
+func (t tool) sync(ctx context.Context, r *command.StreamingRunner) error {
+	for _, env := range t.syncEnv {
+		r = r.WithEnvPair(env)
 	}
 
-	out, err := cmd.CombinedOutput()
+	out, err := r.Run(ctx, t.syncCmd[0], t.syncCmd[1:]...)
 	if err != nil {
-		return errors.Wrapf(err, "command failed: %s", string(out))
+		return errors.Wrapf(err, "command failed: %s", out)
 	}
 
 	return nil
@@ -57,56 +56,43 @@ type Runner struct {
 	depTool       *tool
 	depToolReason string
 
-	repoName   string
-	verboseLog bool
+	log logutil.Log
+	cr  *command.StreamingRunner
 }
 
-func NewRunner(verboseLog bool, repoName string) *Runner {
+func NewRunner(log logutil.Log, cr *command.StreamingRunner) *Runner {
 	return &Runner{
-		res:        &Result{},
-		verboseLog: verboseLog,
-		repoName:   repoName,
+		res: &Result{},
+		log: log,
+		cr:  cr,
 	}
 }
 
-func (r *Runner) warn(kind, text string) {
-	r.res.Warnings = append(r.res.Warnings, Message{
-		Kind: kind,
-		Text: text,
-	})
-	if r.verboseLog {
-		logrus.Warnf("%s: %s", kind, text)
-	}
-}
-
-func (r *Runner) infof(format string, args ...interface{}) {
-	if r.verboseLog {
-		logrus.Infof(format, args...)
-	}
-}
-
-func (r Runner) Run() *Result {
+func (r Runner) Run(ctx context.Context, repoName string) *Result {
 	hasGoFiles, err := r.hasDirGoFilesRecursively(".")
 	if err != nil {
-		r.warn("check repo", err.Error())
+		r.log.Warnf("Failed to check does repo has Go files: %s", err)
 	} else if !hasGoFiles {
-		r.warn("check repo", "no Go files")
+		r.log.Warnf("Repo doesn't have Go files")
 		return r.res
 	}
 
-	r.infof("current dir has go files")
+	r.log.Infof("Current dir has go files")
 
-	ctx := context.Background()
 	hasFilledVendor, err := r.hasFilledVendorDir()
 	if err != nil {
-		r.warn("check vendor dir", err.Error())
+		r.log.Warnf("Failed to check vendor dir: %s", err)
 	}
-	r.infof("has filled vendor dir: %t", hasFilledVendor)
+	if hasFilledVendor {
+		r.log.Infof("Found filled vendor dir")
+	} else {
+		r.log.Infof("Filled vendor dir wasn't found")
+	}
 
 	r.res.Success = true
-	if !hasFilledVendor || r.checkDeps(ctx) != nil {
-		if err = r.syncDeps(ctx); err != nil {
-			r.warn("sync deps", err.Error())
+	if !hasFilledVendor || r.checkDeps(ctx, repoName) != nil {
+		if err = r.syncDeps(ctx, repoName); err != nil {
+			r.log.Warnf("Failed to sync deps")
 			r.res.Success = false
 		}
 		r.res.UsedTool = r.depTool.name
@@ -119,73 +105,72 @@ func (r Runner) Run() *Result {
 	return r.res
 }
 
-func (r *Runner) syncDeps(ctx context.Context) error {
-	r.infof("syncing deps...")
+func (r *Runner) syncDeps(ctx context.Context, repoName string) error {
+	r.log.Infof("Syncing deps...")
 	detectedTool, reason, err := r.detectTool()
 	if err != nil {
-		r.warn("detect tool", err.Error())
+		r.log.Warnf("Failed to detect tool: %s", err)
 		detectedTool = &defaultTool
 		reason = "internal failure to use other tools"
 	}
 	r.depTool = detectedTool
 	r.depToolReason = reason
-	r.infof("detected tool is %s (%s)", detectedTool.name, reason)
+	r.log.Infof("Detected tool is %s (%s)", detectedTool.name, reason)
 
-	if err = detectedTool.sync(ctx); err != nil {
+	if err = detectedTool.sync(ctx, r.cr); err != nil {
 		if detectedTool == &defaultTool {
 			return errors.Wrapf(err, "'%s' failed", detectedTool.name) // nowhere to fallback from default tool
 		}
-		r.warn(detectedTool.name, err.Error())
+		r.log.Warnf("%s failed: %s", detectedTool.name, err)
 
-		if err = defaultTool.sync(ctx); err != nil {
+		if err = defaultTool.sync(ctx, r.cr); err != nil {
 			return errors.Wrapf(err, "fallback to '%s' failed", defaultTool.name)
 		}
 
 		r.depTool = &defaultTool
 		r.depToolReason = fmt.Sprintf("fallback from '%s' to '%s'", detectedTool.name, defaultTool.name)
 	}
-	r.infof("synced deps")
+	r.log.Infof("Synced deps")
 
-	depsCheckErr := r.checkDeps(ctx)
+	depsCheckErr := r.checkDeps(ctx, repoName)
 	if depsCheckErr != nil {
 		if r.depTool == &defaultTool {
 			return errors.Wrap(depsCheckErr, "deps check failed")
 		}
 
-		if err = defaultTool.sync(ctx); err != nil {
+		if err = defaultTool.sync(ctx, r.cr); err != nil {
 			return errors.Wrapf(err, "fallback to '%s' failed", defaultTool.name)
 		}
 
 		r.depTool = &defaultTool
 		r.depToolReason = fmt.Sprintf("fallback from '%s' to '%s' after deps check", detectedTool.name, defaultTool.name)
 
-		if err = r.checkDeps(ctx); err != nil {
+		if err = r.checkDeps(ctx, repoName); err != nil {
 			return errors.Wrap(err, "check deps")
 		}
 
-		r.warn("check deps", depsCheckErr.Error())
+		r.log.Warnf("Failed to check deps: %s", depsCheckErr)
 		return nil
 	}
 
 	return nil
 }
 
-func (r Runner) checkDeps(ctx context.Context) error {
-	r.infof("checking deps...")
-	out, _ := exec.CommandContext(ctx, "golangci-lint", "run", "--no-config", "--disable-all", "-E", "typecheck").CombinedOutput()
-	outStr := string(out)
-	lines := strings.Split(outStr, "\n")
+func (r Runner) checkDeps(ctx context.Context, repoName string) error {
+	r.log.Infof("Checking deps...")
+	out, _ := r.cr.Run(ctx, "golangci-lint", "run", "--no-config", "--disable-all", "-E", "typecheck")
+	lines := strings.Split(out, "\n")
 	for _, line := range lines {
 		line = strings.TrimSpace(strings.ToLower(line))
-		if (strings.Contains(line, "could not import") && !strings.Contains(line, r.repoName)) ||
+		if (strings.Contains(line, "could not import") && !strings.Contains(line, repoName)) ||
 			strings.Contains(line, "cannot find package") {
 
-			r.infof("deps checking: bad: %s", line)
+			r.log.Infof("Deps checking: bad: %s", line)
 			return errors.New(line)
 		}
 	}
 
-	r.infof("deps checking ok")
+	r.log.Infof("Deps checking ok")
 	return nil
 }
 

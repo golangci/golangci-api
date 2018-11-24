@@ -130,6 +130,8 @@ func (p Preparer) run(needStreamToOutput bool) *result.Result {
 		return saveErr(err)
 	}
 
+	runner := command.NewStreamingRunner(res.Log)
+
 	// setup work dir
 	err = runStepGroup(res.Log, "setup work dir", func(sg *result.StepGroup, log logutil.Log) error {
 		sg.AddStep("build GOPATH")
@@ -138,12 +140,15 @@ func (p Preparer) run(needStreamToOutput bool) *result.Result {
 			"GOPATH": p.gopath(),
 		}
 
-		newWorkDir, wdErr := p.setupWorkDir(sg, log, projectPath)
+		runner = runner.WithEnv("GOPATH", p.gopath())
+
+		newWorkDir, wdErr := p.setupWorkDir(ctx, sg, log, projectPath, runner)
 		if wdErr != nil {
 			return wdErr
 		}
 
 		res.WorkDir = newWorkDir
+		runner = runner.WithWD(newWorkDir)
 		return nil
 	})
 	if err != nil {
@@ -152,7 +157,7 @@ func (p Preparer) run(needStreamToOutput bool) *result.Result {
 
 	// prepare repo
 	err = runStepGroup(res.Log, "prepare repo", func(sg *result.StepGroup, log logutil.Log) error {
-		return p.runPreparation(ctx, sg, log, &res.ServiceConfig, projectPath)
+		return p.runPreparation(ctx, sg, log, &res.ServiceConfig, projectPath, runner)
 	})
 	if err != nil {
 		return saveErr(err)
@@ -160,7 +165,7 @@ func (p Preparer) run(needStreamToOutput bool) *result.Result {
 
 	// setup golangci-lint - do it after preparation to disallow overwriting golangci-lint version by user-defined commands
 	err = runStepGroup(res.Log, "setup golangci-lint", func(sg *result.StepGroup, log logutil.Log) error {
-		version, setupErr := p.setupGolangciLint(ctx, sg, log, &res.ServiceConfig)
+		version, setupErr := p.setupGolangciLint(ctx, sg, log, &res.ServiceConfig, runner)
 		if setupErr != nil {
 			return setupErr
 		}
@@ -178,7 +183,7 @@ func (p Preparer) run(needStreamToOutput bool) *result.Result {
 
 	// run golangci-lint
 	err = runStepGroup(res.Log, "run golangci-lint", func(sg *result.StepGroup, log logutil.Log) error {
-		return p.runGolangciLint(ctx, sg, res.Environment, res.WorkDir)
+		return p.runGolangciLint(ctx, sg, runner)
 	})
 	if err != nil {
 		return saveErr(err)
@@ -245,20 +250,15 @@ func parseVersion(v string) (*version, error) {
 	}, nil
 }
 
-func (p Preparer) runGolangciLint(ctx context.Context, sg *result.StepGroup, env map[string]string, wd string) error {
+func (p Preparer) runGolangciLint(ctx context.Context, sg *result.StepGroup, runner *command.StreamingRunner) error {
 	sg.AddStep("run")
-
-	var envPairs []string
-	for k, v := range env {
-		envPairs = append(envPairs, fmt.Sprintf("%s=%s", k, v))
-	}
-
-	runner := command.NewStreamingRunner(sg.LastStep())
-	_, err := runner.Run(ctx, envPairs, wd, "golangci-lint", "run")
+	_, err := runner.Run(ctx, "golangci-lint", "run")
 	return err
 }
 
-func (p Preparer) setupGolangciLint(ctx context.Context, sg *result.StepGroup, log logutil.Log, cfg *goenvconfig.Service) (string, error) {
+func (p Preparer) setupGolangciLint(ctx context.Context, sg *result.StepGroup, log logutil.Log,
+	cfg *goenvconfig.Service, r *command.StreamingRunner) (string, error) {
+
 	parsedVersion, err := p.parseGolangciLintVersion(sg, log, cfg)
 	if err != nil {
 		return "", err
@@ -270,17 +270,16 @@ func (p Preparer) setupGolangciLint(ctx context.Context, sg *result.StepGroup, l
 	}
 	log.Infof("Using golangci-lint v%s", neededVersion.String())
 
-	if err = p.installGolangciLint(ctx, neededVersion, sg, log); err != nil {
+	if err = p.installGolangciLint(ctx, neededVersion, sg, log, r); err != nil {
 		return "", err
 	}
 
 	return neededVersion.String(), nil
 }
 
-func (p Preparer) findInstalledGolangciLintVersion(ctx context.Context, sg *result.StepGroup) (string, error) {
+func (p Preparer) findInstalledGolangciLintVersion(ctx context.Context, sg *result.StepGroup, r *command.StreamingRunner) (string, error) {
 	sg.AddStep("finding installed version: golangci-lint --version")
-	runner := command.NewStreamingRunner(sg.LastStep())
-	out, err := runner.Run(ctx, nil, "", "golangci-lint", "--version")
+	out, err := r.Run(ctx, "golangci-lint", "--version")
 	if err != nil {
 		return "", err
 	}
@@ -296,8 +295,9 @@ func (p Preparer) findInstalledGolangciLintVersion(ctx context.Context, sg *resu
 	return version, nil
 }
 
-func (p Preparer) installGolangciLint(ctx context.Context, v *version, sg *result.StepGroup, log logutil.Log) error {
-	installedVersion, err := p.findInstalledGolangciLintVersion(ctx, sg)
+func (p Preparer) installGolangciLint(ctx context.Context, v *version, sg *result.StepGroup,
+	log logutil.Log, r *command.StreamingRunner) error {
+	installedVersion, err := p.findInstalledGolangciLintVersion(ctx, sg, r)
 	if err != nil {
 		log.Warnf("Failed to find installed golangci-lint version, downloading needed version: %s", err)
 	}
@@ -315,8 +315,7 @@ func (p Preparer) installGolangciLint(ctx context.Context, v *version, sg *resul
 	shellCmd := fmt.Sprintf(shellCmdFmt, v.StringWithV())
 	sg.AddStep(shellCmd)
 
-	runner := command.NewStreamingRunner(sg.LastStep())
-	_, err = runner.Run(ctx, nil, "", "sh", "-c", shellCmd)
+	_, err = r.Run(ctx, "sh", "-c", shellCmd)
 	if err != nil {
 		return err
 	}
@@ -375,21 +374,21 @@ func (p Preparer) parseGolangciLintVersion(sg *result.StepGroup, log logutil.Log
 	return v, nil
 }
 
-func (p Preparer) runPreparation(ctx context.Context, sg *result.StepGroup, log logutil.Log, cfg *goenvconfig.Service, projectPath string) error {
+func (p Preparer) runPreparation(ctx context.Context, sg *result.StepGroup, log logutil.Log,
+	cfg *goenvconfig.Service, projectPath string, runner *command.StreamingRunner) error {
+
 	if len(cfg.Prepare) == 0 {
-		return p.runDefaultPreparation(sg, log, projectPath)
+		return p.runDefaultPreparation(ctx, sg, log, projectPath, runner)
 	}
 
-	return p.runUserDefinedPreparation(ctx, sg, cfg.Prepare)
+	return p.runUserDefinedPreparation(ctx, sg, cfg.Prepare, runner)
 }
 
-func (p Preparer) runDefaultPreparation(sg *result.StepGroup, log logutil.Log, projectPath string) error {
+func (p Preparer) runDefaultPreparation(ctx context.Context, sg *result.StepGroup, log logutil.Log, projectPath string, r *command.StreamingRunner) error {
 	sg.AddStep("fetch dependencies")
-	runner := ensuredeps.NewRunner(p.cfg.GetBool("DEPS_VERBOSE", false), projectPath)
-	res := runner.Run()
-	for _, w := range res.Warnings {
-		log.Warnf("%s: %s", w.Kind, w.Text)
-	}
+	runner := ensuredeps.NewRunner(log, r)
+	res := runner.Run(ctx, projectPath)
+
 	if res.Success {
 		reason := res.UsedToolReason
 		if reason != "" {
@@ -403,11 +402,11 @@ func (p Preparer) runDefaultPreparation(sg *result.StepGroup, log logutil.Log, p
 	return nil
 }
 
-func (p Preparer) runUserDefinedPreparation(ctx context.Context, sg *result.StepGroup, steps []string) error {
+func (p Preparer) runUserDefinedPreparation(ctx context.Context, sg *result.StepGroup,
+	steps []string, r *command.StreamingRunner) error {
 	for _, step := range steps {
 		sg.AddStep(step)
-		runner := command.NewStreamingRunner(sg.LastStep())
-		if _, err := runner.Run(ctx, nil, "", "bash", "-c", step); err != nil {
+		if _, err := r.Run(ctx, "bash", "-c", step); err != nil {
 			return errors.Wrapf(err, "failed to run command %q", step)
 		}
 	}
@@ -424,7 +423,7 @@ func (p Preparer) gopath() string {
 	return "/go"
 }
 
-func (p Preparer) setupWorkDir(sg *result.StepGroup, log logutil.Log, projectAddr string) (string, error) {
+func (p Preparer) setupWorkDir(ctx context.Context, sg *result.StepGroup, log logutil.Log, projectAddr string, r *command.StreamingRunner) (string, error) {
 	projectDir := filepath.Join(p.gopath(), "src", projectAddr)
 
 	sg.AddStep("mkdir -p " + projectDir)
@@ -441,8 +440,7 @@ func (p Preparer) setupWorkDir(sg *result.StepGroup, log logutil.Log, projectAdd
 
 	copyDest := projectDir + string(filepath.Separator)
 	sg.AddStep("cp -R . " + copyDest)
-	runner := command.NewStreamingRunner(sg.LastStep())
-	if _, err := runner.Run(context.TODO(), nil, "", "cp", "-R", ".", copyDest); err != nil {
+	if _, err := r.Run(ctx, "cp", "-R", ".", copyDest); err != nil {
 		return "", err
 	}
 
