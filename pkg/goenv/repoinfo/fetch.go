@@ -165,7 +165,11 @@ func Fetch(repo string) (*Info, error) {
 
 	for _, p := range prog.Packages() {
 		bp := p.BuildPackage()
-		for _, imp := range bp.Imports {
+		imports := append([]string{}, bp.Imports...)
+		imports = append(imports, bp.TestImports...)
+		imports = append(imports, bp.XTestImports...)
+
+		for _, imp := range imports {
 			impLower := strings.ToLower(imp)
 			if imp == impLower {
 				continue
