@@ -3,8 +3,11 @@ package repoinfo
 import (
 	"fmt"
 	"io/ioutil"
+	"os"
 	"strconv"
 	"strings"
+
+	"gopkg.in/yaml.v2"
 
 	"github.com/golangci/golangci-api/pkg/goenv/packages"
 	"github.com/golangci/golangci-shared/pkg/logutil"
@@ -72,9 +75,37 @@ func tryExtractInfoFromGoMod() (*Info, error) {
 	}, nil
 }
 
+func tryExtractInfoFromTravisYml() (*Info, error) {
+	f, err := os.Open(".travis.yml")
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to open .travis.yml file")
+	}
+	defer f.Close()
+
+	var t struct {
+		GoImportPath string `yaml:"go_import_path"`
+	}
+	if err = yaml.NewDecoder(f).Decode(&t); err != nil {
+		return nil, errors.Wrap(err, "failed to decode .travis.yml")
+	}
+
+	if t.GoImportPath == "" {
+		return nil, errors.New("go go_import_path directive in .travis.yml")
+	}
+
+	return &Info{
+		CanonicalImportPath:       t.GoImportPath,
+		CanonicalImportPathReason: "extracted from .travis.yml go_import_path directive",
+	}, nil
+}
+
 //nolint:gocyclo
 func Fetch(repo string) (*Info, error) {
 	if info, err := tryExtractInfoFromGoMod(); err == nil {
+		return info, nil
+	}
+
+	if info, err := tryExtractInfoFromTravisYml(); err == nil {
 		return info, nil
 	}
 

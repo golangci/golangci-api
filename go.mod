@@ -71,6 +71,7 @@ require (
 	github.com/sirupsen/logrus v1.0.5
 	github.com/smartystreets/assertions v0.0.0-20180927180507-b2de0cb4f26d // indirect
 	github.com/smartystreets/goconvey v0.0.0-20181108003508-044398e4856c // indirect
+	github.com/spf13/viper v1.0.2
 	github.com/stevvooe/resumable v0.0.0-20180830230917-22b14a53ba50 // indirect
 	github.com/streadway/amqp v0.0.0-20180131094250-fc7fda2371f5 // indirect
 	github.com/stretchr/testify v1.2.1
@@ -95,4 +96,5 @@ require (
 	gopkg.in/ini.v1 v1.39.0 // indirect
 	gopkg.in/mgo.v2 v2.0.0-20160818020120-3f83fa500528 // indirect
 	gopkg.in/redsync.v1 v1.0.1
+	gopkg.in/yaml.v2 v2.2.1
 )

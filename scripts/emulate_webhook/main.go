@@ -109,7 +109,7 @@ func sendWebhookPayload(repoName, event, hookID string, isProd bool, payload int
 	if hookID != "" {
 		webhookURL = fmt.Sprintf("%s/v1/repos/%s/hooks/%s", host, repoName, hookID)
 	} else {
-		repo, err := getOrCreateRepo(repoName)
+		repo, err := getOrCreateRepo(repoName, isProd)
 		if err != nil {
 			return fmt.Errorf("can't get/create repo %s: %s", repoName, err)
 		}
@@ -141,7 +141,7 @@ func sendWebhookPayload(repoName, event, hookID string, isProd bool, payload int
 	return nil
 }
 
-func getOrCreateRepo(repoName string) (*models.Repo, error) {
+func getOrCreateRepo(repoName string, isProd bool) (*models.Repo, error) {
 	log := logutil.NewStderrLog("")
 	cfg := config.NewEnvConfig(log)
 	db, err := gormdb.GetDB(cfg, log, "")
@@ -152,6 +152,10 @@ func getOrCreateRepo(repoName string) (*models.Repo, error) {
 	var repo models.Repo
 	if err = models.NewRepoQuerySet(db).NameEq(repoName).One(&repo); err == nil {
 		return &repo, nil
+	}
+
+	if isProd {
+		return nil, fmt.Errorf("no repo, don't create the new one in prod mode")
 	}
 
 	if err != gorm.ErrRecordNotFound {
