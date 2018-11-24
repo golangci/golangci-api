@@ -86,16 +86,41 @@ func tryExtractInfoFromTravisYml() (*Info, error) {
 		GoImportPath string `yaml:"go_import_path"`
 	}
 	if err = yaml.NewDecoder(f).Decode(&t); err != nil {
-		return nil, errors.Wrap(err, "failed to decode .travis.yml")
+		return nil, errors.Wrap(err, "failed to yaml decode .travis.yml")
 	}
 
 	if t.GoImportPath == "" {
-		return nil, errors.New("go go_import_path directive in .travis.yml")
+		return nil, errors.New("no go_import_path directive in .travis.yml")
 	}
 
 	return &Info{
 		CanonicalImportPath:       t.GoImportPath,
 		CanonicalImportPathReason: "extracted from .travis.yml go_import_path directive",
+	}, nil
+}
+
+func tryExtractInfoFromGlideYaml() (*Info, error) {
+	const path = "glide.yaml"
+	f, err := os.Open(path)
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to open %s file", path)
+	}
+	defer f.Close()
+
+	var data struct {
+		Package string
+	}
+	if err = yaml.NewDecoder(f).Decode(&data); err != nil {
+		return nil, errors.Wrapf(err, "failed to yaml decode %s", path)
+	}
+
+	if data.Package == "" {
+		return nil, fmt.Errorf("no package directive in %s", path)
+	}
+
+	return &Info{
+		CanonicalImportPath:       data.Package,
+		CanonicalImportPathReason: fmt.Sprintf("extracted from %s package directive", path),
 	}, nil
 }
 
@@ -106,6 +131,10 @@ func Fetch(repo string) (*Info, error) {
 	}
 
 	if info, err := tryExtractInfoFromTravisYml(); err == nil {
+		return info, nil
+	}
+
+	if info, err := tryExtractInfoFromGlideYaml(); err == nil {
 		return info, nil
 	}
 
