@@ -111,7 +111,7 @@ func Fetch(repo string) (*Info, error) {
 				continue
 			}
 
-			if strings.HasPrefix(impLower, repo+"/") {
+			if impLower == repo || strings.HasPrefix(impLower, repo+"/") {
 				return &Info{
 					CanonicalImportPath:       imp[:len(repo)],
 					CanonicalImportPathReason: "found import of another case",
