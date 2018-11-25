@@ -6,7 +6,7 @@ CREATE TABLE payment_gateway_events (
 
     provider VARCHAR(64) NOT NULL DEFAULT 'securionpay',
     provider_id VARCHAR(64) NOT NULL DEFAULT '',
-    
+
     type VARCHAR(32) NOT NULL DEFAULT '',
     data JSON NOT NULL DEFAULT '{}',
 

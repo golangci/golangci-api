@@ -43,7 +43,7 @@ func (f Factory) BuildAuthorizer(providerName string, isPrivate bool) (*Authoriz
 			f.cfg.GetString("GITHUB_CALLBACK_HOST")+cbURL,
 			"user:email",
 			"repo",
-			"read:org",
+			//"read:org", // TODO(d.isaev): add it gracefully: save enabled grants to db and re-authorize only on needed page for needed users
 		)
 		return NewAuthorizer(providerName, provider, f.sessFactory, f.log), nil
 	}

@@ -129,7 +129,7 @@ func (s BasicService) Create(rc *request.AuthorizedContext, reqRepo *request.Bod
 	}
 
 	// TODO(zet4): Temporary reversion because I don't have any private repos to test against...
-	if !providerRepo.IsPrivate {
+	if false && !providerRepo.IsPrivate {
 		var personalOrg bool
 		var providerOrg *provider.Org
 		providerOrg, err = providerClient.GetOrgByName(rc.Ctx, reqRepo.Owner)
