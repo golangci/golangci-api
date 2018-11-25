@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 
@@ -99,6 +100,42 @@ func tryExtractInfoFromTravisYml() (*Info, error) {
 	}, nil
 }
 
+func tryExtractInfoFromCircleciYml() (*Info, error) {
+	path := filepath.Join(".circleci", "config.yml")
+	f, err := os.Open(path)
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to open %s file", path)
+	}
+	defer f.Close()
+
+	var data struct {
+		Jobs struct {
+			Build struct {
+				WorkingDirectory string `yaml:"working_directory"`
+			}
+		}
+	}
+	if err = yaml.NewDecoder(f).Decode(&data); err != nil {
+		return nil, errors.Wrapf(err, "failed to yaml decode %s", path)
+	}
+
+	yamlPath := "jobs.build.working_directory"
+	wd := data.Jobs.Build.WorkingDirectory
+	if wd == "" {
+		return nil, fmt.Errorf("no %s directive in %s", yamlPath, path)
+	}
+
+	const prefix = "/go/src/"
+	if !strings.HasPrefix(wd, prefix) {
+		return nil, fmt.Errorf("bad prefix of %s: %s", yamlPath, wd)
+	}
+
+	return &Info{
+		CanonicalImportPath:       strings.TrimPrefix(wd, prefix),
+		CanonicalImportPathReason: fmt.Sprintf("extracted from %s %s directive", yamlPath, path),
+	}, nil
+}
+
 func tryExtractInfoFromGlideYaml() (*Info, error) {
 	const path = "glide.yaml"
 	f, err := os.Open(path)
@@ -125,16 +162,27 @@ func tryExtractInfoFromGlideYaml() (*Info, error) {
 }
 
 //nolint:gocyclo
-func Fetch(repo string) (*Info, error) {
-	if info, err := tryExtractInfoFromGoMod(); err == nil {
-		return info, nil
+func Fetch(repo string, log logutil.Log) (*Info, error) {
+	tryExtract := func(name string, f func() (*Info, error)) *Info {
+		info, err := f()
+		if err == nil {
+			return info
+		}
+
+		log.Infof("Try to extract info from %s: no info: %s", name, err)
+		return nil
 	}
 
-	if info, err := tryExtractInfoFromTravisYml(); err == nil {
+	if info := tryExtract("go.mod", tryExtractInfoFromGoMod); info != nil {
 		return info, nil
 	}
-
-	if info, err := tryExtractInfoFromGlideYaml(); err == nil {
+	if info := tryExtract("travis config", tryExtractInfoFromTravisYml); info != nil {
+		return info, nil
+	}
+	if info := tryExtract("glide config", tryExtractInfoFromGlideYaml); info != nil {
+		return info, nil
+	}
+	if info := tryExtract("circleci config", tryExtractInfoFromCircleciYml); info != nil {
 		return info, nil
 	}
 

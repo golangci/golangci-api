@@ -461,7 +461,7 @@ func (p Preparer) findProjectPath(sg *result.StepGroup, log logutil.Log, default
 
 	sg.AddStep("detect the project path in code")
 
-	info, err := repoinfo.Fetch(defaultProjectPath)
+	info, err := repoinfo.Fetch(defaultProjectPath, log)
 	if err != nil {
 		log.Warnf("Failed to find the project path: %s", err)
 		log.Infof("Use the default project path %q", defaultProjectPath)
