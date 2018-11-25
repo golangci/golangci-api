@@ -63,7 +63,7 @@ func printLastReportedIssues() error {
 
 		if p.repo == nil {
 			var repo models.Repo
-			if err = models.NewRepoQuerySet(db).IDEq(a.RepoID).One(&repo); err != nil {
+			if err = models.NewRepoQuerySet(db.Unscoped()).IDEq(a.RepoID).One(&repo); err != nil {
 				return errors.Wrapf(err, "failed to get repo %d", a.RepoID)
 			}
 			p.repo = &repo

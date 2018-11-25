@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"os"
 	"strings"
 	"time"
 
@@ -37,6 +38,38 @@ func NewReanalyzer(db *gorm.DB, cfg config.Config, log logutil.Log, pf providers
 	}
 }
 
+type state struct {
+	ReanalyzedPullRequests map[string]bool
+}
+
+func (r Reanalyzer) dumpState(s *state) error {
+	f, err := os.Create("state.json")
+	if err != nil {
+		return errors.Wrap(err, "failed to open state.json")
+	}
+	defer f.Close()
+
+	if err = json.NewEncoder(f).Encode(s); err != nil {
+		return errors.Wrap(err, "failed to json marshal")
+	}
+
+	return nil
+}
+
+func (r Reanalyzer) loadState(s *state) error {
+	f, err := os.Open("state.json")
+	if err != nil {
+		return errors.Wrap(err, "failed to open state.json")
+	}
+	defer f.Close()
+
+	if err = json.NewDecoder(f).Decode(s); err != nil {
+		return errors.Wrap(err, "failed to json unmarshal")
+	}
+
+	return nil
+}
+
 func (r Reanalyzer) mergeAnalyzes(analyzes []models.PullRequestAnalysis) []models.PullRequestAnalysis {
 	var ret []models.PullRequestAnalysis
 	seen := map[string]bool{}
@@ -54,11 +87,15 @@ func (r Reanalyzer) mergeAnalyzes(analyzes []models.PullRequestAnalysis) []model
 }
 
 func (r Reanalyzer) RunOnce() error {
+	state := state{
+		ReanalyzedPullRequests: map[string]bool{},
+	}
+	_ = r.loadState(&state)
+
 	startedAt := time.Now()
 	dur := r.cfg.GetDuration("PR_REANALYZER_DURATION", time.Hour*24*9)
 	var analyzes []models.PullRequestAnalysis
 	err := models.NewPullRequestAnalysisQuerySet(r.db).
-		StatusIn("processed/error", "forced_stale").
 		CreatedAtGte(time.Now().Add(-dur)).OrderDescByID().All(&analyzes)
 	if err != nil {
 		return errors.Wrapf(err, "failed to fetch last pr analyzes for %s", dur)
@@ -74,9 +111,15 @@ func (r Reanalyzer) RunOnce() error {
 	r.log.Infof("Fetched %d pull request analyzes to check for recovery for last %s with statuses: %#v",
 		len(analyzes), dur, statusesDistribution)
 
+	defer func() {
+		if err = r.dumpState(&state); err != nil {
+			r.log.Warnf("Failed to dump state: %s", err)
+		}
+	}()
+
 	for i, a := range analyzes {
 		ctx := context.Background()
-		if err = r.processAnalysis(ctx, &a, i); err != nil {
+		if err = r.processAnalysis(ctx, &a, i, &state); err != nil {
 			r.log.Warnf("Failed to process analysis %d: %s", a.ID, err)
 		}
 	}
@@ -110,7 +153,7 @@ type Warning struct {
 }
 
 //nolint:gocyclo
-func (r *Reanalyzer) processAnalysis(ctx context.Context, a *models.PullRequestAnalysis, i int) error {
+func (r *Reanalyzer) processAnalysis(ctx context.Context, a *models.PullRequestAnalysis, i int, state *state) error {
 	var repo models.Repo
 	if err := models.NewRepoQuerySet(r.db.Unscoped()).IDEq(a.RepoID).One(&repo); err != nil {
 		return errors.Wrapf(err, "failed to fetch repo %d", a.RepoID)
@@ -122,6 +165,10 @@ func (r *Reanalyzer) processAnalysis(ctx context.Context, a *models.PullRequestA
 	}
 
 	prLink := p.LinkToPullRequest(&repo, a.PullRequestNumber)
+	if state.ReanalyzedPullRequests[prLink] {
+		return nil
+	}
+
 	link := fmt.Sprintf("%s ID=%d", prLink, a.ID)
 	if repo.DeletedAt != nil {
 		r.log.Warnf("#%d: %s repo was disconnected, skip (%s ago)", i, link, time.Since(a.CreatedAt))
@@ -149,7 +196,6 @@ func (r *Reanalyzer) processAnalysis(ctx context.Context, a *models.PullRequestA
 		}
 	}
 	if reason == "" {
-		r.log.Infof("#%d: %s is ok, skip (%s ago)", i, link, time.Since(a.CreatedAt))
 		return nil
 	}
 
@@ -161,6 +207,7 @@ func (r *Reanalyzer) processAnalysis(ctx context.Context, a *models.PullRequestA
 	if pr.State == "merged" || pr.State == "closed" {
 		r.log.Warnf("#%d: %s is already %s, can't reanalyze (%s ago)",
 			i, link, pr.State, time.Since(a.CreatedAt))
+		state.ReanalyzedPullRequests[prLink] = true
 		return nil
 	}
 
@@ -191,6 +238,7 @@ func (r *Reanalyzer) processAnalysis(ctx context.Context, a *models.PullRequestA
 		}
 	}
 
+	state.ReanalyzedPullRequests[prLink] = true
 	return nil
 }
 
