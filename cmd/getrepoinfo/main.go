@@ -6,6 +6,8 @@ import (
 	"log"
 	"os"
 
+	"github.com/golangci/golangci-shared/pkg/logutil"
+
 	"github.com/golangci/golangci-api/pkg/goenv/repoinfo"
 	"github.com/pkg/errors"
 )
@@ -24,7 +26,9 @@ func main() {
 
 func printRepoInfo(repo string) error {
 	var ret interface{}
-	info, err := repoinfo.Fetch(repo)
+	log := logutil.NewStderrLog("")
+	log.SetLevel(logutil.LogLevelInfo)
+	info, err := repoinfo.Fetch(repo, log)
 	if err != nil {
 		ret = struct {
 			Error string

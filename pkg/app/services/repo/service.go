@@ -108,6 +108,7 @@ func (s BasicService) createAlreadyExistingRepo(rc *request.AuthorizedContext, r
 	return nil, fmt.Errorf("invalid repo commit state %s", repo.CommitState)
 }
 
+//nolint: gocyclo
 func (s BasicService) Create(rc *request.AuthorizedContext, reqRepo *request.BodyRepo) (*returntypes.WrappedRepoInfo, error) {
 	providerClient, err := s.ProviderFactory.Build(rc.Auth)
 	if err != nil {
