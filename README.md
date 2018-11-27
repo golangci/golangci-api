@@ -47,5 +47,20 @@ make test
 ### How to test with web
 Run golangci-web, golangci-worker and golangci-api. Go to `https://dev.golangci.com` locally and it will work.
 
+## Subscriptions and Payment Gateway
+
+### Requirments
+
+To use Subscriptions you will need to configure the env variables for the gateway of your choice.
+
+* Note: Currently only SecurionPay is supported and uses `SECURIONPAY_SECRET` and `SECURIONPAY_PLANID`.
+
+### Payment Gateway Callbacks
+
+Run `ngrok http 3000` on your development machine, and use `https://{ngrok_id}.ngrok.io/v1/payment/{gateway}/events` as URL to receive events from the payment gateway.
+
+* `{gateway}` for SecurionPay is `securionpay`.
+* `{ngrok_id}`'s are unique and you must update the callback URL when you restart Ngrok service.
+
 # Contributing
 See [CONTRIBUTING](https://github.com/golangci/golangci-api/blob/master/CONTRIBUTING.md).

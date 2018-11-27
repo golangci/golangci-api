@@ -1,0 +1,1 @@
+ALTER TABLE org_subs ADD COLUMN idempotency_key VARCHAR(64) UNIQUE;

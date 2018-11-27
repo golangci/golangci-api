@@ -13,9 +13,6 @@ import (
 
 	"github.com/golangci/golangci-api/pkg/app/models"
 	"github.com/golangci/golangci-api/pkg/db/gormdb"
-	"github.com/golangci/golangci-worker/app/analyze/analyzequeue"
-	"github.com/golangci/golangci-worker/app/analyze/analyzequeue/task"
-	"github.com/jinzhu/gorm"
 	_ "github.com/joho/godotenv/autoload"
 	_ "github.com/lib/pq"
 )
@@ -58,30 +55,6 @@ func buildUsersList() error {
 
 	if err = ioutil.WriteFile("users.csv", []byte(strings.Join(lines, "\n")), os.ModePerm); err != nil {
 		return errors.Wrap(err, "failed to write result to file")
-	}
-
-	return nil
-}
-
-func restartAnalysis(db *gorm.DB, repo *models.Repo) error {
-	var as models.RepoAnalysisStatus
-	if err := models.NewRepoAnalysisStatusQuerySet(db).RepoIDEq(repo.ID).One(&as); err != nil {
-		return errors.Wrapf(err, "can't get repo analysis status for repo %d", repo.ID)
-	}
-
-	var a models.RepoAnalysis
-	if err := models.NewRepoAnalysisQuerySet(db).RepoAnalysisStatusIDEq(as.ID).OrderDescByID().One(&a); err != nil {
-		return errors.Wrap(err, "can't get repo analysis")
-	}
-
-	t := &task.RepoAnalysis{
-		Name:         repo.Name,
-		AnalysisGUID: a.AnalysisGUID,
-		Branch:       as.DefaultBranch,
-	}
-
-	if err := analyzequeue.ScheduleRepoAnalysis(t); err != nil {
-		return errors.Wrapf(err, "can't resend repo %s for analysis into queue", repo.Name)
 	}
 
 	return nil

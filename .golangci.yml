@@ -26,3 +26,4 @@ linters:
     - gochecknoglobals
     - gochecknoinits
     - scopelint
+    - dupl

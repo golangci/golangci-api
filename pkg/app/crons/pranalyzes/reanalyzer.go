@@ -87,10 +87,10 @@ func (r Reanalyzer) mergeAnalyzes(analyzes []models.PullRequestAnalysis) []model
 }
 
 func (r Reanalyzer) RunOnce() error {
-	state := state{
+	s := state{
 		ReanalyzedPullRequests: map[string]bool{},
 	}
-	_ = r.loadState(&state)
+	_ = r.loadState(&s)
 
 	startedAt := time.Now()
 	dur := r.cfg.GetDuration("PR_REANALYZER_DURATION", time.Hour*24*9)
@@ -112,14 +112,14 @@ func (r Reanalyzer) RunOnce() error {
 		len(analyzes), dur, statusesDistribution)
 
 	defer func() {
-		if err = r.dumpState(&state); err != nil {
+		if err = r.dumpState(&s); err != nil {
 			r.log.Warnf("Failed to dump state: %s", err)
 		}
 	}()
 
 	for i, a := range analyzes {
 		ctx := context.Background()
-		if err = r.processAnalysis(ctx, &a, i, &state); err != nil {
+		if err = r.processAnalysis(ctx, &a, i, &s); err != nil {
 			r.log.Warnf("Failed to process analysis %d: %s", a.ID, err)
 		}
 	}
@@ -153,7 +153,7 @@ type Warning struct {
 }
 
 //nolint:gocyclo
-func (r *Reanalyzer) processAnalysis(ctx context.Context, a *models.PullRequestAnalysis, i int, state *state) error {
+func (r *Reanalyzer) processAnalysis(ctx context.Context, a *models.PullRequestAnalysis, i int, s *state) error {
 	var repo models.Repo
 	if err := models.NewRepoQuerySet(r.db.Unscoped()).IDEq(a.RepoID).One(&repo); err != nil {
 		return errors.Wrapf(err, "failed to fetch repo %d", a.RepoID)
@@ -165,7 +165,7 @@ func (r *Reanalyzer) processAnalysis(ctx context.Context, a *models.PullRequestA
 	}
 
 	prLink := p.LinkToPullRequest(&repo, a.PullRequestNumber)
-	if state.ReanalyzedPullRequests[prLink] {
+	if s.ReanalyzedPullRequests[prLink] {
 		return nil
 	}
 
@@ -207,7 +207,7 @@ func (r *Reanalyzer) processAnalysis(ctx context.Context, a *models.PullRequestA
 	if pr.State == "merged" || pr.State == "closed" {
 		r.log.Warnf("#%d: %s is already %s, can't reanalyze (%s ago)",
 			i, link, pr.State, time.Since(a.CreatedAt))
-		state.ReanalyzedPullRequests[prLink] = true
+		s.ReanalyzedPullRequests[prLink] = true
 		return nil
 	}
 
@@ -238,7 +238,7 @@ func (r *Reanalyzer) processAnalysis(ctx context.Context, a *models.PullRequestA
 		}
 	}
 
-	state.ReanalyzedPullRequests[prLink] = true
+	s.ReanalyzedPullRequests[prLink] = true
 	return nil
 }
 
