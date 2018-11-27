@@ -183,7 +183,8 @@ func (p Preparer) run(needStreamToOutput bool) *result.Result {
 
 	// run golangci-lint
 	err = runStepGroup(res.Log, "run golangci-lint", func(sg *result.StepGroup, log logutil.Log) error {
-		return p.runGolangciLint(ctx, sg, runner)
+		r := runner.WithEnv("GOLANGCI_COM_RUN", "1")
+		return p.runGolangciLint(ctx, sg, r)
 	})
 	if err != nil {
 		return saveErr(err)
@@ -251,8 +252,9 @@ func parseVersion(v string) (*version, error) {
 }
 
 func (p Preparer) runGolangciLint(ctx context.Context, sg *result.StepGroup, runner *command.StreamingRunner) error {
-	sg.AddStep("run")
-	_, err := runner.Run(ctx, "golangci-lint", "run")
+	args := []string{"run", "-v", "--deadline=5m"}
+	sg.AddStep(fmt.Sprintf("golangci-lint %s", strings.Join(args, " ")))
+	_, err := runner.Run(ctx, "golangci-lint", args...)
 	return err
 }
 
