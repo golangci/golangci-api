@@ -104,9 +104,8 @@ func (s BasicService) handleGithubPullRequestWebhook(rc *request.AnonymousContex
 		return errors.Wrapf(err, "failed to get auth for repo %d", repo.ID)
 	}
 
-	taskAccessToken := auth.StrongestAccessToken()
-	if payload.GetRepo().GetPrivate() && auth.PrivateAccessToken == "" {
-		rc.Log.Errorf("Github repo %s became private: can't handle it without private access token", repo.String())
+	if payload.GetRepo().GetPrivate() {
+		rc.Log.Errorf("Got PR webhook to the private repo %s, private repos aren't supported yet", repo.String())
 		return nil
 	}
 
@@ -121,7 +120,7 @@ func (s BasicService) handleGithubPullRequestWebhook(rc *request.AnonymousContex
 			Owner: repo.Owner(),
 			Name:  repo.Repo(),
 		},
-		GithubAccessToken: taskAccessToken,
+		GithubAccessToken: auth.StrongestAccessToken(),
 		PullRequestNumber: analysis.PullRequestNumber,
 	}
 	t := &task.PRAnalysis{

@@ -253,7 +253,7 @@ func (r Reanalyzer) restartAnalysis(a *models.PullRequestAnalysis, repo *models.
 			Owner: repo.Owner(),
 			Name:  repo.Repo(),
 		},
-		GithubAccessToken: auth.StrongestAccessToken(),
+		GithubAccessToken: auth.StrongestAccessToken(), // TODO: get strongest only if paid
 		PullRequestNumber: a.PullRequestNumber,
 	}
 	t := &task.PRAnalysis{
