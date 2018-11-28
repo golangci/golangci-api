@@ -95,8 +95,12 @@ func (r Reanalyzer) RunOnce() error {
 	startedAt := time.Now()
 	dur := r.cfg.GetDuration("PR_REANALYZER_DURATION", time.Hour*24*9)
 	var analyzes []models.PullRequestAnalysis
-	err := models.NewPullRequestAnalysisQuerySet(r.db).
-		CreatedAtGte(time.Now().Add(-dur)).OrderDescByID().All(&analyzes)
+	qs := models.NewPullRequestAnalysisQuerySet(r.db).CreatedAtGte(time.Now().Add(-dur)).OrderDescByID()
+	if repoID := r.cfg.GetInt("PR_REANALYZER_REPO_ID_FILTER", 0); repoID != 0 {
+		qs = qs.RepoIDEq(uint(repoID))
+	}
+
+	err := qs.All(&analyzes)
 	if err != nil {
 		return errors.Wrapf(err, "failed to fetch last pr analyzes for %s", dur)
 	}
