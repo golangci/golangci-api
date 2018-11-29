@@ -19,6 +19,7 @@ type Repo struct {
 	Source *Repo
 
 	StargazersCount int
+	Language        string
 }
 
 type Branch struct {

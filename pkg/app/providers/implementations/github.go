@@ -97,6 +97,7 @@ func parseGithubRepository(r *github.Repository, root bool) *provider.Repo {
 		DefaultBranch:   r.GetDefaultBranch(),
 		Source:          source,
 		StargazersCount: r.GetStargazersCount(),
+		Language:        r.GetLanguage(),
 	}
 }
 
