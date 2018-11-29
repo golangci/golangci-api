@@ -20,6 +20,7 @@ type RepoInfo struct {
 	IsPrivate    bool   `json:"isPrivate,omitempty"`
 	IsCreating   bool   `json:"isCreating,omitempty"`
 	IsDeleting   bool   `json:"isDeleting,omitempty"`
+	Language     string `json:"language,omitempty"`
 }
 
 type WrappedRepoInfo struct {

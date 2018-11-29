@@ -329,6 +329,7 @@ func (s BasicService) List(rc *request.AuthorizedContext, req *listRequest) (*re
 			Organization: strings.Split(pr.Name, "/")[0],
 			IsAdmin:      pr.IsAdmin,
 			IsPrivate:    pr.IsPrivate,
+			Language:     pr.Language,
 		}
 
 		if ar, ok := activatedRepos[pr.ID]; pr.ID != 0 && ok {
@@ -354,7 +355,7 @@ func (s BasicService) List(rc *request.AuthorizedContext, req *listRequest) (*re
 
 func (s BasicService) fetchProviderReposCached(rc *request.AuthorizedContext, useCache bool, p provider.Provider) ([]provider.Repo, error) {
 	const maxPages = 20
-	key := fmt.Sprintf("repos/%s/fetch?user_id=%d&maxPage=%d&v=4", p.Name(), rc.Auth.UserID, maxPages)
+	key := fmt.Sprintf("repos/%s/fetch?user_id=%d&maxPage=%d&v=5", p.Name(), rc.Auth.UserID, maxPages)
 	if rc.Auth.PrivateAccessToken != "" {
 		key += "&private=true"
 	}
