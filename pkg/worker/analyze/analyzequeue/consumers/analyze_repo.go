@@ -65,31 +65,18 @@ func (c AnalyzeRepo) analyzeRepo(ctx context.Context, repoName, analysisGUID, br
 		return fmt.Errorf("invalid repo name %s", repoName)
 	}
 
-	if c.ec.IsActiveForAnalysis("use_new_repo_analysis", repo, false) {
-		repoCtx := &processors.RepoContext{
-			Ctx:          ctx,
-			AnalysisGUID: analysisGUID,
-			Branch:       branch,
-			Repo:         repo,
-		}
-		p, cleanup, err := c.rpf.BuildProcessor(repoCtx)
-		if err != nil {
-			return errors.Wrap(err, "failed to build repo processor")
-		}
-		defer cleanup()
-
-		p.Process(repoCtx)
-		return nil
+	repoCtx := &processors.RepoContext{
+		Ctx:          ctx,
+		AnalysisGUID: analysisGUID,
+		Branch:       branch,
+		Repo:         repo,
 	}
-
-	p, err := processors.NewGithubGoRepo(ctx, processors.GithubGoRepoConfig{}, analysisGUID, repoName, branch)
+	p, cleanup, err := c.rpf.BuildProcessor(repoCtx)
 	if err != nil {
-		return fmt.Errorf("can't make github go repo processor: %s", err)
+		return errors.Wrap(err, "failed to build repo processor")
 	}
+	defer cleanup()
 
-	if err := p.Process(ctx); err != nil {
-		return fmt.Errorf("can't process repo analysis for %s and branch %s: %s", repoName, branch, err)
-	}
-
+	p.Process(repoCtx)
 	return nil
 }
