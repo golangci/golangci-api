@@ -23,6 +23,15 @@ type subconsumerMessage struct {
 	Message    json.RawMessage
 }
 
+func (m Multiplexer) consumerNames() []string {
+	var ret []string
+	for name := range m.consumers {
+		ret = append(ret, name)
+	}
+
+	return ret
+}
+
 func (m *Multiplexer) ConsumeMessage(ctx context.Context, message []byte) error {
 	var sm subconsumerMessage
 	if err := json.Unmarshal(message, &sm); err != nil {
@@ -31,7 +40,7 @@ func (m *Multiplexer) ConsumeMessage(ctx context.Context, message []byte) error 
 
 	consumer := m.consumers[sm.SubqueueID]
 	if consumer == nil {
-		return fmt.Errorf("no consumer with id %s", sm.SubqueueID)
+		return fmt.Errorf("no consumer with id %s, registered consumers: %v", sm.SubqueueID, m.consumerNames())
 	}
 
 	return consumer.ConsumeMessage(ctx, []byte(sm.Message))

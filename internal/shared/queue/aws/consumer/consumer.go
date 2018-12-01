@@ -24,6 +24,7 @@ type SQS struct {
 	useLambdaTrigger     bool
 	consumer             consumers.Consumer
 	visibilityTimeoutSec int
+	name                 string
 }
 
 func NewSQS(log logutil.Log, cfg config.Config, sqsQueue *sqs.Queue, consumer consumers.Consumer, sqsName string, visibilityTimeoutSec int) *SQS {
@@ -36,6 +37,7 @@ func NewSQS(log logutil.Log, cfg config.Config, sqsQueue *sqs.Queue, consumer co
 		useLambdaTrigger:     useLambdaTrigger,
 		consumer:             consumer,
 		visibilityTimeoutSec: visibilityTimeoutSec,
+		name:                 sqsName,
 	}
 }
 
@@ -46,7 +48,7 @@ func (c SQS) Run() {
 		return
 	}
 
-	c.log.Infof("Use polling consumer")
+	c.log.Infof("Running polling %q queue consumer", c.name)
 	c.runPolling()
 }
 

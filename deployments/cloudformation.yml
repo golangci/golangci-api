@@ -1,32 +1,38 @@
-AWSTemplateFormatVersion: "2010-09-09"
 Transform: 'AWS::Serverless-2016-10-31'
+AWSTemplateFormatVersion: "2010-09-09"
+
 
 Resources:
+  # users
   golangciProdUser:
     Type: AWS::IAM::User
-    Properties: 
+    Properties:
       Policies:
         - PolicyName: GolangciProdAccess
           PolicyDocument:
             Statement:
                 - Effect: Allow
                   Action: ["sqs:SendMessage", "sqs:ReceiveMessage", "sqs:ChangeMessageVisibility", "sqs:DeleteMessage"]
-                  Resource: !GetAtt primaryQueue.Arn
+                  Resource:
+                    - !GetAtt primaryQueue.Arn
+                    - !GetAtt analyzesQueue.Arn
       UserName: golangciProdUser
   golangciTestUser:
     Type: AWS::IAM::User
-    Properties: 
+    Properties:
       Policies:
         - PolicyName: GolangciTestAccess
           PolicyDocument:
             Statement:
                 - Effect: Allow
                   Action: ["sqs:SendMessage", "sqs:ReceiveMessage", "sqs:ChangeMessageVisibility", "sqs:DeleteMessage"]
-                  Resource: !GetAtt testPrimaryQueue.Arn
+                  Resource:
+                    - !GetAtt testPrimaryQueue.Arn
+                    - !GetAtt testAnalyzesQueue.Arn
       UserName: golangciTestUser
   golangciDevUser:
     Type: AWS::IAM::User
-    Properties: 
+    Properties:
       Policies:
         - PolicyName: GolangciDevAccess
           PolicyDocument:
@@ -37,15 +43,19 @@ Resources:
       UserName: golangciDevUser
   golangciDevIsaevUser:
     Type: AWS::IAM::User
-    Properties: 
+    Properties:
       Policies:
         - PolicyName: GolangciDevIsaevAccess
           PolicyDocument:
             Statement:
                 - Effect: Allow
                   Action: ["sqs:SendMessage", "sqs:ReceiveMessage", "sqs:ChangeMessageVisibility", "sqs:DeleteMessage"]
-                  Resource: !GetAtt devIsaevPrimaryQueue.Arn
+                  Resource:
+                    - !GetAtt devIsaevPrimaryQueue.Arn
+                    - !GetAtt devIsaevAnalyzesQueue.Arn
       UserName: golangciDevIsaevUser
+
+  # user keys
   golangciProdUserKeys:
     Type: AWS::IAM::AccessKey
     Properties:
@@ -62,106 +72,131 @@ Resources:
     Type: AWS::IAM::AccessKey
     Properties:
       UserName: !Ref golangciTestUser
-  primaryQueue: 
+
+  # primary queue
+  primaryQueue:
     Type: AWS::SQS::Queue
-    Properties: 
-      RedrivePolicy: 
+    Properties:
+      RedrivePolicy:
         deadLetterTargetArn: !GetAtt deadLetterPrimaryQueue.Arn
         maxReceiveCount: 5
       VisibilityTimeout: 60
       ReceiveMessageWaitTimeSeconds: 20 # save costs on polling
-      # KmsMasterKeyId: alias/aws/sqs
-      # KmsDataKeyReusePeriodSeconds: 600
       MessageRetentionPeriod: 345600 # 4d
-  deadLetterPrimaryQueue: 
+  deadLetterPrimaryQueue:
     Type: AWS::SQS::Queue
     Properties:
       VisibilityTimeout: 60
       ReceiveMessageWaitTimeSeconds: 20 # save costs on polling
-      # KmsMasterKeyId: alias/aws/sqs
-      # KmsDataKeyReusePeriodSeconds: 600
       MessageRetentionPeriod: 1209600 # 14d
-  testPrimaryQueue: 
-    Type: AWS::SQS::Queue
-    Properties: 
-      RedrivePolicy: 
-        deadLetterTargetArn: !GetAtt testDeadLetterPrimaryQueue.Arn
-        maxReceiveCount: 5
-      VisibilityTimeout: 60
-      ReceiveMessageWaitTimeSeconds: 20 # save costs on polling
-      # KmsMasterKeyId: alias/aws/sqs
-      # KmsDataKeyReusePeriodSeconds: 600
-      MessageRetentionPeriod: 345600 # 4d
-  testDeadLetterPrimaryQueue: 
+  testPrimaryQueue:
     Type: AWS::SQS::Queue
     Properties:
       VisibilityTimeout: 60
       ReceiveMessageWaitTimeSeconds: 20 # save costs on polling
-      # KmsMasterKeyId: alias/aws/sqs
-      # KmsDataKeyReusePeriodSeconds: 600
-      MessageRetentionPeriod: 1209600 # 14d
-  devPrimaryQueue: 
+      MessageRetentionPeriod: 345600 # 4d
+  devPrimaryQueue:
     Type: AWS::SQS::Queue
-    Properties: 
-      RedrivePolicy: 
+    Properties:
+      RedrivePolicy:
         deadLetterTargetArn: !GetAtt devDeadLetterPrimaryQueue.Arn
         maxReceiveCount: 5
       VisibilityTimeout: 60
       ReceiveMessageWaitTimeSeconds: 20 # save costs on polling
-      # KmsMasterKeyId: alias/aws/sqs
-      # KmsDataKeyReusePeriodSeconds: 600
       MessageRetentionPeriod: 345600 # 4d
-  devDeadLetterPrimaryQueue: 
+  devDeadLetterPrimaryQueue:
     Type: AWS::SQS::Queue
     Properties:
       VisibilityTimeout: 60
       ReceiveMessageWaitTimeSeconds: 20 # save costs on polling
-      # KmsMasterKeyId: alias/aws/sqs
-      # KmsDataKeyReusePeriodSeconds: 600
       MessageRetentionPeriod: 1209600 # 14d
-  devIsaevPrimaryQueue: 
+  devIsaevPrimaryQueue:
     Type: AWS::SQS::Queue
-    Properties: 
-      RedrivePolicy: 
+    Properties:
+      RedrivePolicy:
         deadLetterTargetArn: !GetAtt devIsaevDeadLetterPrimaryQueue.Arn
         maxReceiveCount: 5
       VisibilityTimeout: 60
       ReceiveMessageWaitTimeSeconds: 20 # save costs on polling
-      # KmsMasterKeyId: alias/aws/sqs
-      # KmsDataKeyReusePeriodSeconds: 600
       MessageRetentionPeriod: 345600 # 4d
-  devIsaevDeadLetterPrimaryQueue: 
+  devIsaevDeadLetterPrimaryQueue:
     Type: AWS::SQS::Queue
     Properties:
       VisibilityTimeout: 60
       ReceiveMessageWaitTimeSeconds: 20 # save costs on polling
-      # KmsMasterKeyId: alias/aws/sqs
-      # KmsDataKeyReusePeriodSeconds: 600
       MessageRetentionPeriod: 1209600 # 14d
-  
+
+  # analyzes queue
+  analyzesQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      RedrivePolicy:
+        deadLetterTargetArn: !GetAtt deadLetterAnalyzesQueue.Arn
+        maxReceiveCount: 10
+      VisibilityTimeout: 600 # get in sync with worker timeout and staler
+      ReceiveMessageWaitTimeSeconds: 20 # save costs on polling
+      MessageRetentionPeriod: 1209600 # 14d
+  deadLetterAnalyzesQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      VisibilityTimeout: 600 # get in sync with worker timeout and staler
+      ReceiveMessageWaitTimeSeconds: 20 # save costs on polling
+      MessageRetentionPeriod: 1209600 # 14d
+  devIsaevAnalyzesQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      RedrivePolicy:
+        deadLetterTargetArn: !GetAtt deadLetterDevIsaevAnalyzesQueue.Arn
+        maxReceiveCount: 10
+      VisibilityTimeout: 600 # get in sync with worker timeout and staler
+      ReceiveMessageWaitTimeSeconds: 20 # save costs on polling
+      MessageRetentionPeriod: 1209600 # 14d
+  deadLetterDevIsaevAnalyzesQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      VisibilityTimeout: 600 # get in sync with worker timeout and staler
+      ReceiveMessageWaitTimeSeconds: 20 # save costs on polling
+      MessageRetentionPeriod: 1209600 # 14d
+  testAnalyzesQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      VisibilityTimeout: 600 # get in sync with worker timeout and staler
+      ReceiveMessageWaitTimeSeconds: 20 # save costs on polling
+      MessageRetentionPeriod: 1209600 # 14d
+
 Outputs:
-  primaryQueueURL: 
+  # primary queue
+  primaryQueueURL:
     Description: "URL of the primary queue"
-    Value: 
-      Ref: primaryQueue
-  primaryQueueARN: 
-    Description: "ARN of the primary queue"
-    Value: !GetAtt primaryQueue.Arn
-  deadLetterPrimaryQueueURL: 
+    Value: !Ref primaryQueue
+  deadLetterPrimaryQueueURL:
     Description: "URL of the dead letter for the primary queue"
     Value: !Ref deadLetterPrimaryQueue
-  deadLetterPrimaryQueueARN: 
-    Description: "ARN of the dead letter for the primary queue"
-    Value: !GetAtt deadLetterPrimaryQueue.Arn
-  testPrimaryQueueURL: 
+  testPrimaryQueueURL:
     Description: "URL of the test primary queue"
     Value: !Ref testPrimaryQueue
-  devPrimaryQueueURL: 
+  devPrimaryQueueURL:
     Description: "URL of the dev primary queue"
     Value: !Ref devPrimaryQueue
-  devIsaevPrimaryQueueURL: 
+  devIsaevPrimaryQueueURL:
     Description: "URL of the dev Isaev primary queue"
     Value: !Ref devIsaevPrimaryQueue
+
+  # analyzes queue
+  analyzesQueueURL:
+    Description: "URL of the analyzes queue"
+    Value: !Ref analyzesQueue
+  deadLetterAnalyzesQueueURL:
+    Description: "URL of the dead letter for the analyzes queue"
+    Value: !Ref deadLetterAnalyzesQueue
+  testAnalyzesQueueURL:
+    Description: "URL of the test analyzes queue"
+    Value: !Ref testAnalyzesQueue
+  devIsaevAnalyzesQueueURL:
+    Description: "URL of the dev Isaev analyzes queue"
+    Value: !Ref devIsaevAnalyzesQueue
+
+  # user
   golangciProdUserAccessKey:
     Value: !Ref golangciProdUserKeys
     Description: AWSAccessKeyId of golangciProdUser user

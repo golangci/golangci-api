@@ -1,15 +1,16 @@
-package analyzequeue
+package app
 
 import (
 	"context"
 	"testing"
 	"time"
 
+	"github.com/golangci/golangci-api/pkg/worker/analyze/analyzesqueue/pullanalyzesqueue"
+
 	"github.com/golangci/golangci-api/pkg/worker/analyze/analyzequeue/consumers"
 	"github.com/golangci/golangci-api/pkg/worker/analyze/analyzequeue/task"
 	"github.com/golangci/golangci-api/pkg/worker/analyze/processors"
 	"github.com/golangci/golangci-api/pkg/worker/lib/github"
-	"github.com/golangci/golangci-api/pkg/worker/lib/queue"
 	"github.com/golangci/golangci-api/pkg/worker/test"
 	"github.com/stretchr/testify/assert"
 )
@@ -46,7 +47,7 @@ type testProcessorFatory struct {
 }
 
 func (tpf testProcessorFatory) BuildProcessor(ctx context.Context, t *task.PRAnalysis) (processors.Processor, error) {
-	assert.Equal(tpf.t, tpf.expTask, t)
+	assert.Equal(tpf.t, *tpf.expTask, *t)
 	return testProcessor{
 		notifyCh: tpf.notifyCh,
 	}, nil
@@ -65,19 +66,20 @@ func TestSendReceiveProcessing(t *testing.T) {
 	}).restore()
 
 	test.Init()
-	queue.Init()
-	RegisterTasks()
-	go func() {
-		err := RunWorker()
-		assert.NoError(t, err)
-	}()
+	a := NewApp()
+	go a.Run()
 
-	assert.NoError(t, SchedulePRAnalysis(task))
+	testDeps := a.BuildTestDeps()
+	msg := pullanalyzesqueue.RunMessage{
+		Context:      task.Context,
+		APIRequestID: task.APIRequestID,
+	}
+	assert.NoError(t, testDeps.PullAnalyzesRunner.Put(&msg))
 
 	select {
 	case <-notifyCh:
 		return
-	case <-time.After(time.Second * 1):
+	case <-time.After(time.Second * 3):
 		t.Fatalf("Timeouted waiting of processing")
 	}
 }

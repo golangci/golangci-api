@@ -4,19 +4,20 @@ import (
 	"math"
 	"time"
 
+	"github.com/golangci/golangci-api/pkg/worker/analyze/analyzesqueue/repoanalyzesqueue"
+
 	"github.com/golangci/golangci-api/internal/shared/config"
 	"github.com/golangci/golangci-api/internal/shared/logutil"
 	"github.com/golangci/golangci-api/pkg/api/models"
-	"github.com/golangci/golangci-api/pkg/worker/analyze/analyzequeue"
-	"github.com/golangci/golangci-api/pkg/worker/analyze/analyzequeue/task"
 	"github.com/jinzhu/gorm"
 	"github.com/pkg/errors"
 )
 
 type Restarter struct {
-	DB  *gorm.DB
-	Log logutil.Log
-	Cfg config.Config
+	DB       *gorm.DB
+	Log      logutil.Log
+	Cfg      config.Config
+	RunQueue *repoanalyzesqueue.Producer
 }
 
 func (r Restarter) Run() {
@@ -74,18 +75,12 @@ func (r Restarter) runIteration(repoAnalysisTimeout time.Duration) error {
 			return errors.Wrapf(err, "failed to fetch repo with id %d", as.RepoID)
 		}
 
-		t := &task.RepoAnalysis{
-			Name:         repo.Name,
-			AnalysisGUID: a.AnalysisGUID,
-			Branch:       as.DefaultBranch,
-		}
-
 		a.AttemptNumber++
 		if err := a.Update(r.DB, models.RepoAnalysisDBSchema.AttemptNumber); err != nil {
 			return errors.Wrapf(err, "can't update attempt number for analysis %+v", a)
 		}
 
-		if err := analyzequeue.ScheduleRepoAnalysis(t); err != nil {
+		if err := r.RunQueue.Put(repo.Name, a.AnalysisGUID, as.DefaultBranch); err != nil {
 			return errors.Wrapf(err, "can't resend repo %s for analysis into queue", repo.Name)
 		}
 

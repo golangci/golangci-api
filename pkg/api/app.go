@@ -7,6 +7,12 @@ import (
 	"os"
 	"time"
 
+	"github.com/golangci/golangci-api/pkg/worker/analyze/analyzesqueue/pullanalyzesqueue"
+
+	"github.com/golangci/golangci-api/pkg/worker/analyze/analyzesqueue/repoanalyzesqueue"
+
+	"github.com/golangci/golangci-api/pkg/worker/analyze/analyzesqueue"
+
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	redigo "github.com/garyburd/redigo/redis"
@@ -43,7 +49,6 @@ import (
 	"github.com/golangci/golangci-api/pkg/api/workers/primaryqueue/repoanalyzes"
 	"github.com/golangci/golangci-api/pkg/api/workers/primaryqueue/repos"
 	"github.com/golangci/golangci-api/pkg/api/workers/primaryqueue/subs"
-	"github.com/golangci/golangci-api/pkg/worker/lib/queue"
 	"github.com/gorilla/mux"
 	"github.com/jinzhu/gorm"
 	_ "github.com/mattes/migrate/database/postgres" // must be first
@@ -67,10 +72,15 @@ type queues struct {
 	primarySQS    *sqs.Queue
 	primaryDLQSQS *sqs.Queue
 
+	analyzesSQS *sqs.Queue
+
 	producers struct {
-		primaryMultiplexer *producers.Multiplexer
+		primaryMultiplexer  *producers.Multiplexer
+		analyzesMultiplexer *producers.Multiplexer
 
 		repoAnalyzesLauncher *repoanalyzes.LauncherProducer
+		repoAnalyzesRunner   *repoanalyzesqueue.Producer
+		pullAnalyzesRunner   *pullanalyzesqueue.Producer
 	}
 }
 
@@ -178,10 +188,25 @@ func (a *App) buildAwsSess() {
 func (a *App) buildQueues() {
 	a.queues.primarySQS = sqs.NewQueue(a.cfg.GetString("SQS_PRIMARY_QUEUE_URL"),
 		a.awsSess, a.trackedLog, primaryqueue.VisibilityTimeoutSec)
+	a.queues.analyzesSQS = sqs.NewQueue(a.cfg.GetString("SQS_ANALYZES_QUEUE_URL"),
+		a.awsSess, a.trackedLog, analyzesqueue.VisibilityTimeoutSec)
 	a.queues.primaryDLQSQS = sqs.NewQueue(a.cfg.GetString("SQS_PRIMARYDEADLETTER_QUEUE_URL"),
 		a.awsSess, a.trackedLog, primaryqueue.VisibilityTimeoutSec)
 
 	a.queues.producers.primaryMultiplexer = producers.NewMultiplexer(a.queues.primarySQS)
+	a.queues.producers.analyzesMultiplexer = producers.NewMultiplexer(a.queues.analyzesSQS)
+
+	repoAnalyzesRunner := &repoanalyzesqueue.Producer{}
+	if err := repoAnalyzesRunner.Register(a.queues.producers.analyzesMultiplexer); err != nil {
+		a.log.Fatalf("Failed to create 'run repo analysis' producer: %s", err)
+	}
+	a.queues.producers.repoAnalyzesRunner = repoAnalyzesRunner
+
+	pullAnalyzesRunner := &pullanalyzesqueue.Producer{}
+	if err := pullAnalyzesRunner.Register(a.queues.producers.analyzesMultiplexer); err != nil {
+		a.log.Fatalf("Failed to create 'run pull analysis' producer: %s", err)
+	}
+	a.queues.producers.pullAnalyzesRunner = pullAnalyzesRunner
 
 	repoAnalyzesLauncher := &repoanalyzes.LauncherProducer{}
 	if err := repoAnalyzesLauncher.Register(a.queues.producers.primaryMultiplexer); err != nil {
@@ -195,6 +220,7 @@ func (a *App) buildServices() {
 	a.services.repohook = repohook.BasicService{
 		ProviderFactory:       a.providerFactory,
 		AnalysisLauncherQueue: a.queues.producers.repoAnalyzesLauncher,
+		PullAnalyzeQueue:      a.queues.producers.pullAnalyzesRunner,
 	}
 	a.services.pranalysis = pranalysis.BasicService{}
 	a.services.events = events.BasicService{}
@@ -303,9 +329,10 @@ func NewApp(modifiers ...Modifier) *App {
 		ProviderFactory: a.providerFactory,
 	}
 	a.repoAnalyzesRestarter = &repoanalyzeslib.Restarter{
-		DB:  a.gormDB,
-		Log: a.trackedLog,
-		Cfg: a.cfg,
+		DB:       a.gormDB,
+		Log:      a.trackedLog,
+		Cfg:      a.cfg,
+		RunQueue: a.queues.producers.repoAnalyzesRunner,
 	}
 	a.repoInfoUpdater = &repoinfo.Updater{
 		DB:  a.gormDB,
@@ -341,49 +368,49 @@ func (a App) runMigrations() {
 	}
 }
 
-func (a App) buildMultiplexedConsumer() *consumers.Multiplexer {
-	primaryQueueConsumerMultiplexer := consumers.NewMultiplexer()
+func (a App) buildMultiplexedPrimaryQueueConsumer() *consumers.Multiplexer {
+	multiplexer := consumers.NewMultiplexer()
 
-	repoCreatorConsumer := repos.NewCreatorConsumer(a.trackedLog, a.sqlDB, a.cfg,
+	repoCreator := repos.NewCreatorConsumer(a.trackedLog, a.sqlDB, a.cfg,
 		a.providerFactory, a.queues.producers.repoAnalyzesLauncher)
-	if err := repoCreatorConsumer.Register(primaryQueueConsumerMultiplexer, a.distLockFactory); err != nil {
+	if err := repoCreator.Register(multiplexer, a.distLockFactory); err != nil {
 		a.log.Fatalf("Failed to register repo creator consumer: %s", err)
 	}
-	repoDeleterConsumer := repos.NewDeleterConsumer(a.trackedLog, a.sqlDB, a.cfg, a.providerFactory)
-	if err := repoDeleterConsumer.Register(primaryQueueConsumerMultiplexer, a.distLockFactory); err != nil {
+	repoDeleter := repos.NewDeleterConsumer(a.trackedLog, a.sqlDB, a.cfg, a.providerFactory)
+	if err := repoDeleter.Register(multiplexer, a.distLockFactory); err != nil {
 		a.log.Fatalf("Failed to register repo deleter consumer: %s", err)
 	}
 
-	subCreatorConsumer := subs.NewCreatorConsumer(a.trackedLog, a.sqlDB, a.cfg, a.paymentProviderFactory)
-	if err := subCreatorConsumer.Register(primaryQueueConsumerMultiplexer, a.distLockFactory); err != nil {
+	subCreator := subs.NewCreatorConsumer(a.trackedLog, a.sqlDB, a.cfg, a.paymentProviderFactory)
+	if err := subCreator.Register(multiplexer, a.distLockFactory); err != nil {
 		a.log.Fatalf("Failed to register sub creator consumer: %s", err)
 	}
 
-	subUpdaterConsumer := subs.NewUpdaterConsumer(a.trackedLog, a.sqlDB, a.cfg, a.paymentProviderFactory)
-	if err := subUpdaterConsumer.Register(primaryQueueConsumerMultiplexer, a.distLockFactory); err != nil {
+	subUpdater := subs.NewUpdaterConsumer(a.trackedLog, a.sqlDB, a.cfg, a.paymentProviderFactory)
+	if err := subUpdater.Register(multiplexer, a.distLockFactory); err != nil {
 		a.log.Fatalf("Failed to register sub updater consumer: %s", err)
 	}
 
-	subDeleterConsumer := subs.NewDeleterConsumer(a.trackedLog, a.sqlDB, a.cfg, a.paymentProviderFactory)
-	if err := subDeleterConsumer.Register(primaryQueueConsumerMultiplexer, a.distLockFactory); err != nil {
+	subDeleter := subs.NewDeleterConsumer(a.trackedLog, a.sqlDB, a.cfg, a.paymentProviderFactory)
+	if err := subDeleter.Register(multiplexer, a.distLockFactory); err != nil {
 		a.log.Fatalf("Failed to register sub deleter consumer: %s", err)
 	}
 
-	paymentEventCreatorConsumer := paymentevents.NewCreatorConsumer(a.trackedLog, a.sqlDB, a.cfg, a.paymentProviderFactory)
-	if err := paymentEventCreatorConsumer.Register(primaryQueueConsumerMultiplexer, a.distLockFactory); err != nil {
+	paymentEventCreator := paymentevents.NewCreatorConsumer(a.trackedLog, a.sqlDB, a.cfg, a.paymentProviderFactory)
+	if err := paymentEventCreator.Register(multiplexer, a.distLockFactory); err != nil {
 		a.log.Fatalf("Failed to register payment event creator consumer: %s", err)
 	}
 
-	analyzesLauncherConsumer := repoanalyzes.NewLauncherConsumer(a.trackedLog, a.sqlDB)
-	if err := analyzesLauncherConsumer.Register(primaryQueueConsumerMultiplexer, a.distLockFactory); err != nil {
+	analyzesLauncher := repoanalyzes.NewLauncherConsumer(a.trackedLog, a.sqlDB, a.queues.producers.repoAnalyzesRunner)
+	if err := analyzesLauncher.Register(multiplexer, a.distLockFactory); err != nil {
 		a.log.Fatalf("Failed to register analyzes launcher consumer: %s", err)
 	}
 
-	return primaryQueueConsumerMultiplexer
+	return multiplexer
 }
 
 func (a App) runConsumers() {
-	primaryQueueConsumerMultiplexer := a.buildMultiplexedConsumer()
+	primaryQueueConsumerMultiplexer := a.buildMultiplexedPrimaryQueueConsumer()
 	primaryQueueConsumer := consumer.NewSQS(a.trackedLog, a.cfg, a.queues.primarySQS,
 		primaryQueueConsumerMultiplexer, "primary", primaryqueue.VisibilityTimeoutSec)
 
@@ -391,7 +418,7 @@ func (a App) runConsumers() {
 }
 
 func (a App) RunDeadLetterConsumers() {
-	primaryDLQConsumerMultiplexer := a.buildMultiplexedConsumer()
+	primaryDLQConsumerMultiplexer := a.buildMultiplexedPrimaryQueueConsumer()
 	primaryDLQConsumer := consumer.NewSQS(a.trackedLog, a.cfg, a.queues.primaryDLQSQS,
 		primaryDLQConsumerMultiplexer, "primaryDeadLetter", primaryqueue.VisibilityTimeoutSec)
 
@@ -399,16 +426,11 @@ func (a App) RunDeadLetterConsumers() {
 }
 
 func (a App) RecoverAnalyzes() error {
-	r := pranalyzes.NewReanalyzer(a.gormDB, a.cfg, a.log, a.providerFactory)
+	r := pranalyzes.NewReanalyzer(a.gormDB, a.cfg, a.log, a.providerFactory, a.queues.producers.pullAnalyzesRunner)
 	return r.RunOnce()
 }
 
-func (a App) InitQueue() {
-	queue.Init()
-}
-
 func (a App) RunEnvironment() {
-	a.InitQueue()
 	a.runMigrations()
 	a.runConsumers()
 
@@ -444,4 +466,8 @@ func (a App) GetHTTPHandler() http.Handler {
 	n.Use(c)
 	n.UseHandler(r)
 	return n
+}
+
+func (a App) GetRepoAnalyzesRunQueue() *repoanalyzesqueue.Producer {
+	return a.queues.producers.repoAnalyzesRunner
 }

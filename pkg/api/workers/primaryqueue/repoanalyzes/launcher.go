@@ -6,14 +6,14 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/golangci/golangci-api/pkg/worker/analyze/analyzesqueue/repoanalyzesqueue"
+
 	"github.com/golangci/golangci-api/internal/shared/db/gormdb"
 	"github.com/golangci/golangci-api/internal/shared/logutil"
 	"github.com/golangci/golangci-api/internal/shared/queue/consumers"
 	"github.com/golangci/golangci-api/internal/shared/queue/producers"
 	"github.com/golangci/golangci-api/pkg/api/models"
 	"github.com/golangci/golangci-api/pkg/api/workers/primaryqueue"
-	"github.com/golangci/golangci-api/pkg/worker/analyze/analyzequeue"
-	"github.com/golangci/golangci-api/pkg/worker/analyze/analyzequeue/task"
 	"github.com/jinzhu/gorm"
 	"github.com/pkg/errors"
 	uuid "github.com/satori/go.uuid"
@@ -48,14 +48,16 @@ func (p LauncherProducer) Put(repoID uint, commitSHA string) error {
 }
 
 type LauncherConsumer struct {
-	log logutil.Log
-	db  *sql.DB
+	log         logutil.Log
+	db          *sql.DB
+	runProducer *repoanalyzesqueue.Producer
 }
 
-func NewLauncherConsumer(log logutil.Log, db *sql.DB) *LauncherConsumer {
+func NewLauncherConsumer(log logutil.Log, db *sql.DB, runProducer *repoanalyzesqueue.Producer) *LauncherConsumer {
 	return &LauncherConsumer{
-		log: log,
-		db:  db,
+		log:         log,
+		db:          db,
+		runProducer: runProducer,
 	}
 }
 
@@ -186,14 +188,8 @@ func (c LauncherConsumer) createNewAnalysis(tx *gorm.DB, as *models.RepoAnalysis
 		return errors.Wrap(err, "can't create repo analysis")
 	}
 
-	t := &task.RepoAnalysis{
-		Name:         repo.Name,
-		AnalysisGUID: a.AnalysisGUID,
-		Branch:       as.DefaultBranch,
-	}
-
-	if err := analyzequeue.ScheduleRepoAnalysis(t); err != nil {
-		return errors.Wrap(err, "can't send repo for analysis into queue")
+	if err := c.runProducer.Put(repo.Name, a.AnalysisGUID, as.DefaultBranch); err != nil {
+		return errors.Wrap(err, "failed to enqueue repo analysis for running")
 	}
 
 	return nil

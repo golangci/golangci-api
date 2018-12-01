@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/golangci/golangci-api/pkg/worker/analyze/analyzesqueue/pullanalyzesqueue"
+
 	"github.com/golangci/golangci-api/internal/api/apierrors"
 	"github.com/golangci/golangci-api/internal/shared/logutil"
 	"github.com/golangci/golangci-api/internal/shared/providers"
@@ -12,8 +14,6 @@ import (
 	"github.com/golangci/golangci-api/pkg/api/models"
 	"github.com/golangci/golangci-api/pkg/api/request"
 	"github.com/golangci/golangci-api/pkg/api/workers/primaryqueue/repoanalyzes"
-	"github.com/golangci/golangci-api/pkg/worker/analyze/analyzequeue"
-	"github.com/golangci/golangci-api/pkg/worker/analyze/analyzequeue/task"
 	"github.com/golangci/golangci-api/pkg/worker/lib/github"
 	gh "github.com/google/go-github/github"
 	"github.com/jinzhu/gorm"
@@ -42,6 +42,7 @@ type Service interface {
 type BasicService struct {
 	ProviderFactory       providers.Factory
 	AnalysisLauncherQueue *repoanalyzes.LauncherProducer
+	PullAnalyzeQueue      *pullanalyzesqueue.Producer
 }
 
 func (s BasicService) HandleGithubWebhook(rc *request.AnonymousContext, req *GithubWebhook, body request.Body) error {
@@ -115,20 +116,6 @@ func (s BasicService) handleGithubPullRequestWebhook(rc *request.AnonymousContex
 		return err
 	}
 
-	githubCtx := github.Context{
-		Repo: github.Repo{
-			Owner: repo.Owner(),
-			Name:  repo.Repo(),
-		},
-		GithubAccessToken: auth.StrongestAccessToken(),
-		PullRequestNumber: analysis.PullRequestNumber,
-	}
-	t := &task.PRAnalysis{
-		Context:      githubCtx,
-		UserID:       repo.UserID,
-		AnalysisGUID: analysis.GithubDeliveryGUID,
-	}
-
 	p, err := s.ProviderFactory.Build(&auth)
 	if err != nil {
 		return errors.Wrapf(err, "failed to build provider for auth %d", auth.ID)
@@ -141,15 +128,28 @@ func (s BasicService) handleGithubPullRequestWebhook(rc *request.AnonymousContex
 	})
 	if err != nil {
 		if err == provider.ErrUnauthorized || err == provider.ErrNotFound {
-			rc.Log.Warnf("Can't set github commit status to 'pending in queue' for task %+v, skipping webhook: %s",
-				t, err)
+			rc.Log.Warnf("Can't set github commit status to 'pending in queue', skipping webhook: %s", err)
 			return nil
 		}
 
 		return errors.Wrap(err, "failed to set commit status")
 	}
 
-	if err = analyzequeue.SchedulePRAnalysis(t); err != nil {
+	githubCtx := github.Context{
+		Repo: github.Repo{
+			Owner: repo.Owner(),
+			Name:  repo.Repo(),
+		},
+		GithubAccessToken: auth.StrongestAccessToken(),
+		PullRequestNumber: analysis.PullRequestNumber,
+	}
+
+	msg := pullanalyzesqueue.RunMessage{
+		Context:      githubCtx,
+		UserID:       repo.UserID,
+		AnalysisGUID: analysis.GithubDeliveryGUID,
+	}
+	if err = s.PullAnalyzeQueue.Put(&msg); err != nil {
 		return errors.Wrap(err, "can't send pull request for analysis into queue: %s")
 	}
 

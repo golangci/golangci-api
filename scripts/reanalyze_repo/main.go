@@ -4,6 +4,8 @@ import (
 	"flag"
 	"log"
 
+	"github.com/golangci/golangci-api/pkg/worker/analyze/analyzesqueue/repoanalyzesqueue"
+
 	"github.com/golangci/golangci-api/pkg/api"
 
 	"github.com/pkg/errors"
@@ -13,8 +15,6 @@ import (
 
 	"github.com/golangci/golangci-api/internal/shared/db/gormdb"
 	"github.com/golangci/golangci-api/pkg/api/models"
-	"github.com/golangci/golangci-api/pkg/worker/analyze/analyzequeue"
-	"github.com/golangci/golangci-api/pkg/worker/analyze/analyzequeue/task"
 	"github.com/jinzhu/gorm"
 	_ "github.com/joho/godotenv/autoload"
 	_ "github.com/lib/pq"
@@ -37,7 +37,6 @@ func main() {
 
 func reanalyzeRepo(repoName string) error {
 	a := app.NewApp()
-	a.InitQueue()
 
 	log := logutil.NewStderrLog("")
 	cfg := config.NewEnvConfig(log)
@@ -51,10 +50,10 @@ func reanalyzeRepo(repoName string) error {
 		return errors.Wrap(err, "failed to get repo by name")
 	}
 
-	return restartAnalysis(db, &repo)
+	return restartAnalysis(db, &repo, a.GetRepoAnalyzesRunQueue())
 }
 
-func restartAnalysis(db *gorm.DB, repo *models.Repo) error {
+func restartAnalysis(db *gorm.DB, repo *models.Repo, runQueue *repoanalyzesqueue.Producer) error {
 	var as models.RepoAnalysisStatus
 	if err := models.NewRepoAnalysisStatusQuerySet(db).RepoIDEq(repo.ID).One(&as); err != nil {
 		return errors.Wrapf(err, "can't get repo analysis status for repo %d", repo.ID)
@@ -65,15 +64,5 @@ func restartAnalysis(db *gorm.DB, repo *models.Repo) error {
 		return errors.Wrap(err, "can't get repo analysis")
 	}
 
-	t := &task.RepoAnalysis{
-		Name:         repo.Name,
-		AnalysisGUID: a.AnalysisGUID,
-		Branch:       as.DefaultBranch,
-	}
-
-	if err := analyzequeue.ScheduleRepoAnalysis(t); err != nil {
-		return errors.Wrapf(err, "can't resend repo %s for analysis into queue", repo.Name)
-	}
-
-	return nil
+	return runQueue.Put(repo.Name, a.AnalysisGUID, as.DefaultBranch)
 }

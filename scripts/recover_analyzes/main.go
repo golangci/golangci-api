@@ -8,7 +8,6 @@ import (
 
 func main() {
 	a := app.NewApp()
-	a.InitQueue()
 	if err := a.RecoverAnalyzes(); err != nil {
 		log.Fatalf("Failed to recover analyzes: %s", err)
 	}

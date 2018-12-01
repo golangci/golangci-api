@@ -8,13 +8,13 @@ import (
 	"strings"
 	"time"
 
+	"github.com/golangci/golangci-api/pkg/worker/analyze/analyzesqueue/pullanalyzesqueue"
+
 	"github.com/golangci/golangci-api/internal/shared/providers"
 
 	"github.com/golangci/golangci-api/internal/shared/config"
 	"github.com/golangci/golangci-api/internal/shared/logutil"
 	"github.com/golangci/golangci-api/pkg/api/models"
-	"github.com/golangci/golangci-api/pkg/worker/analyze/analyzequeue"
-	"github.com/golangci/golangci-api/pkg/worker/analyze/analyzequeue/task"
 	"github.com/golangci/golangci-api/pkg/worker/lib/github"
 	"github.com/jinzhu/gorm"
 	"github.com/pkg/errors"
@@ -23,18 +23,22 @@ import (
 )
 
 type Reanalyzer struct {
-	db  *gorm.DB
-	cfg config.Config
-	log logutil.Log
-	pf  providers.Factory
+	db       *gorm.DB
+	cfg      config.Config
+	log      logutil.Log
+	pf       providers.Factory
+	runQueue *pullanalyzesqueue.Producer
 }
 
-func NewReanalyzer(db *gorm.DB, cfg config.Config, log logutil.Log, pf providers.Factory) *Reanalyzer {
+func NewReanalyzer(db *gorm.DB, cfg config.Config, log logutil.Log,
+	pf providers.Factory, runQueue *pullanalyzesqueue.Producer) *Reanalyzer {
+
 	return &Reanalyzer{
-		db:  db,
-		cfg: cfg,
-		log: log,
-		pf:  pf,
+		db:       db,
+		cfg:      cfg,
+		log:      log,
+		pf:       pf,
+		runQueue: runQueue,
 	}
 }
 
@@ -260,13 +264,13 @@ func (r Reanalyzer) restartAnalysis(a *models.PullRequestAnalysis, repo *models.
 		GithubAccessToken: auth.StrongestAccessToken(), // TODO: get strongest only if paid
 		PullRequestNumber: a.PullRequestNumber,
 	}
-	t := &task.PRAnalysis{
+
+	err := r.runQueue.Put(&pullanalyzesqueue.RunMessage{
 		Context:      githubCtx,
 		UserID:       repo.UserID,
 		AnalysisGUID: a.GithubDeliveryGUID,
-	}
-
-	if err := analyzequeue.SchedulePRAnalysis(t); err != nil {
+	})
+	if err != nil {
 		return errors.Wrap(err, "can't send pull request for analysis into queue: %s")
 	}
 
