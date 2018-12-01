@@ -6,7 +6,7 @@ import (
 	"os"
 	"path"
 
-	"github.com/golangci/golangci-api/internal/api/util"
+	"github.com/golangci/golangci-api/internal/shared/fsutil"
 	"github.com/golangci/golangci-api/pkg/api"
 	"github.com/joho/godotenv"
 )
@@ -43,7 +43,7 @@ func RunApp() *App {
 func loadEnv() {
 	envNames := []string{".env", ".env.test"}
 	for _, envName := range envNames {
-		fpath := path.Join(util.GetProjectRoot(), envName)
+		fpath := path.Join(fsutil.GetProjectRoot(), envName)
 		err := godotenv.Overload(fpath)
 		if err != nil {
 			log.Fatalf("Can't load %s: %s", fpath, err)

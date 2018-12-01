@@ -6,14 +6,12 @@ module github.com/golangci/golangci-api
 require (
 	cloud.google.com/go v0.33.1 // indirect
 	github.com/Microsoft/go-winio v0.4.11 // indirect
-	github.com/RichardKnop/logging v0.0.0-20181101035820-b1d5d44c82d6 // indirect
-	github.com/RichardKnop/machinery v0.0.0-20180221144734-c5e057032f00
 	github.com/ajg/form v0.0.0-20160822230020-523a5da1a92f // indirect
 	github.com/aws/aws-lambda-go v1.6.0
 	github.com/aws/aws-sdk-go v0.0.0-20180126231901-00cca3f093a8
-	github.com/bradfitz/gomemcache v0.0.0-20180710155616-bc664df96737 // indirect
 	github.com/cenkalti/backoff v2.0.0+incompatible
 	github.com/certifi/gocertifi v0.0.0-20180905225744-ee1a9a0726d2 // indirect
+	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/denisenkom/go-mssqldb v0.0.0-20181014144952-4e0d7dc8888f // indirect
 	github.com/docker/distribution v2.6.2+incompatible // indirect
 	github.com/docker/docker v1.13.1 // indirect
@@ -51,7 +49,6 @@ require (
 	github.com/joho/godotenv v0.0.0-20180115024921-6bb08516677f
 	github.com/jtolds/gls v4.2.1+incompatible // indirect
 	github.com/k0kubun/colorstring v0.0.0-20150214042306-9440f1994b88 // indirect
-	github.com/kelseyhightower/envconfig v1.3.0 // indirect
 	github.com/kr/pretty v0.1.0 // indirect
 	github.com/levigross/grequests v0.0.0-20180717012718-3f841d606c5a
 	github.com/lib/pq v0.0.0-20180201184707-88edab080323
@@ -70,7 +67,6 @@ require (
 	github.com/smartystreets/goconvey v0.0.0-20181108003508-044398e4856c // indirect
 	github.com/spf13/viper v1.0.2
 	github.com/stevvooe/resumable v0.0.0-20180830230917-22b14a53ba50 // indirect
-	github.com/streadway/amqp v0.0.0-20181107104731-27835f1a64e9 // indirect
 	github.com/stretchr/testify v1.2.2
 	github.com/stvp/rollbar v0.5.1
 	github.com/stvp/tempredis v0.0.0-20181119212430-b82af8480203 // indirect
@@ -90,7 +86,6 @@ require (
 	gopkg.in/boj/redistore.v1 v1.0.0-20160128113310-fc113767cd6b
 	gopkg.in/check.v1 v1.0.0-20180628173108-788fd7840127 // indirect
 	gopkg.in/ini.v1 v1.39.0 // indirect
-	gopkg.in/mgo.v2 v2.0.0-20180705113604-9856a29383ce // indirect
 	gopkg.in/redsync.v1 v1.0.1
 	gopkg.in/yaml.v2 v2.2.1
 )

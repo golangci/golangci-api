@@ -7,6 +7,8 @@ import (
 	"os"
 	"time"
 
+	"github.com/golangci/golangci-api/internal/shared/fsutil"
+
 	"github.com/golangci/golangci-api/pkg/worker/analyze/analyzesqueue/pullanalyzesqueue"
 
 	"github.com/golangci/golangci-api/pkg/worker/analyze/analyzesqueue/repoanalyzesqueue"
@@ -19,7 +21,6 @@ import (
 	"github.com/golangci/golangci-api/internal/api/paymentproviders"
 	apisession "github.com/golangci/golangci-api/internal/api/session"
 	"github.com/golangci/golangci-api/internal/api/transportutil"
-	"github.com/golangci/golangci-api/internal/api/util"
 	"github.com/golangci/golangci-api/internal/shared/apperrors"
 	"github.com/golangci/golangci-api/internal/shared/cache"
 	"github.com/golangci/golangci-api/internal/shared/config"
@@ -308,7 +309,7 @@ func (a *App) buildMigrationsRunner() {
 		a.log.Fatalf("Can't get DB conn string: %s", err)
 	}
 	a.migrationsRunner = migrations.NewRunner(a.distLockFactory.NewMutex("migrations"), a.trackedLog,
-		dbConnString, util.GetProjectRoot())
+		dbConnString, fsutil.GetProjectRoot())
 }
 
 func NewApp(modifiers ...Modifier) *App {

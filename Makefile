@@ -39,9 +39,7 @@ test_api_dev:
 test_worker:
 	go test -v -parallel 1 -p 1 ./pkg/worker/...
 
-test_worker_dev:
-	echo "FLUSHALL" | docker-compose exec -T redis redis-cli
-	make test_worker
+test_worker_dev: test_worker
 
 test: test_api test_worker test_lint
 test_dev: test_api_dev test_worker_dev test_lint_dev
@@ -70,3 +68,4 @@ worker_test_repo_fake_github:
 mod_update:
 	GO111MODULE=on go mod verify
 	GO111MODULE=on go mod tidy
+	GO111MODULE=on go mod vendor
