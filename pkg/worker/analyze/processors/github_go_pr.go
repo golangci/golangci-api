@@ -9,14 +9,12 @@ import (
 	"strings"
 	"time"
 
-	"github.com/golangci/golangci-api/pkg/goenvbuild/ensuredeps"
 	goenvresult "github.com/golangci/golangci-api/pkg/goenvbuild/result"
 	"github.com/golangci/golangci-api/pkg/worker/analytics"
 	"github.com/golangci/golangci-api/pkg/worker/analyze/linters"
 	"github.com/golangci/golangci-api/pkg/worker/analyze/linters/golinters"
 	"github.com/golangci/golangci-api/pkg/worker/analyze/linters/result"
 	"github.com/golangci/golangci-api/pkg/worker/analyze/prstate"
-	"github.com/golangci/golangci-api/pkg/worker/analyze/repoinfo"
 	"github.com/golangci/golangci-api/pkg/worker/analyze/reporters"
 	"github.com/golangci/golangci-api/pkg/worker/lib/errorutils"
 	"github.com/golangci/golangci-api/pkg/worker/lib/executors"
@@ -37,7 +35,6 @@ const (
 
 type githubGoPRConfig struct {
 	repoFetcher fetchers.Fetcher
-	infoFetcher repoinfo.Fetcher
 	linters     []linters.Linter
 	runner      linters.Runner
 	reporter    reporters.Reporter
@@ -51,15 +48,14 @@ type githubGoPR struct {
 	analysisGUID string
 
 	context *github.Context
-	gw      *workspaces.Go
 
 	resLog *goenvresult.Log
 
 	githubGoPRConfig
 	resultCollector
 
-	newWorkspaceInstaller workspaces.Installer
-	ec                    *experiments.Checker
+	workspaceInstaller workspaces.Installer
+	ec                 *experiments.Checker
 }
 
 //nolint:gocyclo
@@ -70,7 +66,7 @@ func newGithubGoPR(ctx context.Context, c *github.Context, cfg githubGoPRConfig,
 
 	if cfg.exec == nil {
 		var err error
-		cfg.exec, err = makeExecutor(ctx, &c.Repo, true, nil, nil)
+		cfg.exec, err = makeExecutor(ctx, nil)
 		if err != nil {
 			return nil, fmt.Errorf("can't make executor: %s", err)
 		}
@@ -78,10 +74,6 @@ func newGithubGoPR(ctx context.Context, c *github.Context, cfg githubGoPRConfig,
 
 	if cfg.repoFetcher == nil {
 		cfg.repoFetcher = fetchers.NewGit()
-	}
-
-	if cfg.infoFetcher == nil {
-		cfg.infoFetcher = repoinfo.NewCloningFetcher(cfg.repoFetcher)
 	}
 
 	if cfg.linters == nil {
@@ -98,7 +90,7 @@ func newGithubGoPR(ctx context.Context, c *github.Context, cfg githubGoPRConfig,
 	ec := experiments.NewChecker(envCfg, log)
 
 	if cfg.reporter == nil {
-		includeLinterName := ec.IsActiveForAnalysis("include_linter_name_in_comment", &c.Repo, true)
+		const includeLinterName = true
 		cfg.reporter = reporters.NewGithubReviewer(c, cfg.client, includeLinterName)
 	}
 
@@ -110,18 +102,12 @@ func newGithubGoPR(ctx context.Context, c *github.Context, cfg githubGoPRConfig,
 		cfg.state = prstate.NewAPIStorage(httputils.GrequestsClient{})
 	}
 
-	var wi workspaces.Installer
-
-	if ec.IsActiveForAnalysis("new_pr_prepare", &c.Repo, true) {
-		wi = workspaces.NewGo2(cfg.exec, log, cfg.repoFetcher)
-	}
-
 	return &githubGoPR{
-		context:               c,
-		githubGoPRConfig:      cfg,
-		analysisGUID:          analysisGUID,
-		newWorkspaceInstaller: wi,
-		ec:                    ec,
+		context:            c,
+		githubGoPRConfig:   cfg,
+		analysisGUID:       analysisGUID,
+		workspaceInstaller: workspaces.NewGo(cfg.exec, log, cfg.repoFetcher),
+		ec:                 ec,
 	}, nil
 }
 
@@ -151,55 +137,18 @@ func (g githubGoPR) getRepo() *fetchers.Repo {
 	}
 }
 
-func (g *githubGoPR) prepareRepo(ctx context.Context) error {
-	if g.newWorkspaceInstaller != nil {
-		if g.resLog != nil {
-			for _, sg := range g.resLog.Groups {
-				for _, s := range sg.Steps {
-					if s.Error != "" {
-						text := fmt.Sprintf("%s error: %s", s.Description, s.Error)
-						text = escapeErrorText(text, g.buildSecrets())
-						g.publicWarn(sg.Name, text)
-					}
+func (g *githubGoPR) prepareRepo() {
+	if g.resLog != nil {
+		for _, sg := range g.resLog.Groups {
+			for _, s := range sg.Steps {
+				if s.Error != "" {
+					text := fmt.Sprintf("%s error: %s", s.Description, s.Error)
+					text = escapeErrorText(text, g.buildSecrets())
+					g.publicWarn(sg.Name, text)
 				}
 			}
 		}
-
-		return nil
 	}
-
-	repo := g.getRepo()
-	var err error
-	g.trackTiming("Clone", func() {
-		err = g.repoFetcher.Fetch(ctx, repo, g.exec)
-	})
-	if err != nil {
-		return &errorutils.InternalError{
-			PublicDesc:  "can't clone git repo",
-			PrivateDesc: fmt.Sprintf("can't clone git repo: %s", err),
-		}
-	}
-
-	var depsRes *ensuredeps.Result
-	g.trackTiming("Deps", func() {
-		depsRes, err = g.gw.FetchDeps(ctx, repo.FullPath)
-	})
-	if err != nil {
-		// don't public warn: it's an internal error
-		analytics.Log(ctx).Warnf("Internal error fetching deps: %s", err)
-	} else {
-		analytics.Log(ctx).Infof("Got deps result: %#v", depsRes)
-
-		//for _, w := range depsRes.Warnings {
-		//	warnText := fmt.Sprintf("Fetch deps: %s: %s", w.Kind, w.Text)
-		//	warnText = escapeErrorText(warnText, g.buildSecrets())
-		//	g.publicWarn("prepare repo", warnText)
-		//
-		//			analytics.Log(ctx).Infof("Fetch deps warning: [%s]: %s", w.Kind, w.Text)
-		//		}
-	}
-
-	return nil
 }
 
 func (g githubGoPR) updateAnalysisState(ctx context.Context, res *result.Result, status github.Status, publicError string) {
@@ -244,9 +193,6 @@ func (g githubGoPR) buildSecrets() map[string]string {
 	ret := map[string]string{
 		g.context.GithubAccessToken: hidden,
 		g.analysisGUID:              hidden,
-	}
-	if g.newWorkspaceInstaller == nil {
-		ret[g.gw.Gopath()] = "$GOPATH"
 	}
 
 	for _, kv := range os.Environ() {
@@ -330,9 +276,7 @@ func (g *githubGoPR) work(ctx context.Context) (res *result.Result, err error) {
 		}
 	}
 
-	if err = g.prepareRepo(ctx); err != nil {
-		return nil, err // don't wrap error, need to save it's type
-	}
+	g.prepareRepo()
 
 	g.trackTiming("Analysis", func() {
 		res, err = g.runner.Run(ctx, g.linters, g.exec)
@@ -389,33 +333,19 @@ func (g githubGoPR) Process(ctx context.Context) error {
 
 	g.setCommitStatus(ctx, github.StatusPending, "GolangCI is reviewing your Pull Request...")
 
-	if g.newWorkspaceInstaller == nil {
-		g.gw = workspaces.NewGo(g.exec, g.infoFetcher)
-		if err = g.gw.Setup(ctx, g.getRepo(), "github.com", g.context.Repo.Owner, g.context.Repo.Name); err != nil {
-			publicError := fmt.Sprintf("failed to setup workspace: %s", err)
-			publicError = escapeErrorText(publicError, g.buildSecrets())
-			g.updateAnalysisState(ctx, nil, github.StatusError, publicError)
-			g.setCommitStatus(ctx, github.StatusError, "failed to setup")
-
-			return fmt.Errorf("can't setup go workspace: %s", err)
-		}
-		defer g.gw.Clean(ctx)
-		g.exec = g.gw.Executor()
-	} else {
-		startedAt := time.Now()
-		exec, resLog, err := g.newWorkspaceInstaller.Setup(ctx, g.getRepo(), "github.com", g.context.Repo.Owner, g.context.Repo.Name) //nolint:govet
-		if err != nil {
-			publicError := fmt.Sprintf("failed to setup workspace: %s", err)
-			publicError = escapeErrorText(publicError, g.buildSecrets())
-			g.updateAnalysisState(ctx, nil, github.StatusError, publicError)
-			g.setCommitStatus(ctx, github.StatusError, "failed to setup")
-
-			return nil
-		}
-		g.exec = exec
-		g.resLog = resLog
-		g.addTimingFrom("Prepare", startedAt)
+	startedAt := time.Now()
+	exec, resLog, err := g.workspaceInstaller.Setup(ctx, g.getRepo(), "github.com", g.context.Repo.Owner, g.context.Repo.Name) //nolint:govet
+	if err != nil {
+		analytics.Log(ctx).Warnf("Failed to setup workspace: %s", err)
+		publicError := fmt.Sprintf("failed to setup workspace: %s", err)
+		publicError = escapeErrorText(publicError, g.buildSecrets())
+		g.updateAnalysisState(ctx, nil, github.StatusError, publicError)
+		g.setCommitStatus(ctx, github.StatusError, "failed to setup")
+		return nil
 	}
+	g.exec = exec
+	g.resLog = resLog
+	g.addTimingFrom("Prepare", startedAt)
 
 	patch, err := g.client.GetPullRequestPatch(ctx, g.context)
 	if err != nil {

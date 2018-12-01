@@ -68,7 +68,7 @@ func (f RepoProcessorFactory) BuildProcessor(ctx *RepoContext) (*Repo, func(), e
 
 	ec := experiments.NewChecker(cfg.Cfg, log)
 
-	exec, err := makeExecutor(ctx.Ctx, ctx.Repo, false, log, ec)
+	exec, err := makeExecutor(ctx.Ctx, log)
 	if err != nil {
 		return nil, nil, errors.Wrap(err, "can't make executor")
 	}
@@ -80,7 +80,7 @@ func (f RepoProcessorFactory) BuildProcessor(ctx *RepoContext) (*Repo, func(), e
 		StaticRepoConfig: cfg,
 		Log:              log,
 		Exec:             exec,
-		Wi:               workspaces.NewGo2(exec, log, cfg.RepoFetcher),
+		Wi:               workspaces.NewGo(exec, log, cfg.RepoFetcher),
 		Ec:               ec,
 	})
 

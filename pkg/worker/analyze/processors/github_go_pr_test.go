@@ -8,14 +8,12 @@ import (
 	"strconv"
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/golang/mock/gomock"
 	"github.com/golangci/golangci-api/pkg/worker/analytics"
 	"github.com/golangci/golangci-api/pkg/worker/analyze/linters"
 	"github.com/golangci/golangci-api/pkg/worker/analyze/linters/result"
 	"github.com/golangci/golangci-api/pkg/worker/analyze/prstate"
-	"github.com/golangci/golangci-api/pkg/worker/analyze/repoinfo"
 	"github.com/golangci/golangci-api/pkg/worker/analyze/reporters"
 	"github.com/golangci/golangci-api/pkg/worker/lib/executors"
 	"github.com/golangci/golangci-api/pkg/worker/lib/fetchers"
@@ -73,12 +71,6 @@ func getNopReporter(ctrl *gomock.Controller) reporters.Reporter {
 	return r
 }
 
-func getNopInfoFetcher(ctrl *gomock.Controller) repoinfo.Fetcher {
-	r := repoinfo.NewMockFetcher(ctrl)
-	r.EXPECT().Fetch(testCtxMatcher, any, any).AnyTimes().Return(&repoinfo.Info{}, nil)
-	return r
-}
-
 func getErroredReporter(ctrl *gomock.Controller) reporters.Reporter {
 	r := reporters.NewMockReporter(ctrl)
 	r.EXPECT().Report(testCtxMatcher, any, any).Return(fmt.Errorf("can't report"))
@@ -98,9 +90,10 @@ func getNopExecutor(ctrl *gomock.Controller) executors.Executor {
 	e := executors.NewMockExecutor(ctrl)
 	e.EXPECT().WorkDir().Return("").AnyTimes()
 	e.EXPECT().WithWorkDir(any).Return(e).AnyTimes()
-	e.EXPECT().Run(testCtxMatcher, any, any).Return("", nil).AnyTimes()
-	e.EXPECT().Run(testCtxMatcher, any, any, any).Return("", nil).AnyTimes()
+	e.EXPECT().Run(testCtxMatcher, "goenvbuild").Return("{}", nil).AnyTimes()
+	e.EXPECT().Run(testCtxMatcher, "golangci-lint", any).Return("{}", nil).AnyTimes()
 	e.EXPECT().Clean().AnyTimes()
+	e.EXPECT().WithEnv(any, any).Return(e).AnyTimes()
 	e.EXPECT().SetEnv(any, any).AnyTimes()
 	e.EXPECT().CopyFile(any, any, any).Return(nil)
 	return e
@@ -153,9 +146,6 @@ func fillWithNops(t *testing.T, ctrl *gomock.Controller, cfg *githubGoPRConfig) 
 	}
 	if cfg.repoFetcher == nil {
 		cfg.repoFetcher = getNopFetcher(ctrl)
-	}
-	if cfg.infoFetcher == nil {
-		cfg.infoFetcher = getNopInfoFetcher(ctrl)
 	}
 	if cfg.reporter == nil {
 		cfg.reporter = getNopReporter(ctrl)
@@ -224,6 +214,7 @@ func TestSetCommitStatusOnReportingError(t *testing.T) {
 	assert.Error(t, p.Process(testCtx))
 }
 
+//nolint
 func getRealisticTestProcessor(ctx context.Context, t *testing.T, ctrl *gomock.Controller) *githubGoPR {
 	c := getTestingRepo(t)
 	cloneURL := fmt.Sprintf("git@github.com:%s/%s.git", c.Repo.Owner, c.Repo.Name)
@@ -254,21 +245,6 @@ func getRealisticTestProcessor(ctx context.Context, t *testing.T, ctrl *gomock.C
 	assert.NoError(t, err)
 
 	return p
-}
-
-func TestProcessorTimeout(t *testing.T) {
-	test.Init()
-
-	startedAt := time.Now()
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
-
-	ctx, cancel := context.WithTimeout(testCtx, 100*time.Millisecond)
-	defer cancel()
-	p := getRealisticTestProcessor(ctx, t, ctrl)
-
-	assert.Error(t, p.Process(ctx))
-	assert.True(t, time.Since(startedAt) < 300*time.Millisecond)
 }
 
 func getTestingRepo(t *testing.T) *github.Context {
