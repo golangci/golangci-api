@@ -35,6 +35,17 @@ Resources:
                   Action: ["sqs:SendMessage", "sqs:ReceiveMessage", "sqs:ChangeMessageVisibility", "sqs:DeleteMessage"]
                   Resource: !GetAtt devPrimaryQueue.Arn
       UserName: golangciDevUser
+  golangciDevIsaevUser:
+    Type: AWS::IAM::User
+    Properties: 
+      Policies:
+        - PolicyName: GolangciDevIsaevAccess
+          PolicyDocument:
+            Statement:
+                - Effect: Allow
+                  Action: ["sqs:SendMessage", "sqs:ReceiveMessage", "sqs:ChangeMessageVisibility", "sqs:DeleteMessage"]
+                  Resource: !GetAtt devIsaevPrimaryQueue.Arn
+      UserName: golangciDevIsaevUser
   golangciProdUserKeys:
     Type: AWS::IAM::AccessKey
     Properties:
@@ -43,6 +54,10 @@ Resources:
     Type: AWS::IAM::AccessKey
     Properties:
       UserName: !Ref golangciDevUser
+  golangciDevIsaevUserKeys:
+    Type: AWS::IAM::AccessKey
+    Properties:
+      UserName: !Ref golangciDevIsaevUser
   golangciTestUserKeys:
     Type: AWS::IAM::AccessKey
     Properties:
@@ -104,6 +119,25 @@ Resources:
       # KmsMasterKeyId: alias/aws/sqs
       # KmsDataKeyReusePeriodSeconds: 600
       MessageRetentionPeriod: 1209600 # 14d
+  devIsaevPrimaryQueue: 
+    Type: AWS::SQS::Queue
+    Properties: 
+      RedrivePolicy: 
+        deadLetterTargetArn: !GetAtt devIsaevDeadLetterPrimaryQueue.Arn
+        maxReceiveCount: 5
+      VisibilityTimeout: 60
+      ReceiveMessageWaitTimeSeconds: 20 # save costs on polling
+      # KmsMasterKeyId: alias/aws/sqs
+      # KmsDataKeyReusePeriodSeconds: 600
+      MessageRetentionPeriod: 345600 # 4d
+  devIsaevDeadLetterPrimaryQueue: 
+    Type: AWS::SQS::Queue
+    Properties:
+      VisibilityTimeout: 60
+      ReceiveMessageWaitTimeSeconds: 20 # save costs on polling
+      # KmsMasterKeyId: alias/aws/sqs
+      # KmsDataKeyReusePeriodSeconds: 600
+      MessageRetentionPeriod: 1209600 # 14d
   
 Outputs:
   primaryQueueURL: 
@@ -125,6 +159,9 @@ Outputs:
   devPrimaryQueueURL: 
     Description: "URL of the dev primary queue"
     Value: !Ref devPrimaryQueue
+  devIsaevPrimaryQueueURL: 
+    Description: "URL of the dev Isaev primary queue"
+    Value: !Ref devIsaevPrimaryQueue
   golangciProdUserAccessKey:
     Value: !Ref golangciProdUserKeys
     Description: AWSAccessKeyId of golangciProdUser user
@@ -143,3 +180,9 @@ Outputs:
   golangciDevUserSecretKey:
     Value: !GetAtt [golangciDevUserKeys, SecretAccessKey]
     Description: AWSSecretKey of golangciDevUser user
+  golangciDevIsaevUserAccessKey:
+    Value: !Ref golangciDevIsaevUserKeys
+    Description: AWSAccessKeyId of golangciDevIsaevUser user
+  golangciDevIsaevUserSecretKey:
+    Value: !GetAtt [golangciDevIsaevUserKeys, SecretAccessKey]
+    Description: AWSSecretKey of golangciDevIsaevUser user

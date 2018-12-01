@@ -10,8 +10,8 @@ import (
 	"time"
 
 	"github.com/gavv/httpexpect"
-	"github.com/golangci/golangci-api/pkg/app/returntypes"
-	"github.com/golangci/golangci-api/pkg/endpoint/request"
+	"github.com/golangci/golangci-api/pkg/api/request"
+	"github.com/golangci/golangci-api/pkg/api/returntypes"
 	"github.com/satori/go.uuid"
 )
 

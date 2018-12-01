@@ -160,7 +160,7 @@ func encode{{.Name}}Response(ctx context.Context, w http.ResponseWriter, respons
 `
 
 func main() {
-	root := flag.String("root", "pkg/app/services", "root of services")
+	root := flag.String("root", "pkg/api/services", "root of services")
 	flag.Parse()
 
 	if err := generate(*root); err != nil {

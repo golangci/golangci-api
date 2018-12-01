@@ -12,7 +12,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/golangci/golangci-api/pkg/app/utils"
+	"github.com/golangci/golangci-api/internal/api/util"
 	"github.com/gorilla/mux"
 	"github.com/markbates/goth/providers/github"
 )
@@ -86,7 +86,7 @@ func authHandler(w http.ResponseWriter, r *http.Request) {
 
 func sendFakeGithubJSON(name string, w http.ResponseWriter) {
 	w.Header().Add("Content-Type", "application/json")
-	f, err := os.Open(path.Join(utils.GetProjectRoot(), "test", "data", "github_fake_response", name+".json"))
+	f, err := os.Open(path.Join(util.GetProjectRoot(), "test", "data", "github_fake_response", name+".json"))
 	if err != nil {
 		log.Fatalf("Can't open data file %s: %s", name, err)
 	}

@@ -6,9 +6,9 @@ import (
 	"log"
 	"os"
 
-	"github.com/golangci/golangci-shared/pkg/logutil"
+	"github.com/golangci/golangci-api/internal/shared/logutil"
 
-	"github.com/golangci/golangci-api/pkg/goenv/repoinfo"
+	"github.com/golangci/golangci-api/pkg/goenvbuild/repoinfo"
 	"github.com/pkg/errors"
 )
 

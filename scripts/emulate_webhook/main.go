@@ -11,11 +11,11 @@ import (
 
 	"github.com/pkg/errors"
 
-	"github.com/golangci/golangci-shared/pkg/config"
-	"github.com/golangci/golangci-shared/pkg/logutil"
+	"github.com/golangci/golangci-api/internal/shared/config"
+	"github.com/golangci/golangci-api/internal/shared/logutil"
 
-	"github.com/golangci/golangci-api/pkg/app/models"
-	"github.com/golangci/golangci-api/pkg/db/gormdb"
+	"github.com/golangci/golangci-api/internal/shared/db/gormdb"
+	"github.com/golangci/golangci-api/pkg/api/models"
 	gh "github.com/google/go-github/github"
 	"github.com/jinzhu/gorm"
 	_ "github.com/joho/godotenv/autoload"

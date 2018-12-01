@@ -6,8 +6,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/golangci/golangci-api/pkg/app/crons/pranalyzes"
-	"github.com/golangci/golangci-api/pkg/app/models"
+	"github.com/golangci/golangci-api/pkg/api/crons/pranalyzes"
+	"github.com/golangci/golangci-api/pkg/api/models"
 	"github.com/golangci/golangci-api/test/sharedtest"
 	gh "github.com/google/go-github/github"
 	"github.com/stretchr/testify/assert"

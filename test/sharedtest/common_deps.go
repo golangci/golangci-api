@@ -1,12 +1,12 @@
 package sharedtest
 
 import (
-	"github.com/golangci/golangci-api/pkg/app/providers"
-	"github.com/golangci/golangci-api/pkg/app/providers/provider"
-	"github.com/golangci/golangci-api/pkg/db/gormdb"
+	"github.com/golangci/golangci-api/internal/shared/config"
+	"github.com/golangci/golangci-api/internal/shared/db/gormdb"
+	"github.com/golangci/golangci-api/internal/shared/logutil"
+	"github.com/golangci/golangci-api/internal/shared/providers"
+	"github.com/golangci/golangci-api/internal/shared/providers/provider"
 	"github.com/golangci/golangci-api/test/sharedtest/mocks"
-	"github.com/golangci/golangci-shared/pkg/config"
-	"github.com/golangci/golangci-shared/pkg/logutil"
 	"github.com/jinzhu/gorm"
 )
 

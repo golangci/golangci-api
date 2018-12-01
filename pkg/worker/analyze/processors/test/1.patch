@@ -1,0 +1,15 @@
+--- a/main.go
++++ a/main.go
+@@ -1,5 +1,11 @@
+ package p
+
+-func F0() error {
++import "fmt"
++
++func F0New() error {
+        return nil
+ }
++
++func F1() error {
++       return fmt.Errorf("error")
++}

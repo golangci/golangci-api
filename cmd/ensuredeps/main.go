@@ -7,11 +7,11 @@ import (
 	"log"
 	"os"
 
-	"github.com/golangci/golangci-api/pkg/goenv/command"
-	"github.com/golangci/golangci-api/pkg/goenv/result"
-	"github.com/golangci/golangci-shared/pkg/logutil"
+	"github.com/golangci/golangci-api/internal/shared/logutil"
+	"github.com/golangci/golangci-api/pkg/goenvbuild/command"
+	"github.com/golangci/golangci-api/pkg/goenvbuild/result"
 
-	"github.com/golangci/golangci-api/pkg/goenv/ensuredeps"
+	"github.com/golangci/golangci-api/pkg/goenvbuild/ensuredeps"
 )
 
 func main() {

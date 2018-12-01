@@ -1,9 +1,9 @@
 package main
 
 import (
-	"github.com/golangci/golangci-api/pkg/app/buildagent/containers"
-	"github.com/golangci/golangci-shared/pkg/config"
-	"github.com/golangci/golangci-shared/pkg/logutil"
+	"github.com/golangci/golangci-api/internal/shared/config"
+	"github.com/golangci/golangci-api/internal/shared/logutil"
+	"github.com/golangci/golangci-api/pkg/buildagent/containers"
 )
 
 func main() {

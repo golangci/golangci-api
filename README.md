@@ -34,13 +34,13 @@ PORT=3000
 
 Tests need `.env.test` file, overriding options from `.env`. There can be something like this:
 ```
-DATABASE_URL="postgresql://postgres:test@localhost:5432/api_prod?sslmode=disable"
+DATABASE_URL="postgresql://postgres:test@localhost:5432/api_test?sslmode=disable"
 DATABASE_DEBUG=1
 ```
 
 ### How to run tests
 ```
-echo "CREATE DATABASE api_prod;" | docker-compose exec -T pg psql -U postgres
+echo "CREATE DATABASE api_test;" | docker-compose exec -T pg psql -U postgres
 make test
 ```
 

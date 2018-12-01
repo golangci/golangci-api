@@ -1,9 +1,9 @@
 package mocks
 
 import (
-	"github.com/golangci/golangci-api/pkg/app/models"
-	"github.com/golangci/golangci-api/pkg/app/providers"
-	"github.com/golangci/golangci-api/pkg/app/providers/provider"
+	"github.com/golangci/golangci-api/internal/shared/providers"
+	"github.com/golangci/golangci-api/internal/shared/providers/provider"
+	"github.com/golangci/golangci-api/pkg/api/models"
 	"github.com/jinzhu/gorm"
 )
 
