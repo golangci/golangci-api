@@ -31,7 +31,7 @@ func NewAnalyzeRepo(ec *experiments.Checker, rpf *processors.RepoProcessorFactor
 	}
 }
 
-func (c AnalyzeRepo) Consume(ctx context.Context, repoName, analysisGUID, branch string) error {
+func (c AnalyzeRepo) Consume(ctx context.Context, repoName, analysisGUID, branch, privateAccessToken string) error {
 	ctx = c.prepareContext(ctx, map[string]interface{}{
 		"repoName":     repoName,
 		"provider":     "github",
@@ -51,11 +51,11 @@ func (c AnalyzeRepo) Consume(ctx context.Context, repoName, analysisGUID, branch
 		ctx, cancel = context.WithTimeout(ctx, 10*time.Minute)
 		defer cancel()
 
-		return c.analyzeRepo(ctx, repoName, analysisGUID, branch)
+		return c.analyzeRepo(ctx, repoName, analysisGUID, branch, privateAccessToken)
 	})
 }
 
-func (c AnalyzeRepo) analyzeRepo(ctx context.Context, repoName, analysisGUID, branch string) error {
+func (c AnalyzeRepo) analyzeRepo(ctx context.Context, repoName, analysisGUID, branch, privateAccessToken string) error {
 	parts := strings.Split(repoName, "/")
 	repo := &github.Repo{
 		Owner: parts[0],
@@ -66,10 +66,11 @@ func (c AnalyzeRepo) analyzeRepo(ctx context.Context, repoName, analysisGUID, br
 	}
 
 	repoCtx := &processors.RepoContext{
-		Ctx:          ctx,
-		AnalysisGUID: analysisGUID,
-		Branch:       branch,
-		Repo:         repo,
+		Ctx:                ctx,
+		AnalysisGUID:       analysisGUID,
+		Branch:             branch,
+		Repo:               repo,
+		PrivateAccessToken: privateAccessToken,
 	}
 	p, cleanup, err := c.rpf.BuildProcessor(repoCtx)
 	if err != nil {

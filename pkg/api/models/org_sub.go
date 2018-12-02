@@ -3,6 +3,8 @@ package models
 import (
 	"fmt"
 
+	"github.com/golangci/golangci-api/internal/api/apierrors"
+
 	"github.com/jinzhu/gorm"
 )
 
@@ -44,6 +46,7 @@ func (s OrgSubCommitState) IsDone() bool {
 type OrgSub struct {
 	gorm.Model
 
+	PaymentGatewayName           string
 	PaymentGatewayCardToken      string
 	PaymentGatewayCustomerID     string
 	PaymentGatewaySubscriptionID string
@@ -51,9 +54,12 @@ type OrgSub struct {
 	BillingUserID uint
 	OrgID         uint
 	SeatsCount    int
+	PricePerSeat  string
 	CommitState   OrgSubCommitState
 
 	IdempotencyKey string
+	Version        int
+	CancelURL      string
 }
 
 func (s *OrgSub) GoString() string {
@@ -74,4 +80,17 @@ func (s OrgSub) IsUpdating() bool {
 
 func (s OrgSub) IsActive() bool {
 	return s.CommitState.IsDone() && (s.CommitState.IsCreateState() || s.CommitState.IsUpdateState())
+}
+
+func (u OrgSubUpdater) UpdateRequired() error {
+	n, err := u.UpdateNum()
+	if err != nil {
+		return err
+	}
+
+	if n == 0 {
+		return apierrors.NewRaceConditionError("data was changed in parallel request")
+	}
+
+	return nil
 }

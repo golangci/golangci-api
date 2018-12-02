@@ -22,9 +22,9 @@ import (
 const updateQueueID = "subs/update"
 
 type updateMessage struct {
-	SubID uint
-	Token string
-	Seats int
+	SubID      uint
+	CardToken  string
+	SeatsCount int
 }
 
 func (m updateMessage) LockID() string {
@@ -39,11 +39,10 @@ func (cp *UpdaterProducer) Register(m *producers.Multiplexer) error {
 	return cp.Base.Register(m, updateQueueID)
 }
 
-func (cp UpdaterProducer) Put(subID uint, token string, seats int) error {
+func (cp UpdaterProducer) Put(subID uint, seats int) error {
 	return cp.Base.Put(updateMessage{
-		SubID: subID,
-		Token: token,
-		Seats: seats,
+		SubID:      subID,
+		SeatsCount: seats,
 	})
 }
 
@@ -67,36 +66,16 @@ func (cc UpdaterConsumer) Register(m *consumers.Multiplexer, df *redsync.Redsync
 	return primaryqueue.RegisterConsumer(cc.consumeMessage, updateQueueID, m, df)
 }
 
-//nolint:dupl
 func (cc UpdaterConsumer) consumeMessage(ctx context.Context, m *updateMessage) error {
 	gormDB, err := gormdb.FromSQL(ctx, cc.db)
 	if err != nil {
 		return errors.Wrap(err, "failed to get gorm db")
 	}
 
-	if err = cc.run(ctx, m, gormDB); err != nil {
-		if errors.Cause(err) == consumers.ErrPermanent {
-			var n int64
-			n, err = models.NewOrgSubQuerySet(gormDB).IDEq(m.SubID).
-				GetUpdater().
-				SetCommitState(models.OrgSubCommitStateCreateDone).
-				UpdateNum()
-			if err != nil {
-				cc.log.Warnf("failed to reset local sub %d state after remote update fail: %s", m.SubID, err.Error())
-			} else if n == 0 {
-				cc.log.Warnf("failed to reset local sub %d state after remote update fail", m.SubID)
-			}
-			// TODO(all): Should notify end-user about their failed subscription, probably email them...
-		}
-		return errors.Wrapf(err, "create of sub %d failed", m.SubID)
-	}
-
-	return nil
+	return cc.run(ctx, m, gormDB)
 }
 
 func (cc UpdaterConsumer) run(ctx context.Context, m *updateMessage, db *gorm.DB) error {
-	// TODO(all): Consider adding paymentprovider entry to sub table, for now defaulting to securionpay
-
 	var sub models.OrgSub
 	if err := models.NewOrgSubQuerySet(db).IDEq(m.SubID).One(&sub); err != nil {
 		if err == gorm.ErrRecordNotFound {
@@ -105,37 +84,40 @@ func (cc UpdaterConsumer) run(ctx context.Context, m *updateMessage, db *gorm.DB
 		return errors.Wrapf(err, "failed to fetch from db sub with id %d", m.SubID)
 	}
 
-	payments, err := cc.pp.Build("securionpay")
+	if sub.CommitState != models.OrgSubCommitStateUpdateInit && sub.CommitState != models.OrgSubCommitStateUpdateSentToQueue {
+		return fmt.Errorf("got sub %d with invalid commit state %s", sub.ID, sub.CommitState)
+	}
+
+	payments, err := cc.pp.Build(sub.PaymentGatewayName)
 	if err != nil {
 		return errors.Wrap(err, "failed to create payment gateway")
 	}
+
 	_, err = payments.UpdateSubscription(ctx, sub.PaymentGatewayCustomerID, sub.PaymentGatewaySubscriptionID, paymentprovider.SubscriptionUpdatePayload{
-		CardToken:  m.Token,
-		SeatsCount: m.Seats,
+		SeatsCount: m.SeatsCount,
+		CardToken:  m.CardToken,
 	})
 	if err != nil {
-		return errors.Wrap(consumers.ErrPermanent, "failed to update remote subscription")
+		return errors.Wrap(err, "failed to update remote subscription")
 	}
 
 	query := models.NewOrgSubQuerySet(db).
-		IDEq(sub.ID).CommitStateEq(models.OrgSubCommitStateUpdateSentToQueue).
+		IDEq(sub.ID).
+		CommitStateIn(models.OrgSubCommitStateUpdateInit, models.OrgSubCommitStateUpdateSentToQueue).
+		VersionEq(sub.Version).
 		GetUpdater().
-		SetCommitState(models.OrgSubCommitStateCreateDone)
-	if m.Seats > 0 {
-		query = query.SetSeatsCount(m.Seats)
+		SetCommitState(models.OrgSubCommitStateUpdateDone).
+		SetSeatsCount(m.SeatsCount).
+		SetVersion(sub.Version + 1)
+
+	if m.CardToken != "" {
+		query = query.SetPaymentGatewayCardToken(m.CardToken)
 	}
-	if m.Token != "" {
-		query = query.SetPaymentGatewayCardToken(m.Token)
-	}
-	n, err := query.UpdateNum()
-	if err != nil {
+	if err = query.UpdateRequired(); err != nil {
 		return errors.Wrapf(err, "failed to update commit state to %s for sub with id %d",
 			models.OrgSubCommitStateCreateDone, sub.ID)
 	}
-	if n == 0 {
-		cc.log.Infof("Not updating sub %#v commit state to %s because it's already updated by queue consumer",
-			sub, models.OrgSubCommitStateCreateDone)
-	}
 
+	cc.log.Infof("Successfully updated subscription %d from %d to %d seats", sub.ID, sub.SeatsCount, m.SeatsCount)
 	return nil
 }

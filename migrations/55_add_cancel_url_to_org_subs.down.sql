@@ -1,0 +1,1 @@
+ALTER TABLE org_subs DROP COLUMN cancel_url;

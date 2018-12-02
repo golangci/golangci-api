@@ -13,6 +13,8 @@ type PaymentGatewayEvent struct {
 	Provider   string
 	ProviderID string
 
+	UserID *uint
+
 	Type string
 	Data []byte
 }

@@ -3,6 +3,7 @@ package models
 import (
 	"encoding/json"
 
+	"github.com/golangci/golangci-api/internal/api/apierrors"
 	"github.com/jinzhu/gorm"
 	"github.com/pkg/errors"
 )
@@ -11,16 +12,17 @@ import (
 
 // gen:qs
 type Org struct {
-	gorm.Model
+	gorm.Model `json:"-"`
 
-	Name        string
-	DisplayName string
+	Name        string `json:"-"`
+	DisplayName string `json:"name"`
 
-	Provider               string
-	ProviderID             int
-	ProviderPersonalUserID int
+	Provider               string `json:"provider"`
+	ProviderID             int    `json:"-"`
+	ProviderPersonalUserID int    `json:"-"`
 
-	Settings []byte
+	Settings json.RawMessage `json:"settings"`
+	Version  int             `json:"version"`
 }
 
 func (o *Org) IsFake() bool {
@@ -37,5 +39,26 @@ func (o *Org) MarshalSettings(v interface{}) error {
 		return errors.Wrapf(err, "failed to marshal %#v as settings", v)
 	}
 	o.Settings = data
+	return nil
+}
+
+type Seat struct {
+	Email string `json:"email"`
+}
+
+type Settings struct {
+	Seats []Seat `json:"seats,omitempty"`
+}
+
+func (u OrgUpdater) UpdateRequired() error {
+	n, err := u.UpdateNum()
+	if err != nil {
+		return err
+	}
+
+	if n == 0 {
+		return apierrors.NewRaceConditionError("data was changed in parallel request")
+	}
+
 	return nil
 }

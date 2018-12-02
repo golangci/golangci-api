@@ -28,7 +28,7 @@ func RegisterHandlers(svc Service, regCtx *transportutil.HandlerRegContext) {
 		httptransport.ServerErrorEncoder(transportutil.EncodeError),
 		httptransport.ServerErrorLogger(transportutil.AdaptErrorLogger(regCtx.Log)),
 	)
-	regCtx.Router.Methods("PUT").Path("/v1/orgs/{org_id}").Handler(hUpdate)
+	regCtx.Router.Methods("PUT").Path("/v1/orgs/{provider}/{name}").Handler(hUpdate)
 
 	hGet := httptransport.NewServer(
 		makeGetEndpoint(svc, regCtx.Log),
@@ -44,23 +44,7 @@ func RegisterHandlers(svc Service, regCtx *transportutil.HandlerRegContext) {
 		httptransport.ServerErrorEncoder(transportutil.EncodeError),
 		httptransport.ServerErrorLogger(transportutil.AdaptErrorLogger(regCtx.Log)),
 	)
-	regCtx.Router.Methods("GET").Path("/v1/orgs/{org_id}").Handler(hGet)
-
-	hList := httptransport.NewServer(
-		makeListEndpoint(svc, regCtx.Log),
-		decodeListRequest,
-		encodeListResponse,
-		httptransport.ServerBefore(transportutil.StoreHTTPRequestToContext),
-		httptransport.ServerAfter(transportutil.FinalizeSession),
-
-		httptransport.ServerBefore(transportutil.MakeStoreAuthorizedRequestContext(regCtx.Log,
-			regCtx.ErrTracker, regCtx.DB, regCtx.AuthSessFactory)),
-
-		httptransport.ServerFinalizer(transportutil.FinalizeRequest),
-		httptransport.ServerErrorEncoder(transportutil.EncodeError),
-		httptransport.ServerErrorLogger(transportutil.AdaptErrorLogger(regCtx.Log)),
-	)
-	regCtx.Router.Methods("GET").Path("/v1/orgs").Handler(hList)
+	regCtx.Router.Methods("GET").Path("/v1/orgs/{provider}/{name}").Handler(hGet)
 
 }
 
@@ -133,48 +117,6 @@ func encodeGetResponse(ctx context.Context, w http.ResponseWriter, response inte
 		GetResponse
 	}{
 		GetResponse: resp,
-	}
-
-	if resp.err != nil {
-		if apierrors.IsErrorLikeResult(resp.err) {
-			return transportutil.HandleErrorLikeResult(ctx, w, resp.err)
-		}
-
-		terr := transportutil.MakeError(resp.err)
-		wrappedResp.Error = terr
-		w.WriteHeader(terr.HTTPCode)
-	}
-
-	return json.NewEncoder(w).Encode(wrappedResp)
-}
-
-func decodeListRequest(_ context.Context, r *http.Request) (interface{}, error) {
-	var request ListRequest
-	if err := transportutil.DecodeRequest(&request, r); err != nil {
-		return nil, errors.Wrap(err, "can't decode request")
-	}
-
-	return request, nil
-}
-
-func encodeListResponse(ctx context.Context, w http.ResponseWriter, response interface{}) error {
-	w.Header().Add("Content-Type", "application/json; charset=UTF-8")
-	if err := transportutil.GetContextError(ctx); err != nil {
-		wrappedResp := struct {
-			Error *transportutil.Error
-		}{
-			Error: transportutil.MakeError(err),
-		}
-		w.WriteHeader(wrappedResp.Error.HTTPCode)
-		return json.NewEncoder(w).Encode(wrappedResp)
-	}
-
-	resp := response.(ListResponse)
-	wrappedResp := struct {
-		transportutil.ErrorResponse
-		ListResponse
-	}{
-		ListResponse: resp,
 	}
 
 	if resp.err != nil {

@@ -27,6 +27,14 @@ func IsErrorLikeResult(err error) bool {
 	return elr.IsErrorLikeResult()
 }
 
+type LocalizedError interface {
+	GetMessage() string
+}
+
+type ErrorWithCode interface {
+	GetCode() string
+}
+
 type RedirectError struct {
 	Temporary bool
 	URL       string
@@ -75,4 +83,53 @@ func (e PendingError) Error() string {
 
 func (e PendingError) IsErrorLikeResult() bool {
 	return true
+}
+
+type NotAcceptableError struct {
+	code    string
+	message string
+}
+
+func (e NotAcceptableError) Error() string {
+	prefix := fmt.Sprintf("not acceptable: %s", e.code)
+	if e.message != "" {
+		return prefix + ": " + e.message
+	}
+
+	return prefix
+}
+
+func (e NotAcceptableError) GetMessage() string {
+	return e.message
+}
+
+func (e NotAcceptableError) GetCode() string {
+	return e.code
+}
+
+func (e NotAcceptableError) WithMessage(m string) *NotAcceptableError {
+	return &NotAcceptableError{
+		code:    e.code,
+		message: m,
+	}
+}
+
+func NewNotAcceptableError(code string) *NotAcceptableError {
+	return &NotAcceptableError{code: code}
+}
+
+type RaceConditionError struct {
+	message string
+}
+
+func NewRaceConditionError(m string) *RaceConditionError {
+	return &RaceConditionError{message: m}
+}
+
+func (e RaceConditionError) Error() string {
+	return fmt.Sprintf("race condition: %s", e.message)
+}
+
+func (e RaceConditionError) GetMessage() string {
+	return e.message
 }

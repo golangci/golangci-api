@@ -1,6 +1,7 @@
 package experiments
 
 import (
+	"fmt"
 	"hash/fnv"
 	"strings"
 
@@ -37,21 +38,18 @@ func (c Checker) parseConfigVarToBoolMap(k string) map[string]bool {
 	return ret
 }
 
-func (c Checker) IsActiveForAnalysis(name string, repo *github.Repo, forPull bool) bool {
-	if forPull && !c.cfg.GetBool(c.getConfigKey(name, "for_pulls"), false) {
-		c.log.Infof("Experiment %s is disabled for pull analyzes", name)
-		return false
-	}
+func (c Checker) IsActiveForRepo(name string, owner, repo string) bool {
+	fullRepoName := fmt.Sprintf("%s/%s", owner, repo)
 
 	enabledRepos := c.parseConfigVarToBoolMap(c.getConfigKey(name, "repos"))
-	if enabledRepos[repo.FullName()] {
-		c.log.Infof("Experiment %s is enabled for repo %s", name, repo.FullName())
+	if enabledRepos[fullRepoName] {
+		c.log.Infof("Experiment %s is enabled for repo %s", name, fullRepoName)
 		return true
 	}
 
 	enabledOwners := c.parseConfigVarToBoolMap(c.getConfigKey(name, "owners"))
-	if enabledOwners[repo.Owner] {
-		c.log.Infof("Experiment %s is enabled for owner of repo %s", name, repo.FullName())
+	if enabledOwners[owner] {
+		c.log.Infof("Experiment %s is enabled for owner of repo %s", name, fullRepoName)
 		return true
 	}
 
@@ -61,16 +59,25 @@ func (c Checker) IsActiveForAnalysis(name string, repo *github.Repo, forPull boo
 		return false
 	}
 
-	hash := hash(repo.FullName())
+	hash := hash(fullRepoName)
 	if uint32(percent) <= (hash % 100) {
 		c.log.Infof("Experiment %s is disabled by percent for repo %s: %d (percent) <= %d (hash mod 100)",
-			name, repo.FullName(), percent, hash%100)
+			name, fullRepoName, percent, hash%100)
 		return false
 	}
 
 	c.log.Infof("Experiment %s is enabled by percent for repo %s: %d (percent) > %d (hash mod 100)",
-		name, repo.FullName(), percent, hash%100)
+		name, fullRepoName, percent, hash%100)
 	return true
+}
+
+func (c Checker) IsActiveForAnalysis(name string, repo *github.Repo, forPull bool) bool {
+	if forPull && !c.cfg.GetBool(c.getConfigKey(name, "for_pulls"), false) {
+		c.log.Infof("Experiment %s is disabled for pull analyzes", name)
+		return false
+	}
+
+	return c.IsActiveForRepo(name, repo.Owner, repo.Name)
 }
 
 func hash(s string) uint32 {

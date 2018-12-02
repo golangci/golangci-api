@@ -1,0 +1,2 @@
+ALTER TABLE org_subs
+  ADD COLUMN cancel_url TEXT NOT NULL;

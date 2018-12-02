@@ -1,9 +1,12 @@
 package repo
 
 import (
+	"encoding/json"
 	"fmt"
 	"strings"
 	"time"
+
+	"github.com/golangci/golangci-api/pkg/api/organization"
 
 	"github.com/golangci/golangci-api/internal/api/apierrors"
 	"github.com/golangci/golangci-api/internal/api/util"
@@ -16,6 +19,7 @@ import (
 	"github.com/golangci/golangci-api/pkg/api/request"
 	"github.com/golangci/golangci-api/pkg/api/returntypes"
 	"github.com/golangci/golangci-api/pkg/api/workers/primaryqueue/repos"
+	"github.com/golangci/golangci-api/pkg/worker/lib/experiments"
 	"github.com/jinzhu/gorm"
 	"github.com/pkg/errors"
 )
@@ -48,6 +52,8 @@ type BasicService struct {
 	ProviderFactory providers.Factory
 	Cache           cache.Cache
 	Cfg             config.Config
+	Ec              *experiments.Checker
+	Ac              *organization.AccessChecker
 }
 
 func (s BasicService) finishQueueSending(rc *request.AuthorizedContext, repo *models.Repo,
@@ -108,7 +114,124 @@ func (s BasicService) createAlreadyExistingRepo(rc *request.AuthorizedContext, r
 	return nil, fmt.Errorf("invalid repo commit state %s", repo.CommitState)
 }
 
-//nolint: gocyclo
+func (s BasicService) needSubscribe(org *models.Org, providerOrg *provider.Org, rc *request.AuthorizedContext) error {
+	isPersonalOrg := org.ProviderPersonalUserID != 0
+	if !isPersonalOrg && !providerOrg.IsAdmin {
+		return apierrors.NewNotAcceptableError("NOT_ORG_ADMIN").
+			WithMessage("The repo is private and there is no paid subscription: subscription can be made only by the organization admin")
+	}
+
+	errNeedToSubscribe := apierrors.NewContinueError(fmt.Sprintf("/orgs/%s/%s",
+		rc.Auth.Provider, org.Name))
+
+	rc.Log.Infof("Redirecting user to org settings")
+	return errNeedToSubscribe
+}
+
+func (s BasicService) createOrganization(rc *request.AuthorizedContext, isPersonalOrg bool,
+	providerClient provider.Provider, providerOrg *provider.Org, orgDisplayName string) (*models.Org, error) {
+
+	rc.Log.Infof("No org, creating it")
+	settings, jsonErr := json.Marshal(models.Settings{
+		Seats: []models.Seat{
+			{
+				Email: rc.User.Email,
+			},
+		},
+	})
+	if jsonErr != nil {
+		return nil, errors.Wrap(jsonErr, "failed to marshal json")
+	}
+
+	org := models.Org{
+		Name:        strings.ToLower(orgDisplayName),
+		DisplayName: orgDisplayName,
+		Provider:    providerClient.Name(),
+		Settings:    json.RawMessage(settings),
+	}
+	if isPersonalOrg {
+		org.ProviderPersonalUserID = int(rc.Auth.ProviderUserID)
+	} else {
+		org.ProviderID = providerOrg.ID
+	}
+
+	if err := org.Create(rc.DB); err != nil {
+		return nil, errors.Wrap(err, "can't create org")
+	}
+
+	return &org, nil
+}
+
+func (s BasicService) checkExistingOrgSubscription(rc *request.AuthorizedContext, org *models.Org, providerOrg *provider.Org) error {
+	var orgSub models.OrgSub
+	err := models.NewOrgSubQuerySet(rc.DB).OrgIDEq(org.ID).One(&orgSub)
+	if err == gorm.ErrRecordNotFound {
+		rc.Log.Infof("No subscription, need to subscribe first")
+		return s.needSubscribe(org, providerOrg, rc)
+	} else if err != nil {
+		return errors.Wrap(err, "failed to fetch org sub from db")
+	}
+
+	if orgSub.CommitState != models.OrgSubCommitStateCreateDone && orgSub.CommitState != models.OrgSubCommitStateUpdateDone {
+		rc.Log.Warnf("Subscription is creating now, can't connect the repo yet: commit state is %s", orgSub.CommitState)
+		return s.needSubscribe(org, providerOrg, rc)
+	}
+
+	return nil
+}
+
+func (s BasicService) checkSubscription(rc *request.AuthorizedContext, reqRepo *request.BodyRepo, providerRepo *provider.Repo,
+	providerClient provider.Provider) error {
+
+	if !s.Ec.IsActiveForRepo("CONNECT_PRIVATE_REPOS", reqRepo.Owner, reqRepo.Name) {
+		return apierrors.NewNotAcceptableError("NEED_PAID_MOCK")
+	}
+
+	orgDisplayName := providerRepo.Organization
+	isPersonalOrg := orgDisplayName == ""
+	var providerOrg *provider.Org
+	if isPersonalOrg {
+		// it can't another user because we can't be an admin of another user's repo in github.
+		// TODO(d.isaev): check it for gitlab, bitbucket, etc
+		orgDisplayName = reqRepo.Owner
+	} else {
+		if strings.ToLower(providerRepo.Organization) != strings.ToLower(orgDisplayName) {
+			rc.Log.Warnf("Org name differs: %q != %q", orgDisplayName, reqRepo.Owner)
+		}
+
+		var err error
+		providerOrg, err = providerClient.GetOrgByName(rc.Ctx, orgDisplayName)
+		if err != nil {
+			return errors.Wrapf(err, "can't get org %s from provider", reqRepo.Owner)
+		}
+
+		orgDisplayName = providerOrg.Name // could be changed here if user renamed the org
+	}
+
+	var org models.Org
+	q := models.NewOrgQuerySet(rc.DB).ProviderEq(providerClient.Name())
+	if isPersonalOrg {
+		q = q.ProviderPersonalUserIDEq(int(rc.Auth.ProviderUserID))
+	} else {
+		q = q.ProviderIDEq(providerOrg.ID)
+	}
+
+	err := q.One(&org)
+	if err == gorm.ErrRecordNotFound {
+		createdOrg, createErr := s.createOrganization(rc, isPersonalOrg, providerClient, providerOrg, orgDisplayName)
+		if createErr != nil {
+			return errors.Wrap(createErr, "failed to create organization")
+		}
+
+		return s.needSubscribe(createdOrg, providerOrg, rc)
+	} else if err != nil {
+		return errors.Wrap(err, "failed to fetch org from db")
+	}
+
+	// org exists, check subscription
+	return s.checkExistingOrgSubscription(rc, &org, providerOrg)
+}
+
 func (s BasicService) Create(rc *request.AuthorizedContext, reqRepo *request.BodyRepo) (*returntypes.WrappedRepoInfo, error) {
 	providerClient, err := s.ProviderFactory.Build(rc.Auth)
 	if err != nil {
@@ -129,64 +252,6 @@ func (s BasicService) Create(rc *request.AuthorizedContext, reqRepo *request.Bod
 		return nil, errors.New("no admin permission on repo")
 	}
 
-	// TODO(zet4): Temporary reversion because I don't have any private repos to test against...
-	if false && !providerRepo.IsPrivate {
-		var personalOrg bool
-		var providerOrg *provider.Org
-		providerOrg, err = providerClient.GetOrgByName(rc.Ctx, reqRepo.Owner)
-		if err == provider.ErrNotFound {
-			personalOrg = true
-		} else if err != nil {
-			return nil, errors.Wrapf(err, "can't get org %s from provider", reqRepo.Owner)
-		} else if !providerOrg.IsAdmin {
-			return nil, errors.New("no admin permission on org")
-		}
-
-		var org models.Org
-		baseQuery := models.NewOrgQuerySet(rc.DB).ProviderEq(providerClient.Name())
-		if personalOrg {
-			err = baseQuery.ProviderPersonalUserIDEq(int(rc.Auth.ProviderUserID)).One(&org)
-		} else {
-			err = baseQuery.ProviderIDEq(providerOrg.ID).One(&org)
-		}
-		if err == gorm.ErrRecordNotFound {
-			org = models.Org{
-				Name:     strings.ToLower(reqRepo.Owner),
-				Provider: providerClient.Name(),
-				Settings: []byte("{}"),
-			}
-			if personalOrg {
-				org.ProviderPersonalUserID = int(rc.Auth.ProviderUserID)
-				org.DisplayName = rc.User.Name
-			} else {
-				org.ProviderID = providerOrg.ID
-				org.DisplayName = providerOrg.Name
-			}
-
-			if err = org.Create(rc.DB); err != nil {
-				return nil, errors.Wrap(err, "can't create org")
-			}
-
-			return nil, apierrors.NewContinueError(fmt.Sprintf("/orgs/%d?repo_id_to_connect=%d", org.ID, providerRepo.ID))
-		} else if err != nil {
-			return nil, errors.Wrap(err, "failed to fetch org from db")
-		} else {
-			// Org exists, check subscription...
-			var orgSub models.OrgSub
-			err = models.NewOrgSubQuerySet(rc.DB).OrgIDEq(org.ID).One(&orgSub)
-			if err == gorm.ErrRecordNotFound {
-				// Subscription doesn't exist...
-				return nil, apierrors.NewContinueError(fmt.Sprintf("/orgs/%d?repo_id_to_connect=%d", org.ID, providerRepo.ID))
-			} else if err != nil {
-				return nil, errors.Wrap(err, "failed to fetch org sub from db")
-			}
-			// TODO(all): Is this enough? Might need a better validation before letting user create a repo...
-			if orgSub.CommitState != models.OrgSubCommitStateCreateDone {
-				return nil, errors.New("org sub is still in process of creation")
-			}
-		}
-	}
-
 	var repo models.Repo
 	err = models.NewRepoQuerySet(rc.DB).ProviderIDEq(providerRepo.ID).One(&repo)
 	if err == nil {
@@ -196,17 +261,27 @@ func (s BasicService) Create(rc *request.AuthorizedContext, reqRepo *request.Bod
 		return nil, errors.Wrap(err, "failed to fetch repo from db")
 	}
 
+	if providerRepo.IsPrivate {
+		if err = s.checkSubscription(rc, reqRepo, providerRepo, providerClient); err != nil {
+			return nil, errors.Wrap(err, "check subscription")
+		}
+	}
+
+	return s.storeRepo(rc, providerRepo)
+}
+
+func (s BasicService) storeRepo(rc *request.AuthorizedContext, providerRepo *provider.Repo) (*returntypes.WrappedRepoInfo, error) {
 	hookID, err := util.GenerateRandomString(32)
 	if err != nil {
 		return nil, errors.Wrap(err, "can't generate hook id")
 	}
 
-	repo = models.Repo{
+	repo := models.Repo{
 		UserID:          rc.Auth.UserID,
 		Name:            strings.ToLower(providerRepo.Name),
 		DisplayName:     providerRepo.Name,
 		HookID:          hookID,
-		Provider:        providerClient.Name(),
+		Provider:        rc.Auth.Provider,
 		ProviderID:      providerRepo.ID,
 		CommitState:     models.RepoCommitStateCreateInit,
 		StargazersCount: -1, // will be fetched later
@@ -346,10 +421,16 @@ func (s BasicService) List(rc *request.AuthorizedContext, req *listRequest) (*re
 		}
 	}
 
+	organizations, err := s.getOrganizationsInfo(rc, providerRepos)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to get organizations")
+	}
+
 	return &returntypes.RepoListResponse{
 		Repos:                   retRepos,
 		PrivateRepos:            retPrivateRepos,
 		PrivateReposWereFetched: rc.Auth.PrivateAccessToken != "",
+		Organizations:           organizations,
 	}, nil
 }
 
@@ -428,5 +509,109 @@ func (s BasicService) getActivatedRepos(rc *request.AuthorizedContext) (map[int]
 		rc.Log.Infof("Repos map: %#v", ret)
 	}
 
+	return ret, nil
+}
+
+func (s BasicService) getUserAccessibleOrgNames(repos []provider.Repo) map[string]bool {
+	userAccessibleOrgNames := map[string]bool{}
+	for _, repo := range repos {
+		owner := strings.ToLower(strings.Split(repo.Name, "/")[0])
+		_, ok := userAccessibleOrgNames[owner]
+		if !ok {
+			userAccessibleOrgNames[owner] = repo.IsAdmin
+			continue
+		}
+
+		if repo.IsAdmin {
+			userAccessibleOrgNames[owner] = repo.IsAdmin
+			continue
+		}
+	}
+
+	return userAccessibleOrgNames
+}
+
+func (s BasicService) getAllSubscribedOrgs(db *gorm.DB) ([]models.Org, error) {
+	var subs []models.OrgSub
+	if err := models.NewOrgSubQuerySet(db).All(&subs); err != nil {
+		return nil, errors.Wrap(err, "failed to fetch all subscriptions")
+	}
+
+	if len(subs) == 0 {
+		return []models.Org{}, nil
+	}
+
+	var allSubscribedOrgIDs []uint
+	for _, sub := range subs {
+		allSubscribedOrgIDs = append(allSubscribedOrgIDs, sub.OrgID)
+	}
+
+	var allSubscribedOrgs []models.Org
+	if err := models.NewOrgQuerySet(db).IDIn(allSubscribedOrgIDs...).All(&allSubscribedOrgs); err != nil {
+		return nil, errors.Wrapf(err, "failed to fetch all %d orgs", len(allSubscribedOrgIDs))
+	}
+
+	return allSubscribedOrgs, nil
+}
+
+func (s BasicService) getOrganizationsInfo(rc *request.AuthorizedContext, repos []provider.Repo) (map[string]returntypes.OrgInfo, error) {
+	allSubscribedOrgs, err := s.getAllSubscribedOrgs(rc.DB)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to get all subscribed orgs")
+	}
+	rc.Log.Infof("Have total %d subscribed orgs", len(allSubscribedOrgs))
+
+	userAccessibleOrgNames := s.getUserAccessibleOrgNames(repos)
+	rc.Log.Infof("User has %d accessible orgs: %v", len(userAccessibleOrgNames), userAccessibleOrgNames)
+
+	ret := map[string]returntypes.OrgInfo{}
+	for _, org := range allSubscribedOrgs {
+		isAdmin, ok := userAccessibleOrgNames[org.Name] // must be already lower-cased
+		if !ok {
+			continue
+		}
+
+		if err := s.Ac.Check(rc, &org); err != nil {
+			if err == organization.ErrNotOrgAdmin {
+				ret[org.Name] = returntypes.OrgInfo{
+					HasActiveSubscription: true,
+					IsAdmin:               false,
+					Provider:              rc.Auth.Provider,
+					Name:                  org.Name,
+				}
+				if isAdmin {
+					rc.Log.Warnf("Found org %s where user isn't an admin but has repo with admin access", org.Name)
+				}
+				continue
+			}
+
+			rc.Log.Warnf("Failed to check access to org %s: %s", org.Name, err)
+			continue
+		}
+
+		ret[org.Name] = returntypes.OrgInfo{
+			HasActiveSubscription: true,
+			IsAdmin:               true,
+			Provider:              rc.Auth.Provider,
+			Name:                  org.Name,
+		}
+	}
+
+	rc.Log.Infof("User has access to %d orgs with subscriptions: %#v", len(ret), ret)
+
+	for orgName, isAdmin := range userAccessibleOrgNames {
+		if _, ok := ret[orgName]; ok {
+			continue // org has subscription
+		}
+
+		ret[orgName] = returntypes.OrgInfo{
+			HasActiveSubscription: false,
+			IsAdmin:               isAdmin, // it's not accurate
+			Provider:              rc.Auth.Provider,
+			Name:                  orgName,
+		}
+	}
+
+	rc.Log.Infof("Organizations info: %#v", ret)
 	return ret, nil
 }

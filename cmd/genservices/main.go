@@ -161,14 +161,15 @@ func encode{{.Name}}Response(ctx context.Context, w http.ResponseWriter, respons
 
 func main() {
 	root := flag.String("root", "pkg/api/services", "root of services")
+	service := flag.String("service", "", "concrete service to generate")
 	flag.Parse()
 
-	if err := generate(*root); err != nil {
+	if err := generate(*root, *service); err != nil {
 		log.Fatalf("can't generate on root %s: %s", *root, err)
 	}
 }
 
-func generate(root string) error {
+func generate(root, service string) error {
 	rootDir, err := ioutil.ReadDir(root)
 	if err != nil {
 		return errors.Wrap(err, "can't read root dir")
@@ -176,9 +177,16 @@ func generate(root string) error {
 
 	var serviceDirs []string
 	for _, fi := range rootDir {
-		if fi.IsDir() {
-			serviceDirs = append(serviceDirs, filepath.Join(root, fi.Name()))
+		if !fi.IsDir() {
+			continue
 		}
+
+		name := fi.Name()
+		if service != "" && name != service {
+			continue
+		}
+
+		serviceDirs = append(serviceDirs, filepath.Join(root, name))
 	}
 
 	for _, sd := range serviceDirs {

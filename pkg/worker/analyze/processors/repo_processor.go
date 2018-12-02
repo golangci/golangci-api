@@ -53,6 +53,8 @@ type RepoContext struct {
 	AnalysisGUID string
 	Branch       string
 	Repo         *github.Repo // TODO: abstract from repo provider
+
+	PrivateAccessToken string
 }
 
 type repoResult struct {
@@ -142,8 +144,16 @@ func (r Repo) analyze(ctx *RepoContext, res *repoResult) error {
 
 func buildFetchersRepo(ctx *RepoContext) *fetchers.Repo {
 	repo := ctx.Repo
+	var cloneURL string
+	if ctx.PrivateAccessToken != "" {
+		cloneURL = fmt.Sprintf("https://%s@github.com/%s/%s.git",
+			ctx.PrivateAccessToken, repo.Owner, repo.Name)
+	} else {
+		cloneURL = fmt.Sprintf("https://github.com/%s/%s.git", repo.Owner, repo.Name)
+	}
+
 	return &fetchers.Repo{
-		CloneURL: fmt.Sprintf("https://github.com/%s/%s.git", repo.Owner, repo.Name),
+		CloneURL: cloneURL,
 		Ref:      ctx.Branch,
 		FullPath: fmt.Sprintf("github.com/%s/%s", repo.Owner, repo.Name),
 	}
@@ -157,6 +167,7 @@ func (r Repo) transformError(err error) error {
 
 	causeErr := errors.Cause(err)
 	if causeErr == fetchers.ErrNoBranchOrRepo {
+		r.Log.Infof("No branch or repo: %s", err)
 		return causeErr
 	}
 

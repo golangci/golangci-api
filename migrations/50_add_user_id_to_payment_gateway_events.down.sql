@@ -1,0 +1,1 @@
+ALTER TABLE payment_gateway_events DROP COLUMN user_id;

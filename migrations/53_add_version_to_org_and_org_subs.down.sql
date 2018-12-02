@@ -1,0 +1,2 @@
+ALTER TABLE orgs DROP COLUMN version;
+ALTER TABLE org_subs DROP COLUMN version;

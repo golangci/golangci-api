@@ -7,6 +7,8 @@ import (
 	"os"
 	"time"
 
+	"github.com/golangci/golangci-api/pkg/worker/lib/experiments"
+
 	"github.com/golangci/golangci-api/internal/shared/fsutil"
 
 	"github.com/golangci/golangci-api/pkg/worker/analyze/analyzesqueue/pullanalyzesqueue"
@@ -37,6 +39,7 @@ import (
 	"github.com/golangci/golangci-api/pkg/api/crons/pranalyzes"
 	repoanalyzeslib "github.com/golangci/golangci-api/pkg/api/crons/repoanalyzes"
 	"github.com/golangci/golangci-api/pkg/api/crons/repoinfo"
+	orgchecker "github.com/golangci/golangci-api/pkg/api/organization"
 	"github.com/golangci/golangci-api/pkg/api/services/auth"
 	"github.com/golangci/golangci-api/pkg/api/services/events"
 	"github.com/golangci/golangci-api/pkg/api/services/organization"
@@ -101,6 +104,9 @@ type App struct {
 	paymentProviderFactory paymentproviders.Factory
 	distLockFactory        *redsync.Redsync
 	redisPool              *redigo.Pool
+	ec                     *experiments.Checker
+	ac                     *orgchecker.AccessChecker
+	cache                  cache.Cache
 
 	PRAnalyzesStaler      *pranalyzes.Staler // TODO: make private
 	repoInfoUpdater       *repoinfo.Updater
@@ -158,7 +164,7 @@ func (a *App) buildDeps() {
 	}
 
 	if a.paymentProviderFactory == nil {
-		a.paymentProviderFactory = paymentproviders.NewBasicFactory(a.trackedLog)
+		a.paymentProviderFactory = paymentproviders.NewBasicFactory(a.trackedLog, a.cfg)
 	}
 
 	if a.redisPool == nil {
@@ -167,6 +173,18 @@ func (a *App) buildDeps() {
 			a.log.Fatalf("Can't get redis pool: %s", err)
 		}
 		a.redisPool = redisPool
+	}
+
+	if a.ec == nil {
+		a.ec = experiments.NewChecker(a.cfg, a.trackedLog)
+	}
+
+	if a.cache == nil {
+		a.cache = cache.NewRedis(a.cfg.GetString("REDIS_URL") + "/1")
+	}
+
+	if a.ac == nil {
+		a.ac = orgchecker.NewAccessChecker(a.providerFactory, a.cache, a.cfg)
 	}
 }
 
@@ -235,11 +253,8 @@ func (a *App) buildServices() {
 		OAuthFactory:    oauth.NewFactory(sf, a.trackedLog, a.cfg),
 		AuthSessFactory: a.authSessFactory,
 	}
-	a.services.organisation = organization.Configure(
-		a.providerFactory,
-		cache.Get(),
-		a.cfg,
-	)
+
+	a.services.organisation = organization.NewBasicService(a.ac)
 
 	a.buildRepoService()
 	a.buildSubService()
@@ -264,15 +279,7 @@ func (a *App) buildSubService() {
 		a.log.Fatalf("Failed to create 'create payment event' producer: %s", err)
 	}
 
-	a.services.subscription = subscription.Configure(
-		a.providerFactory,
-		cache.Get(),
-		a.cfg,
-		createSubQP,
-		deleteSubQP,
-		updateSubQP,
-		createEventQP,
-	)
+	a.services.subscription = subscription.NewBasicService(a.ac, a.cfg, updateSubQP, createEventQP)
 }
 
 func (a *App) buildRepoService() {
@@ -290,7 +297,9 @@ func (a *App) buildRepoService() {
 		CreateQueue:     createRepoQP,
 		DeleteQueue:     deleteRepoQP,
 		ProviderFactory: a.providerFactory,
-		Cache:           cache.NewRedis(a.cfg.GetString("REDIS_URL") + "/1"),
+		Cache:           a.cache,
+		Ec:              a.ec,
+		Ac:              a.ac,
 	}
 }
 
@@ -334,6 +343,7 @@ func NewApp(modifiers ...Modifier) *App {
 		Log:      a.trackedLog,
 		Cfg:      a.cfg,
 		RunQueue: a.queues.producers.repoAnalyzesRunner,
+		Pf:       a.providerFactory,
 	}
 	a.repoInfoUpdater = &repoinfo.Updater{
 		DB:  a.gormDB,
@@ -402,7 +412,8 @@ func (a App) buildMultiplexedPrimaryQueueConsumer() *consumers.Multiplexer {
 		a.log.Fatalf("Failed to register payment event creator consumer: %s", err)
 	}
 
-	analyzesLauncher := repoanalyzes.NewLauncherConsumer(a.trackedLog, a.sqlDB, a.queues.producers.repoAnalyzesRunner)
+	analyzesLauncher := repoanalyzes.NewLauncherConsumer(a.trackedLog, a.sqlDB,
+		a.queues.producers.repoAnalyzesRunner, a.providerFactory)
 	if err := analyzesLauncher.Register(multiplexer, a.distLockFactory); err != nil {
 		a.log.Fatalf("Failed to register analyzes launcher consumer: %s", err)
 	}
@@ -445,7 +456,7 @@ func (a App) RunForever() {
 
 	http.Handle("/", a.GetHTTPHandler())
 
-	addr := fmt.Sprintf(":%d", a.cfg.GetInt("port", 3000))
+	addr := fmt.Sprintf(":%d", a.cfg.GetInt("PORT", 3000))
 	a.log.Infof("Listening on %s...", addr)
 	if err := http.ListenAndServe(addr, nil); err != nil {
 		a.log.Errorf("Can't listen HTTP on %s: %s", addr, err)
