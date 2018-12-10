@@ -12,10 +12,11 @@ func (p *Producer) Register(m *producers.Multiplexer) error {
 	return p.Base.Register(m, runQueueID)
 }
 
-func (p Producer) Put(repoName, analysisGUID, branch string) error {
+func (p Producer) Put(repoName, analysisGUID, branch, privateAccessToken string) error {
 	return p.Base.Put(runMessage{
-		RepoName:     repoName,
-		AnalysisGUID: analysisGUID,
-		Branch:       branch,
+		RepoName:           repoName,
+		AnalysisGUID:       analysisGUID,
+		Branch:             branch,
+		PrivateAccessToken: privateAccessToken,
 	})
 }

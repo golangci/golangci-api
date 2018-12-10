@@ -10,6 +10,16 @@ func (o OrgID) FillLogContext(lctx logutil.Context) {
 	lctx["org_id"] = o.OrgID
 }
 
+type Org struct {
+	Provider string `request:",urlPart,"`
+	Name     string `request:",urlPart,"`
+}
+
+func (o Org) FillLogContext(lctx logutil.Context) {
+	lctx["org_provider"] = o.Provider
+	lctx["org_name"] = o.Name
+}
+
 type SubID struct {
 	SubID uint `request:"sub_id,urlPart,"`
 }

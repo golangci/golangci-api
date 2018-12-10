@@ -64,5 +64,5 @@ func restartAnalysis(db *gorm.DB, repo *models.Repo, runQueue *repoanalyzesqueue
 		return errors.Wrap(err, "can't get repo analysis")
 	}
 
-	return runQueue.Put(repo.Name, a.AnalysisGUID, as.DefaultBranch)
+	return runQueue.Put(repo.Name, a.AnalysisGUID, as.DefaultBranch, "")
 }

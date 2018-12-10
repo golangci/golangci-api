@@ -89,6 +89,11 @@ func parseGithubRepository(r *github.Repository, root bool) *provider.Repo {
 		source = parseGithubRepository(r.GetSource(), false)
 	}
 
+	var orgName string
+	if r.GetOrganization() != nil {
+		orgName = r.GetOrganization().GetLogin()
+	}
+
 	return &provider.Repo{
 		ID:              r.GetID(),
 		Name:            r.GetFullName(),
@@ -98,13 +103,14 @@ func parseGithubRepository(r *github.Repository, root bool) *provider.Repo {
 		Source:          source,
 		StargazersCount: r.GetStargazersCount(),
 		Language:        r.GetLanguage(),
+		Organization:    orgName,
 	}
 }
 
 func parseGithubOrganization(m *github.Membership) *provider.Org {
 	return &provider.Org{
 		ID:      m.GetOrganization().GetID(),
-		Name:    m.GetOrganization().GetName(),
+		Name:    m.GetOrganization().GetLogin(),
 		IsAdmin: m.GetRole() == "admin" && m.GetState() == "active",
 	}
 }

@@ -3,23 +3,24 @@ package organization
 
 import (
 	"context"
+	"errors"
 	"runtime/debug"
 
 	"github.com/go-kit/kit/endpoint"
-	"github.com/golangci/golangci-api/internal/api/apierrors"
 	"github.com/golangci/golangci-api/internal/api/endpointutil"
 	"github.com/golangci/golangci-api/internal/shared/logutil"
+	"github.com/golangci/golangci-api/pkg/api/models"
 	"github.com/golangci/golangci-api/pkg/api/request"
-	"github.com/pkg/errors"
 )
 
 type UpdateRequest struct {
-	Context  *request.OrgID
-	Settings *SettingsWrapped
+	ReqOrg  *request.Org
+	Payload *UpdatePayload
 }
 
 type UpdateResponse struct {
 	err error
+	*models.Org
 }
 
 func makeUpdateEndpoint(svc Service, log logutil.Log) endpoint.Endpoint {
@@ -50,29 +51,27 @@ func makeUpdateEndpoint(svc Service, log logutil.Log) endpoint.Endpoint {
 		rc := endpointutil.RequestContext(ctx).(*request.AuthorizedContext)
 		reqLogger = rc.Log
 
-		req.Context.FillLogContext(rc.Lctx)
-		req.Settings.FillLogContext(rc.Lctx)
+		req.ReqOrg.FillLogContext(rc.Lctx)
+		req.Payload.FillLogContext(rc.Lctx)
 
-		err = svc.Update(rc, req.Context, req.Settings)
+		v, err := svc.Update(rc, req.ReqOrg, req.Payload)
 		if err != nil {
-			if !apierrors.IsErrorLikeResult(err) {
-				rc.Log.Errorf("organization.Service.Update failed: %s", err)
-			}
-			return UpdateResponse{err}, nil
+			rc.Log.Errorf("organization.Service.Update failed: %s", err)
+			return UpdateResponse{err, v}, nil
 		}
 
-		return UpdateResponse{nil}, nil
+		return UpdateResponse{nil, v}, nil
 
 	}
 }
 
 type GetRequest struct {
-	ReqOrg *request.OrgID
+	ReqOrg *request.Org
 }
 
 type GetResponse struct {
 	err error
-	*SettingsWrapped
+	*models.Org
 }
 
 func makeGetEndpoint(svc Service, log logutil.Log) endpoint.Endpoint {
@@ -112,56 +111,6 @@ func makeGetEndpoint(svc Service, log logutil.Log) endpoint.Endpoint {
 		}
 
 		return GetResponse{nil, v}, nil
-
-	}
-}
-
-type ListRequest struct {
-	ReqOrg *OrgListRequest
-}
-
-type ListResponse struct {
-	err error
-	*OrgList
-}
-
-func makeListEndpoint(svc Service, log logutil.Log) endpoint.Endpoint {
-	return func(ctx context.Context, reqObj interface{}) (resp interface{}, err error) {
-
-		req := reqObj.(ListRequest)
-
-		reqLogger := log
-		defer func() {
-			if rerr := recover(); rerr != nil {
-				reqLogger.Errorf("Panic occured")
-				reqLogger.Infof("%s", debug.Stack())
-				resp = ListResponse{
-					err: errors.New("panic occured"),
-				}
-				err = nil
-			}
-		}()
-
-		if err := endpointutil.Error(ctx); err != nil {
-			log.Warnf("Error occurred during request context creation: %s", err)
-			resp = ListResponse{
-				err: err,
-			}
-			return resp, nil
-		}
-
-		rc := endpointutil.RequestContext(ctx).(*request.AuthorizedContext)
-		reqLogger = rc.Log
-
-		req.ReqOrg.FillLogContext(rc.Lctx)
-
-		v, err := svc.List(rc, req.ReqOrg)
-		if err != nil {
-			rc.Log.Errorf("organization.Service.List failed: %s", err)
-			return ListResponse{err, v}, nil
-		}
-
-		return ListResponse{nil, v}, nil
 
 	}
 }

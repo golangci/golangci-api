@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/golangci/golangci-api/internal/shared/providers"
+
 	"github.com/golangci/golangci-api/pkg/worker/analyze/analyzesqueue/repoanalyzesqueue"
 
 	"github.com/golangci/golangci-api/internal/shared/db/gormdb"
@@ -51,13 +53,15 @@ type LauncherConsumer struct {
 	log         logutil.Log
 	db          *sql.DB
 	runProducer *repoanalyzesqueue.Producer
+	pf          providers.Factory
 }
 
-func NewLauncherConsumer(log logutil.Log, db *sql.DB, runProducer *repoanalyzesqueue.Producer) *LauncherConsumer {
+func NewLauncherConsumer(log logutil.Log, db *sql.DB, runProducer *repoanalyzesqueue.Producer, pf providers.Factory) *LauncherConsumer {
 	return &LauncherConsumer{
 		log:         log,
 		db:          db,
 		runProducer: runProducer,
+		pf:          pf,
 	}
 }
 
@@ -71,10 +75,10 @@ func (c LauncherConsumer) consumeMessage(ctx context.Context, m *launchMessage) 
 		return errors.Wrap(err, "failed to get gorm db")
 	}
 
-	return c.run(m, gormDB)
+	return c.run(ctx, m, gormDB)
 }
 
-func (c LauncherConsumer) run(m *launchMessage, db *gorm.DB) (retErr error) {
+func (c LauncherConsumer) run(ctx context.Context, m *launchMessage, db *gorm.DB) (retErr error) {
 	var as models.RepoAnalysisStatus
 	if err := models.NewRepoAnalysisStatusQuerySet(db).RepoIDEq(m.RepoID).One(&as); err != nil {
 		return errors.Wrapf(err, "failed to fetch repo analysis status for repo %d", m.RepoID)
@@ -98,7 +102,7 @@ func (c LauncherConsumer) run(m *launchMessage, db *gorm.DB) (retErr error) {
 		return errors.Wrapf(err, "failed to fetch repo with id %d", m.RepoID)
 	}
 
-	if err = c.launchRepoAnalysis(tx, &as, &repo); err != nil {
+	if err = c.launchRepoAnalysis(ctx, tx, &as, &repo); err != nil {
 		return errors.Wrap(err, "failed to launch repo analysis")
 	}
 
@@ -128,7 +132,7 @@ func (c LauncherConsumer) setPendingChanges(tx *gorm.DB, m *launchMessage, as *m
 	return nil
 }
 
-func (c LauncherConsumer) launchRepoAnalysis(tx *gorm.DB, as *models.RepoAnalysisStatus, repo *models.Repo) error {
+func (c LauncherConsumer) launchRepoAnalysis(ctx context.Context, tx *gorm.DB, as *models.RepoAnalysisStatus, repo *models.Repo) error {
 	needSendToQueue := true
 	nExisting, err := models.NewRepoAnalysisQuerySet(tx).
 		RepoAnalysisStatusIDEq(as.ID).CommitSHAEq(as.PendingCommitSHA).LintersVersionEq(lintersVersion).
@@ -144,7 +148,7 @@ func (c LauncherConsumer) launchRepoAnalysis(tx *gorm.DB, as *models.RepoAnalysi
 	}
 
 	if needSendToQueue {
-		if err = c.createNewAnalysis(tx, as, repo); err != nil {
+		if err = c.createNewAnalysis(ctx, tx, as, repo); err != nil {
 			return errors.Wrap(err, "failed to create new analysis")
 		}
 	}
@@ -174,7 +178,7 @@ func (c LauncherConsumer) launchRepoAnalysis(tx *gorm.DB, as *models.RepoAnalysi
 	return nil
 }
 
-func (c LauncherConsumer) createNewAnalysis(tx *gorm.DB, as *models.RepoAnalysisStatus, repo *models.Repo) error {
+func (c LauncherConsumer) createNewAnalysis(ctx context.Context, tx *gorm.DB, as *models.RepoAnalysisStatus, repo *models.Repo) error {
 	a := models.RepoAnalysis{
 		RepoAnalysisStatusID: as.ID,
 		AnalysisGUID:         uuid.NewV4().String(),
@@ -188,9 +192,37 @@ func (c LauncherConsumer) createNewAnalysis(tx *gorm.DB, as *models.RepoAnalysis
 		return errors.Wrap(err, "can't create repo analysis")
 	}
 
-	if err := c.runProducer.Put(repo.Name, a.AnalysisGUID, as.DefaultBranch); err != nil {
+	pat, err := c.getPrivateAccessToken(ctx, tx, repo)
+	if err != nil {
+		return errors.Wrap(err, "failed to get private access token")
+	}
+
+	if err := c.runProducer.Put(repo.Name, a.AnalysisGUID, as.DefaultBranch, pat); err != nil {
 		return errors.Wrap(err, "failed to enqueue repo analysis for running")
 	}
 
 	return nil
+}
+
+func (c LauncherConsumer) getPrivateAccessToken(ctx context.Context, db *gorm.DB, repo *models.Repo) (string, error) {
+	var auth models.Auth
+	if err := models.NewAuthQuerySet(db).UserIDEq(repo.UserID).One(&auth); err != nil {
+		return "", errors.Wrapf(err, "failed to fetch auth for user id %d", repo.UserID)
+	}
+
+	p, err := c.pf.Build(&auth)
+	if err != nil {
+		return "", errors.Wrap(err, "failed to build provider for auth")
+	}
+
+	providerRepo, err := p.GetRepoByName(ctx, repo.Owner(), repo.Repo())
+	if err != nil {
+		return "", errors.Wrapf(err, "failed to fetch provider repo %s", repo.Name)
+	}
+
+	if providerRepo.IsPrivate {
+		return auth.PrivateAccessToken, nil
+	}
+
+	return "", nil
 }

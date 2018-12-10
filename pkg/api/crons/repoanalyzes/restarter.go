@@ -1,8 +1,11 @@
 package repoanalyzes
 
 import (
+	"context"
 	"math"
 	"time"
+
+	"github.com/golangci/golangci-api/internal/shared/providers"
 
 	"github.com/golangci/golangci-api/pkg/worker/analyze/analyzesqueue/repoanalyzesqueue"
 
@@ -18,6 +21,7 @@ type Restarter struct {
 	Log      logutil.Log
 	Cfg      config.Config
 	RunQueue *repoanalyzesqueue.Producer
+	Pf       providers.Factory
 }
 
 func (r Restarter) Run() {
@@ -80,7 +84,12 @@ func (r Restarter) runIteration(repoAnalysisTimeout time.Duration) error {
 			return errors.Wrapf(err, "can't update attempt number for analysis %+v", a)
 		}
 
-		if err := r.RunQueue.Put(repo.Name, a.AnalysisGUID, as.DefaultBranch); err != nil {
+		privateAccessToken, err := r.getPrivateAccessToken(&repo)
+		if err != nil {
+			return errors.Wrap(err, "failed to get private access token")
+		}
+
+		if err := r.RunQueue.Put(repo.Name, a.AnalysisGUID, as.DefaultBranch, privateAccessToken); err != nil {
 			return errors.Wrapf(err, "can't resend repo %s for analysis into queue", repo.Name)
 		}
 
@@ -89,4 +98,28 @@ func (r Restarter) runIteration(repoAnalysisTimeout time.Duration) error {
 	}
 
 	return nil
+}
+
+func (r Restarter) getPrivateAccessToken(repo *models.Repo) (string, error) {
+	var auth models.Auth
+	if err := models.NewAuthQuerySet(r.DB).UserIDEq(repo.UserID).One(&auth); err != nil {
+		return "", errors.Wrapf(err, "failed to fetch auth for user id %d", repo.UserID)
+	}
+
+	p, err := r.Pf.Build(&auth)
+	if err != nil {
+		return "", errors.Wrap(err, "failed to build provider for auth")
+	}
+
+	ctx := context.Background()
+	providerRepo, err := p.GetRepoByName(ctx, repo.Owner(), repo.Repo())
+	if err != nil {
+		return "", errors.Wrapf(err, "failed to fetch provider repo %s", repo.Name)
+	}
+
+	if providerRepo.IsPrivate {
+		return auth.PrivateAccessToken, nil
+	}
+
+	return "", nil
 }

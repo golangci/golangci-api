@@ -2,8 +2,6 @@ package returntypes
 
 import (
 	"time"
-
-	"github.com/golangci/golangci-api/pkg/api/models"
 )
 
 type Error struct {
@@ -27,10 +25,18 @@ type WrappedRepoInfo struct {
 	Repo RepoInfo `json:"repo"`
 }
 
+type OrgInfo struct {
+	Provider              string `json:"provider"`
+	Name                  string `json:"name"`
+	HasActiveSubscription bool   `json:"hasActiveSubscription"`
+	IsAdmin               bool   `json:"isAdmin"`
+}
+
 type RepoListResponse struct {
-	Repos                   []RepoInfo `json:"repos"`
-	PrivateRepos            []RepoInfo `json:"privateRepos"`
-	PrivateReposWereFetched bool       `json:"privateReposWereFetched"`
+	Repos                   []RepoInfo         `json:"repos"`
+	PrivateRepos            []RepoInfo         `json:"privateRepos"`
+	PrivateReposWereFetched bool               `json:"privateReposWereFetched"`
+	Organizations           map[string]OrgInfo `json:"organizations"`
 }
 
 type AuthorizedUser struct {
@@ -47,34 +53,14 @@ type CheckAuthResponse struct {
 }
 
 type SubInfo struct {
-	ID         uint   `json:"id"`
-	SeatsCount int    `json:"seatsCount"`
-	Status     string `json:"status"`
-}
+	SeatsCount   int    `json:"seatsCount"`
+	Status       string `json:"status"`
+	Version      int    `json:"version"`
+	PricePerSeat string `json:"pricePerSeat"`
+	CancelURL    string `json:"cancelUrl"`
 
-//nolint:gocritic
-func SubFromModel(sub models.OrgSub) *SubInfo {
-	status := "active"
-	if sub.IsCreating() {
-		status = "creating"
-	} else if sub.IsUpdating() {
-		status = "updating"
-	} else if sub.IsDeleting() || sub.CommitState == models.OrgSubCommitStateDeleteDone {
-		status = "deleted"
-	}
-	return &SubInfo{sub.ID, sub.SeatsCount, status}
-}
-
-type OrgInfo struct {
-	ID           uint     `json:"id"`
-	Name         string   `json:"name"`
-	DisplayName  string   `json:"displayName"`
-	IsAdmin      bool     `json:"isAdmin"`
-	Subscription *SubInfo `json:"subscription"`
-}
-
-func OrgFromModel(org models.Org, admin bool) *OrgInfo {
-	return &OrgInfo{org.ID, org.Name, org.DisplayName, admin, nil}
+	TrialAllowanceInDays int    `json:"trialAllowanceInDays"`
+	PaddleTrialDaysAuth  string `json:"paddleTrialDaysAuth"`
 }
 
 type IDResponse struct {

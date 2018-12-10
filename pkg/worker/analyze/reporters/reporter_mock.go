@@ -5,10 +5,9 @@ package reporters
 
 import (
 	context "context"
-	reflect "reflect"
-
 	gomock "github.com/golang/mock/gomock"
 	result "github.com/golangci/golangci-api/pkg/worker/analyze/linters/result"
+	reflect "reflect"
 )
 
 // MockReporter is a mock of Reporter interface

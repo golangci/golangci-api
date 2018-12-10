@@ -1,10 +1,12 @@
 .PHONY: test
 
-gen: gen_services
+gen: gen_services gen_models
+
+gen_models:
 	go generate ./...
 
 gen_services:
-	go run cmd/genservices/main.go
+	GO111MODULE=off time go run cmd/genservices/main.go -service=${S}
 
 run_env:
 	SERVICES=sqs localstack start --docker
@@ -14,13 +16,13 @@ prepare_env:
 	awslocal sqs list-queues
 
 run_api:
-	godotenv go run cmd/golangci-api/main.go
+	godotenv gin -i --build cmd/golangci-api run main.go
 
 run_worker:
-	godotenv go run cmd/golangci-worker/main.go
+	godotenv gin -i --port 3099 --build cmd/golangci-worker run main.go
 
 migrate_force_version:
-	godotenv -f .env.test sh -c 'migrate -database $${DATABASE_URL} -path ./migrations force $${V}'
+	godotenv -f .env sh -c 'migrate -database $${DATABASE_URL} -path ./migrations force $${V}'
 
 test_api:
 	go test -v -parallel 1 -p 1 ./test/
@@ -69,3 +71,6 @@ mod_update:
 	GO111MODULE=on go mod verify
 	GO111MODULE=on go mod tidy
 	GO111MODULE=on go mod vendor
+
+psql:
+	docker-compose exec pg psql -U postgres -dapi_prod
