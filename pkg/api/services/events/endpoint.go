@@ -3,7 +3,6 @@ package events
 
 import (
 	"context"
-	"errors"
 	"runtime/debug"
 
 	"github.com/go-kit/kit/endpoint"
@@ -11,6 +10,7 @@ import (
 	"github.com/golangci/golangci-api/internal/api/endpointutil"
 	"github.com/golangci/golangci-api/internal/shared/logutil"
 	"github.com/golangci/golangci-api/pkg/api/request"
+	"github.com/pkg/errors"
 )
 
 type TrackEventRequest struct {

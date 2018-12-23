@@ -1,14 +1,18 @@
 package provider
 
+import "strings"
+
 type Org struct {
 	ID      int
 	Name    string
 	IsAdmin bool
 }
 
+// Repo represents provider repository.
+// On any incompatible change don't forget to bump cache version in fetchProviderReposCached
 type Repo struct {
 	ID            int
-	Name          string
+	FullName      string
 	IsAdmin       bool
 	IsPrivate     bool
 	DefaultBranch string
@@ -21,15 +25,24 @@ type Repo struct {
 	StargazersCount int
 	Language        string
 	Organization    string
+	OwnerID         int
+}
+
+func (r Repo) Name() string {
+	return strings.Split(r.FullName, "/")[1]
+}
+
+func (r Repo) Owner() string {
+	return strings.Split(r.FullName, "/")[0]
 }
 
 type Branch struct {
-	HeadCommitSHA string
+	CommitSHA string
 }
 
 type PullRequest struct {
-	HeadCommitSHA string
-	State         string // MERGED|CLOSED
+	Head  *Branch
+	State string // MERGED|CLOSED
 }
 
 type HookConfig struct {
@@ -63,4 +76,28 @@ type CommitStatus struct {
 	State       string
 	Context     string
 	TargetURL   string
+}
+
+type PullRequestAction string
+
+const (
+	Opened       PullRequestAction = "opened"
+	Synchronized PullRequestAction = "synchronize"
+)
+
+type PullRequestEvent struct {
+	Repo              *Repo
+	Head              *Branch
+	PullRequestNumber int
+	Action            PullRequestAction
+}
+
+type CommitAuthor struct {
+	Email string
+}
+
+type Commit struct {
+	SHA       string
+	Author    *CommitAuthor
+	Committer *CommitAuthor
 }

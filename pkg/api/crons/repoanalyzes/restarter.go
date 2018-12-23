@@ -89,12 +89,12 @@ func (r Restarter) runIteration(repoAnalysisTimeout time.Duration) error {
 			return errors.Wrap(err, "failed to get private access token")
 		}
 
-		if err := r.RunQueue.Put(repo.Name, a.AnalysisGUID, as.DefaultBranch, privateAccessToken); err != nil {
-			return errors.Wrapf(err, "can't resend repo %s for analysis into queue", repo.Name)
+		if err := r.RunQueue.Put(repo.FullName, a.AnalysisGUID, as.DefaultBranch, privateAccessToken); err != nil {
+			return errors.Wrapf(err, "can't resend repo %s for analysis into queue", repo.FullName)
 		}
 
 		r.Log.Warnf("Restarted repo analysis for %s in status %s with %d-th attempt",
-			repo.Name, a.Status, a.AttemptNumber)
+			repo.FullName, a.Status, a.AttemptNumber)
 	}
 
 	return nil
@@ -114,7 +114,7 @@ func (r Restarter) getPrivateAccessToken(repo *models.Repo) (string, error) {
 	ctx := context.Background()
 	providerRepo, err := p.GetRepoByName(ctx, repo.Owner(), repo.Repo())
 	if err != nil {
-		return "", errors.Wrapf(err, "failed to fetch provider repo %s", repo.Name)
+		return "", errors.Wrapf(err, "failed to fetch provider repo %s", repo.FullName)
 	}
 
 	if providerRepo.IsPrivate {

@@ -8,11 +8,13 @@ import (
 
 	httptransport "github.com/go-kit/kit/transport/http"
 	"github.com/golangci/golangci-api/internal/api/apierrors"
+	"github.com/golangci/golangci-api/internal/api/endpointutil"
 	"github.com/golangci/golangci-api/internal/api/transportutil"
+	"github.com/gorilla/mux"
 	"github.com/pkg/errors"
 )
 
-func RegisterHandlers(svc Service, regCtx *transportutil.HandlerRegContext) {
+func RegisterHandlers(svc Service, r *mux.Router, regCtx *endpointutil.HandlerRegContext) {
 
 	hCheckAuth := httptransport.NewServer(
 		makeCheckAuthEndpoint(svc, regCtx.Log),
@@ -21,14 +23,13 @@ func RegisterHandlers(svc Service, regCtx *transportutil.HandlerRegContext) {
 		httptransport.ServerBefore(transportutil.StoreHTTPRequestToContext),
 		httptransport.ServerAfter(transportutil.FinalizeSession),
 
-		httptransport.ServerBefore(transportutil.MakeStoreAuthorizedRequestContext(regCtx.Log,
-			regCtx.ErrTracker, regCtx.DB, regCtx.AuthSessFactory)),
+		httptransport.ServerBefore(transportutil.MakeStoreAuthorizedRequestContext(*regCtx)),
 
 		httptransport.ServerFinalizer(transportutil.FinalizeRequest),
 		httptransport.ServerErrorEncoder(transportutil.EncodeError),
 		httptransport.ServerErrorLogger(transportutil.AdaptErrorLogger(regCtx.Log)),
 	)
-	regCtx.Router.Methods("GET").Path("/v1/auth/check").Handler(hCheckAuth)
+	r.Methods("GET").Path("/v1/auth/check").Handler(hCheckAuth)
 
 	hLogout := httptransport.NewServer(
 		makeLogoutEndpoint(svc, regCtx.Log),
@@ -37,14 +38,13 @@ func RegisterHandlers(svc Service, regCtx *transportutil.HandlerRegContext) {
 		httptransport.ServerBefore(transportutil.StoreHTTPRequestToContext),
 		httptransport.ServerAfter(transportutil.FinalizeSession),
 
-		httptransport.ServerBefore(transportutil.MakeStoreAuthorizedRequestContext(regCtx.Log,
-			regCtx.ErrTracker, regCtx.DB, regCtx.AuthSessFactory)),
+		httptransport.ServerBefore(transportutil.MakeStoreAuthorizedRequestContext(*regCtx)),
 
 		httptransport.ServerFinalizer(transportutil.FinalizeRequest),
 		httptransport.ServerErrorEncoder(transportutil.EncodeError),
 		httptransport.ServerErrorLogger(transportutil.AdaptErrorLogger(regCtx.Log)),
 	)
-	regCtx.Router.Methods("GET").Path("/v1/auth/logout").Handler(hLogout)
+	r.Methods("GET").Path("/v1/auth/logout").Handler(hLogout)
 
 	hUnlinkProvider := httptransport.NewServer(
 		makeUnlinkProviderEndpoint(svc, regCtx.Log),
@@ -53,14 +53,13 @@ func RegisterHandlers(svc Service, regCtx *transportutil.HandlerRegContext) {
 		httptransport.ServerBefore(transportutil.StoreHTTPRequestToContext),
 		httptransport.ServerAfter(transportutil.FinalizeSession),
 
-		httptransport.ServerBefore(transportutil.MakeStoreAuthorizedRequestContext(regCtx.Log,
-			regCtx.ErrTracker, regCtx.DB, regCtx.AuthSessFactory)),
+		httptransport.ServerBefore(transportutil.MakeStoreAuthorizedRequestContext(*regCtx)),
 
 		httptransport.ServerFinalizer(transportutil.FinalizeRequest),
 		httptransport.ServerErrorEncoder(transportutil.EncodeError),
 		httptransport.ServerErrorLogger(transportutil.AdaptErrorLogger(regCtx.Log)),
 	)
-	regCtx.Router.Methods("PUT").Path("/v1/auth/unlink").Handler(hUnlinkProvider)
+	r.Methods("PUT").Path("/v1/auth/unlink").Handler(hUnlinkProvider)
 
 	hRelogin := httptransport.NewServer(
 		makeReloginEndpoint(svc, regCtx.Log),
@@ -69,14 +68,13 @@ func RegisterHandlers(svc Service, regCtx *transportutil.HandlerRegContext) {
 		httptransport.ServerBefore(transportutil.StoreHTTPRequestToContext),
 		httptransport.ServerAfter(transportutil.FinalizeSession),
 
-		httptransport.ServerBefore(transportutil.MakeStoreAuthorizedRequestContext(regCtx.Log,
-			regCtx.ErrTracker, regCtx.DB, regCtx.AuthSessFactory)),
+		httptransport.ServerBefore(transportutil.MakeStoreAuthorizedRequestContext(*regCtx)),
 
 		httptransport.ServerFinalizer(transportutil.FinalizeRequest),
 		httptransport.ServerErrorEncoder(transportutil.EncodeError),
 		httptransport.ServerErrorLogger(transportutil.AdaptErrorLogger(regCtx.Log)),
 	)
-	regCtx.Router.Methods("GET").Path("/v1/auth/user/relogin").Handler(hRelogin)
+	r.Methods("GET").Path("/v1/auth/user/relogin").Handler(hRelogin)
 
 	hLoginPublic := httptransport.NewServer(
 		makeLoginPublicEndpoint(svc, regCtx.Log),
@@ -85,14 +83,13 @@ func RegisterHandlers(svc Service, regCtx *transportutil.HandlerRegContext) {
 		httptransport.ServerBefore(transportutil.StoreHTTPRequestToContext),
 		httptransport.ServerAfter(transportutil.FinalizeSession),
 
-		httptransport.ServerBefore(transportutil.MakeStoreAnonymousRequestContext(
-			regCtx.Log, regCtx.ErrTracker, regCtx.DB)),
+		httptransport.ServerBefore(transportutil.MakeStoreAnonymousRequestContext(*regCtx)),
 
 		httptransport.ServerFinalizer(transportutil.FinalizeRequest),
 		httptransport.ServerErrorEncoder(transportutil.EncodeError),
 		httptransport.ServerErrorLogger(transportutil.AdaptErrorLogger(regCtx.Log)),
 	)
-	regCtx.Router.Methods("GET").Path("/v1/auth/{provider}").Handler(hLoginPublic)
+	r.Methods("GET").Path("/v1/auth/{provider}").Handler(hLoginPublic)
 
 	hLoginPrivate := httptransport.NewServer(
 		makeLoginPrivateEndpoint(svc, regCtx.Log),
@@ -101,14 +98,13 @@ func RegisterHandlers(svc Service, regCtx *transportutil.HandlerRegContext) {
 		httptransport.ServerBefore(transportutil.StoreHTTPRequestToContext),
 		httptransport.ServerAfter(transportutil.FinalizeSession),
 
-		httptransport.ServerBefore(transportutil.MakeStoreAuthorizedRequestContext(regCtx.Log,
-			regCtx.ErrTracker, regCtx.DB, regCtx.AuthSessFactory)),
+		httptransport.ServerBefore(transportutil.MakeStoreAuthorizedRequestContext(*regCtx)),
 
 		httptransport.ServerFinalizer(transportutil.FinalizeRequest),
 		httptransport.ServerErrorEncoder(transportutil.EncodeError),
 		httptransport.ServerErrorLogger(transportutil.AdaptErrorLogger(regCtx.Log)),
 	)
-	regCtx.Router.Methods("GET").Path("/v1/auth/{provider}/private").Handler(hLoginPrivate)
+	r.Methods("GET").Path("/v1/auth/{provider}/private").Handler(hLoginPrivate)
 
 	hLoginPublicOAuthCallback := httptransport.NewServer(
 		makeLoginPublicOAuthCallbackEndpoint(svc, regCtx.Log),
@@ -117,14 +113,13 @@ func RegisterHandlers(svc Service, regCtx *transportutil.HandlerRegContext) {
 		httptransport.ServerBefore(transportutil.StoreHTTPRequestToContext),
 		httptransport.ServerAfter(transportutil.FinalizeSession),
 
-		httptransport.ServerBefore(transportutil.MakeStoreAnonymousRequestContext(
-			regCtx.Log, regCtx.ErrTracker, regCtx.DB)),
+		httptransport.ServerBefore(transportutil.MakeStoreAnonymousRequestContext(*regCtx)),
 
 		httptransport.ServerFinalizer(transportutil.FinalizeRequest),
 		httptransport.ServerErrorEncoder(transportutil.EncodeError),
 		httptransport.ServerErrorLogger(transportutil.AdaptErrorLogger(regCtx.Log)),
 	)
-	regCtx.Router.Methods("GET").Path("/v1/auth/{provider}/callback/public").Handler(hLoginPublicOAuthCallback)
+	r.Methods("GET").Path("/v1/auth/{provider}/callback/public").Handler(hLoginPublicOAuthCallback)
 
 	hLoginPrivateOAuthCallback := httptransport.NewServer(
 		makeLoginPrivateOAuthCallbackEndpoint(svc, regCtx.Log),
@@ -133,14 +128,13 @@ func RegisterHandlers(svc Service, regCtx *transportutil.HandlerRegContext) {
 		httptransport.ServerBefore(transportutil.StoreHTTPRequestToContext),
 		httptransport.ServerAfter(transportutil.FinalizeSession),
 
-		httptransport.ServerBefore(transportutil.MakeStoreAuthorizedRequestContext(regCtx.Log,
-			regCtx.ErrTracker, regCtx.DB, regCtx.AuthSessFactory)),
+		httptransport.ServerBefore(transportutil.MakeStoreAuthorizedRequestContext(*regCtx)),
 
 		httptransport.ServerFinalizer(transportutil.FinalizeRequest),
 		httptransport.ServerErrorEncoder(transportutil.EncodeError),
 		httptransport.ServerErrorLogger(transportutil.AdaptErrorLogger(regCtx.Log)),
 	)
-	regCtx.Router.Methods("GET").Path("/v1/auth/{provider}/callback/private").Handler(hLoginPrivateOAuthCallback)
+	r.Methods("GET").Path("/v1/auth/{provider}/callback/private").Handler(hLoginPrivateOAuthCallback)
 
 }
 

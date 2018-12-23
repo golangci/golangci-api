@@ -8,11 +8,13 @@ import (
 
 	httptransport "github.com/go-kit/kit/transport/http"
 	"github.com/golangci/golangci-api/internal/api/apierrors"
+	"github.com/golangci/golangci-api/internal/api/endpointutil"
 	"github.com/golangci/golangci-api/internal/api/transportutil"
+	"github.com/gorilla/mux"
 	"github.com/pkg/errors"
 )
 
-func RegisterHandlers(svc Service, regCtx *transportutil.HandlerRegContext) {
+func RegisterHandlers(svc Service, r *mux.Router, regCtx *endpointutil.HandlerRegContext) {
 
 	hCreate := httptransport.NewServer(
 		makeCreateEndpoint(svc, regCtx.Log),
@@ -21,14 +23,13 @@ func RegisterHandlers(svc Service, regCtx *transportutil.HandlerRegContext) {
 		httptransport.ServerBefore(transportutil.StoreHTTPRequestToContext),
 		httptransport.ServerAfter(transportutil.FinalizeSession),
 
-		httptransport.ServerBefore(transportutil.MakeStoreAuthorizedRequestContext(regCtx.Log,
-			regCtx.ErrTracker, regCtx.DB, regCtx.AuthSessFactory)),
+		httptransport.ServerBefore(transportutil.MakeStoreAuthorizedRequestContext(*regCtx)),
 
 		httptransport.ServerFinalizer(transportutil.FinalizeRequest),
 		httptransport.ServerErrorEncoder(transportutil.EncodeError),
 		httptransport.ServerErrorLogger(transportutil.AdaptErrorLogger(regCtx.Log)),
 	)
-	regCtx.Router.Methods("POST").Path("/v1/repos").Handler(hCreate)
+	r.Methods("POST").Path("/v1/repos").Handler(hCreate)
 
 	hGet := httptransport.NewServer(
 		makeGetEndpoint(svc, regCtx.Log),
@@ -37,14 +38,13 @@ func RegisterHandlers(svc Service, regCtx *transportutil.HandlerRegContext) {
 		httptransport.ServerBefore(transportutil.StoreHTTPRequestToContext),
 		httptransport.ServerAfter(transportutil.FinalizeSession),
 
-		httptransport.ServerBefore(transportutil.MakeStoreAuthorizedRequestContext(regCtx.Log,
-			regCtx.ErrTracker, regCtx.DB, regCtx.AuthSessFactory)),
+		httptransport.ServerBefore(transportutil.MakeStoreAuthorizedRequestContext(*regCtx)),
 
 		httptransport.ServerFinalizer(transportutil.FinalizeRequest),
 		httptransport.ServerErrorEncoder(transportutil.EncodeError),
 		httptransport.ServerErrorLogger(transportutil.AdaptErrorLogger(regCtx.Log)),
 	)
-	regCtx.Router.Methods("GET").Path("/v1/repos/{repoid}").Handler(hGet)
+	r.Methods("GET").Path("/v1/repos/{repoid}").Handler(hGet)
 
 	hDelete := httptransport.NewServer(
 		makeDeleteEndpoint(svc, regCtx.Log),
@@ -53,14 +53,13 @@ func RegisterHandlers(svc Service, regCtx *transportutil.HandlerRegContext) {
 		httptransport.ServerBefore(transportutil.StoreHTTPRequestToContext),
 		httptransport.ServerAfter(transportutil.FinalizeSession),
 
-		httptransport.ServerBefore(transportutil.MakeStoreAuthorizedRequestContext(regCtx.Log,
-			regCtx.ErrTracker, regCtx.DB, regCtx.AuthSessFactory)),
+		httptransport.ServerBefore(transportutil.MakeStoreAuthorizedRequestContext(*regCtx)),
 
 		httptransport.ServerFinalizer(transportutil.FinalizeRequest),
 		httptransport.ServerErrorEncoder(transportutil.EncodeError),
 		httptransport.ServerErrorLogger(transportutil.AdaptErrorLogger(regCtx.Log)),
 	)
-	regCtx.Router.Methods("DELETE").Path("/v1/repos/{repoid}").Handler(hDelete)
+	r.Methods("DELETE").Path("/v1/repos/{repoid}").Handler(hDelete)
 
 	hList := httptransport.NewServer(
 		makeListEndpoint(svc, regCtx.Log),
@@ -69,14 +68,13 @@ func RegisterHandlers(svc Service, regCtx *transportutil.HandlerRegContext) {
 		httptransport.ServerBefore(transportutil.StoreHTTPRequestToContext),
 		httptransport.ServerAfter(transportutil.FinalizeSession),
 
-		httptransport.ServerBefore(transportutil.MakeStoreAuthorizedRequestContext(regCtx.Log,
-			regCtx.ErrTracker, regCtx.DB, regCtx.AuthSessFactory)),
+		httptransport.ServerBefore(transportutil.MakeStoreAuthorizedRequestContext(*regCtx)),
 
 		httptransport.ServerFinalizer(transportutil.FinalizeRequest),
 		httptransport.ServerErrorEncoder(transportutil.EncodeError),
 		httptransport.ServerErrorLogger(transportutil.AdaptErrorLogger(regCtx.Log)),
 	)
-	regCtx.Router.Methods("GET").Path("/v1/repos").Handler(hList)
+	r.Methods("GET").Path("/v1/repos").Handler(hList)
 
 }
 

@@ -4,13 +4,12 @@ import (
 	"context"
 	"time"
 
+	"github.com/golangci/golangci-api/internal/api/apierrors"
+
 	"github.com/golangci/golangci-api/internal/api/session"
 	"github.com/golangci/golangci-api/internal/shared/apperrors"
 	"github.com/golangci/golangci-api/internal/shared/logutil"
-	"github.com/golangci/golangci-api/pkg/api/auth"
-	"github.com/golangci/golangci-api/pkg/api/models"
 	"github.com/golangci/golangci-api/pkg/api/request"
-	"github.com/jinzhu/gorm"
 	"github.com/pkg/errors"
 )
 
@@ -46,58 +45,62 @@ func Error(ctx context.Context) error {
 	return v.(error)
 }
 
-func makeBaseRequestContext(ctx context.Context, log logutil.Log, et apperrors.Tracker,
-	db *gorm.DB, sctx *session.RequestContext) *request.BaseContext {
-
+func makeBaseRequestContext(ctx context.Context, sctx *session.RequestContext, hctx *HandlerRegContext) *request.BaseContext {
 	lctx := logutil.Context{}
+	log := hctx.Log
 	log = logutil.WrapLogWithContext(log, lctx)
-	log = apperrors.WrapLogWithTracker(log, lctx, et)
+	log = apperrors.WrapLogWithTracker(log, lctx, hctx.ErrTracker)
 
 	return &request.BaseContext{
 		Ctx:       ctx,
 		Log:       log,
 		Lctx:      lctx,
-		DB:        db,
+		DB:        hctx.DB,
 		StartedAt: time.Now(),
 		SessCtx:   sctx,
 	}
 }
 
-func MakeAnonymousRequestContext(ctx context.Context, log logutil.Log, et apperrors.Tracker,
-	db *gorm.DB, sctx *session.RequestContext) *request.AnonymousContext {
-
+func MakeAnonymousRequestContext(ctx context.Context, sctx *session.RequestContext, hctx *HandlerRegContext) *request.AnonymousContext {
 	return &request.AnonymousContext{
-		BaseContext: *makeBaseRequestContext(ctx, log, et, db, sctx),
+		BaseContext: *makeBaseRequestContext(ctx, sctx, hctx),
 	}
 }
 
-func MakeAuthorizedRequestContext(ctx context.Context, log logutil.Log, et apperrors.Tracker,
-	db *gorm.DB, sf *session.Factory, sctx *session.RequestContext) (*request.AuthorizedContext, error) {
+func MakeInternalRequestContext(ctx context.Context, sctx *session.RequestContext, hctx *HandlerRegContext,
+	requestAccessToken string) (*request.InternalContext, error) {
 
-	authSess, err := sf.Build(sctx, auth.SessType)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to build auth sess")
+	validAccessToken := hctx.Cfg.GetString("INTERNAL_ACCESS_TOKEN")
+	if len(validAccessToken) <= 8 {
+		return nil, errors.Wrap(apierrors.ErrNotAuthorized, "too short INTERNAL_ACCESS_TOKEN")
 	}
 
-	authModel, err := auth.Get(authSess, sctx, db)
+	if validAccessToken != requestAccessToken {
+		hctx.Log.Warnf("Invalid internal request access token %q, must be %q",
+			requestAccessToken, validAccessToken)
+		return nil, errors.Wrap(apierrors.ErrNotAuthorized, "invalid internal access token")
+	}
+
+	return &request.InternalContext{
+		BaseContext: *makeBaseRequestContext(ctx, sctx, hctx),
+	}, nil
+}
+
+func MakeAuthorizedRequestContext(ctx context.Context, sctx *session.RequestContext,
+	hctx *HandlerRegContext) (*request.AuthorizedContext, error) {
+
+	au, err := hctx.Authorizer.Authorize(sctx)
 	if err != nil {
 		return nil, err
 	}
 
-	var user models.User
-	if err := models.NewUserQuerySet(db).IDEq(authModel.UserID).One(&user); err != nil {
-		return nil, errors.Wrapf(err, "failed to fetch user %d from db", authModel.UserID)
-	}
-
-	baseCtx := makeBaseRequestContext(ctx, log, et, db, sctx)
-	baseCtx.Lctx["user_id"] = authModel.UserID
-	baseCtx.Lctx["email"] = user.Email
-	baseCtx.Lctx["provider_login"] = authModel.Login
+	baseCtx := makeBaseRequestContext(ctx, sctx, hctx)
+	baseCtx.Lctx["user_id"] = au.User.ID
+	baseCtx.Lctx["email"] = au.User.Email
+	baseCtx.Lctx["provider_login"] = au.Auth.Login
 
 	return &request.AuthorizedContext{
-		BaseContext: *baseCtx,
-		Auth:        authModel,
-		User:        &user,
-		AuthSess:    authSess,
+		BaseContext:       *baseCtx,
+		AuthenticatedUser: *au,
 	}, nil
 }

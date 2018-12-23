@@ -15,11 +15,17 @@ prepare_env:
 	awslocal sqs create-queue --queue-name primary
 	awslocal sqs list-queues
 
-run_api:
+run_api_reload:
 	godotenv gin -i --build cmd/golangci-api run main.go
 
-run_worker:
+run_api:
+	godotenv go run cmd/golangci-api/main.go
+
+run_worker_reload:
 	godotenv gin -i --port 3099 --build cmd/golangci-worker run main.go
+
+run_worker:
+	godotenv go run cmd/golangci-worker/main.go
 
 migrate_force_version:
 	godotenv -f .env sh -c 'migrate -database $${DATABASE_URL} -path ./migrations force $${V}'

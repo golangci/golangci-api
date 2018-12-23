@@ -59,6 +59,7 @@ func TestStaleAnalyzes(t *testing.T) {
 
 	timeout := 3 * time.Second
 	staler := pranalyzes.Staler{
+		Cfg:             deps.Cfg,
 		DB:              deps.DB,
 		Log:             deps.Log,
 		ProviderFactory: deps.ProviderFactory,

@@ -3,6 +3,8 @@ package repoanalysis
 import (
 	"strings"
 
+	"github.com/golangci/golangci-api/pkg/api/policy"
+
 	"github.com/golangci/golangci-api/internal/shared/logutil"
 	"github.com/golangci/golangci-api/pkg/api/models"
 	"github.com/golangci/golangci-api/pkg/api/request"
@@ -37,13 +39,15 @@ type Service interface {
 	GetStatus(rc *request.AnonymousContext, repo *request.Repo) (*Status, error)
 
 	//url:/v1/repos/{provider}/{owner}/{name}/repoanalyzes/{analysisguid}
-	Get(rc *request.AnonymousContext, rac *Context) (*models.RepoAnalysis, error)
+	GetByAnalysisGUID(rc *request.InternalContext, rac *Context) (*models.RepoAnalysis, error)
 
 	//url:/v1/repos/{provider}/{owner}/{name}/repoanalyzes/{analysisguid} method:PUT
-	Update(rc *request.AnonymousContext, rac *Context, update *updateRepoPayload) error
+	UpdateByAnalysisGUID(rc *request.InternalContext, rac *Context, update *updateRepoPayload) error
 }
 
-type BasicService struct{}
+type BasicService struct {
+	RepoPolicy *policy.Repo
+}
 
 func (s BasicService) isCompleteAnalysisStatus(status string) bool {
 	return status == "processed" || status == "error"
@@ -52,7 +56,7 @@ func (s BasicService) isCompleteAnalysisStatus(status string) bool {
 //nolint:gocyclo
 func (s BasicService) GetStatus(rc *request.AnonymousContext, reqRepo *request.Repo) (*Status, error) {
 	var repo models.Repo
-	err := models.NewRepoQuerySet(rc.DB).NameEq(strings.ToLower(reqRepo.FullName())).One(&repo)
+	err := models.NewRepoQuerySet(rc.DB).FullNameEq(strings.ToLower(reqRepo.FullName())).One(&repo)
 	if err != nil {
 		if err == gorm.ErrRecordNotFound {
 			rc.Log.Warnf("no connected repo for report of %s: maybe direct access by URL", reqRepo.FullName())
@@ -65,13 +69,19 @@ func (s BasicService) GetStatus(rc *request.AnonymousContext, reqRepo *request.R
 		return nil, errors.Wrapf(err, "can't get repo for %s", reqRepo.FullName())
 	}
 
+	if repo.IsPrivate {
+		if err = s.RepoPolicy.CanReadPrivateRepo(rc, &repo); err != nil {
+			return nil, err
+		}
+	}
+
 	var as models.RepoAnalysisStatus
 	err = models.NewRepoAnalysisStatusQuerySet(rc.DB).RepoIDEq(repo.ID).One(&as)
 	if err != nil {
 		if err == gorm.ErrRecordNotFound {
 			return &Status{
 				IsPreparing:    true,
-				GithubRepoName: repo.DisplayName,
+				GithubRepoName: repo.DisplayFullName,
 			}, nil
 		}
 
@@ -89,11 +99,15 @@ func (s BasicService) GetStatus(rc *request.AnonymousContext, reqRepo *request.R
 		return nil, errors.Wrapf(err, "can't get repo analyzes with analysis status id %d", as.ID)
 	}
 
+	return s.buildStatus(analyzes, &repo, &as), nil
+}
+
+func (s BasicService) buildStatus(analyzes []models.RepoAnalysis, repo *models.Repo, as *models.RepoAnalysisStatus) *Status {
 	if len(analyzes) == 0 {
 		return &Status{
 			IsPreparing:    true,
-			GithubRepoName: repo.DisplayName,
-		}, nil
+			GithubRepoName: repo.DisplayFullName,
+		}
 	}
 
 	var lastCompleteAnalysis models.RepoAnalysis
@@ -116,15 +130,15 @@ func (s BasicService) GetStatus(rc *request.AnonymousContext, reqRepo *request.R
 		}
 	}
 
-	lastCompleteAnalysis.RepoAnalysisStatus = as
+	lastCompleteAnalysis.RepoAnalysisStatus = *as
 	return &Status{
 		RepoAnalysis:       lastCompleteAnalysis,
-		GithubRepoName:     repo.DisplayName,
+		GithubRepoName:     repo.DisplayFullName,
 		NextAnalysisStatus: nextAnalysisStatus,
-	}, nil
+	}
 }
 
-func (s BasicService) Get(rc *request.AnonymousContext, rac *Context) (*models.RepoAnalysis, error) {
+func (s BasicService) GetByAnalysisGUID(rc *request.InternalContext, rac *Context) (*models.RepoAnalysis, error) {
 	var analysis models.RepoAnalysis
 	err := models.NewRepoAnalysisQuerySet(rc.DB).
 		AnalysisGUIDEq(rac.AnalysisGUID).
@@ -136,7 +150,7 @@ func (s BasicService) Get(rc *request.AnonymousContext, rac *Context) (*models.R
 	return &analysis, nil
 }
 
-func (s BasicService) Update(rc *request.AnonymousContext, rac *Context, update *updateRepoPayload) error {
+func (s BasicService) UpdateByAnalysisGUID(rc *request.InternalContext, rac *Context, update *updateRepoPayload) error {
 	var analysis models.RepoAnalysis
 	err := models.NewRepoAnalysisQuerySet(rc.DB).
 		AnalysisGUIDEq(rac.AnalysisGUID).

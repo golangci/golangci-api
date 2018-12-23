@@ -4,14 +4,14 @@ import (
 	"github.com/golangci/golangci-api/internal/api/apierrors"
 	"github.com/golangci/golangci-api/internal/shared/logutil"
 	"github.com/golangci/golangci-api/pkg/api/models"
-	"github.com/golangci/golangci-api/pkg/api/organization"
+	"github.com/golangci/golangci-api/pkg/api/policy"
 	"github.com/golangci/golangci-api/pkg/api/request"
 	"github.com/pkg/errors"
 )
 
 type UpdatePayload struct {
-	Settings *models.Settings `json:"settings"`
-	Version  int              `json:"version"`
+	Settings *models.OrgSettings `json:"settings"`
+	Version  int                 `json:"version"`
 }
 
 func (p UpdatePayload) FillLogContext(lctx logutil.Context) {
@@ -27,12 +27,12 @@ type Service interface {
 }
 
 type BasicService struct {
-	ac *organization.AccessChecker
+	orgPolicy *policy.Organization
 }
 
-func NewBasicService(ac *organization.AccessChecker) *BasicService {
+func NewBasicService(orgPolicy *policy.Organization) *BasicService {
 	return &BasicService{
-		ac: ac,
+		orgPolicy: orgPolicy,
 	}
 }
 
@@ -47,7 +47,10 @@ func (s BasicService) Update(rc *request.AuthorizedContext, reqOrg *request.Org,
 		return nil, apierrors.NewRaceConditionError("organization settings were changed in parallel")
 	}
 
-	if err := s.ac.Check(rc, &org); err != nil {
+	if err := s.orgPolicy.CheckAdminAccess(rc, &org); err != nil {
+		if err == policy.ErrNotOrgAdmin {
+			err = policy.ErrNotOrgAdmin.WithMessage("Only organization admins can update organization settings")
+		}
 		return nil, errors.Wrap(err, "check access to org")
 	}
 
@@ -70,7 +73,7 @@ func (s *BasicService) Get(rc *request.AuthorizedContext, reqOrg *request.Org) (
 		return nil, errors.Wrap(err, "failed to to get org from db")
 	}
 
-	if err := s.ac.Check(rc, &org); err != nil {
+	if err := s.orgPolicy.CheckAdminAccess(rc, &org); err != nil {
 		return nil, errors.Wrap(err, "check access to org")
 	}
 

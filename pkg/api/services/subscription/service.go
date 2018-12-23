@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/golangci/golangci-api/internal/api/apierrors"
+	"github.com/golangci/golangci-api/pkg/api/policy"
 
-	"github.com/golangci/golangci-api/pkg/api/organization"
+	"github.com/golangci/golangci-api/internal/api/apierrors"
 
 	"github.com/golangci/golangci-api/internal/api/paymentproviders/implementations/paddle"
 	"github.com/golangci/golangci-api/internal/shared/config"
@@ -53,11 +53,11 @@ type Service interface {
 	EventCreate(rc *request.AnonymousContext, context *EventRequestContext, body request.Body) error
 }
 
-func NewBasicService(ac *organization.AccessChecker, cfg config.Config,
+func NewBasicService(orgPolicy *policy.Organization, cfg config.Config,
 	update *subs.UpdaterProducer, pec *paymentevents.CreatorProducer) *BasicService {
 
 	return &BasicService{
-		ac:               ac,
+		orgPolicy:        orgPolicy,
 		cfg:              cfg,
 		updateQueue:      update,
 		eventCreateQueue: pec,
@@ -65,8 +65,8 @@ func NewBasicService(ac *organization.AccessChecker, cfg config.Config,
 }
 
 type BasicService struct {
-	ac  *organization.AccessChecker
-	cfg config.Config
+	orgPolicy *policy.Organization
+	cfg       config.Config
 
 	updateQueue      *subs.UpdaterProducer
 	eventCreateQueue *paymentevents.CreatorProducer
@@ -126,7 +126,11 @@ func (s BasicService) Get(rc *request.AuthorizedContext, reqOrg *request.Org) (*
 	if err := models.NewOrgQuerySet(rc.DB).NameEq(reqOrg.Name).ProviderEq(reqOrg.Provider).One(&org); err != nil {
 		return nil, errors.Wrap(err, "failed to get org from db")
 	}
-	if err := s.ac.Check(rc, &org); err != nil {
+	if err := s.orgPolicy.CheckAdminAccess(rc, &org); err != nil {
+		// TODO: allow to view org settings and subscription but not to update
+		if err == policy.ErrNotOrgAdmin {
+			err = policy.ErrNotOrgAdmin.WithMessage("Only organization admins can view organization settings and subscription")
+		}
 		return nil, errors.Wrap(err, "failed to check for admin")
 	}
 
@@ -194,7 +198,10 @@ func (s BasicService) getSubForUpdate(rc *request.AuthorizedContext,
 		return nil, apierrors.NewRaceConditionError("organization settings were changed in parallel")
 	}
 
-	if err := s.ac.Check(rc, &org); err != nil {
+	if err := s.orgPolicy.CheckAdminAccess(rc, &org); err != nil {
+		if err == policy.ErrNotOrgAdmin {
+			err = policy.ErrNotOrgAdmin.WithMessage("Only organization admins can update subscription")
+		}
 		return nil, errors.Wrap(err, "failed to check for admin")
 	}
 

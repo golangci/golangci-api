@@ -8,11 +8,13 @@ import (
 
 	httptransport "github.com/go-kit/kit/transport/http"
 	"github.com/golangci/golangci-api/internal/api/apierrors"
+	"github.com/golangci/golangci-api/internal/api/endpointutil"
 	"github.com/golangci/golangci-api/internal/api/transportutil"
+	"github.com/gorilla/mux"
 	"github.com/pkg/errors"
 )
 
-func RegisterHandlers(svc Service, regCtx *transportutil.HandlerRegContext) {
+func RegisterHandlers(svc Service, r *mux.Router, regCtx *endpointutil.HandlerRegContext) {
 
 	hGetStatus := httptransport.NewServer(
 		makeGetStatusEndpoint(svc, regCtx.Log),
@@ -21,46 +23,43 @@ func RegisterHandlers(svc Service, regCtx *transportutil.HandlerRegContext) {
 		httptransport.ServerBefore(transportutil.StoreHTTPRequestToContext),
 		httptransport.ServerAfter(transportutil.FinalizeSession),
 
-		httptransport.ServerBefore(transportutil.MakeStoreAnonymousRequestContext(
-			regCtx.Log, regCtx.ErrTracker, regCtx.DB)),
+		httptransport.ServerBefore(transportutil.MakeStoreAnonymousRequestContext(*regCtx)),
 
 		httptransport.ServerFinalizer(transportutil.FinalizeRequest),
 		httptransport.ServerErrorEncoder(transportutil.EncodeError),
 		httptransport.ServerErrorLogger(transportutil.AdaptErrorLogger(regCtx.Log)),
 	)
-	regCtx.Router.Methods("GET").Path("/v1/repos/{provider}/{owner}/{name}/repoanalyzes").Handler(hGetStatus)
+	r.Methods("GET").Path("/v1/repos/{provider}/{owner}/{name}/repoanalyzes").Handler(hGetStatus)
 
-	hGet := httptransport.NewServer(
-		makeGetEndpoint(svc, regCtx.Log),
-		decodeGetRequest,
-		encodeGetResponse,
+	hGetByAnalysisGUID := httptransport.NewServer(
+		makeGetByAnalysisGUIDEndpoint(svc, regCtx.Log),
+		decodeGetByAnalysisGUIDRequest,
+		encodeGetByAnalysisGUIDResponse,
 		httptransport.ServerBefore(transportutil.StoreHTTPRequestToContext),
 		httptransport.ServerAfter(transportutil.FinalizeSession),
 
-		httptransport.ServerBefore(transportutil.MakeStoreAnonymousRequestContext(
-			regCtx.Log, regCtx.ErrTracker, regCtx.DB)),
+		httptransport.ServerBefore(transportutil.MakeStoreInternalRequestContext(*regCtx)),
 
 		httptransport.ServerFinalizer(transportutil.FinalizeRequest),
 		httptransport.ServerErrorEncoder(transportutil.EncodeError),
 		httptransport.ServerErrorLogger(transportutil.AdaptErrorLogger(regCtx.Log)),
 	)
-	regCtx.Router.Methods("GET").Path("/v1/repos/{provider}/{owner}/{name}/repoanalyzes/{analysisguid}").Handler(hGet)
+	r.Methods("GET").Path("/v1/repos/{provider}/{owner}/{name}/repoanalyzes/{analysisguid}").Handler(hGetByAnalysisGUID)
 
-	hUpdate := httptransport.NewServer(
-		makeUpdateEndpoint(svc, regCtx.Log),
-		decodeUpdateRequest,
-		encodeUpdateResponse,
+	hUpdateByAnalysisGUID := httptransport.NewServer(
+		makeUpdateByAnalysisGUIDEndpoint(svc, regCtx.Log),
+		decodeUpdateByAnalysisGUIDRequest,
+		encodeUpdateByAnalysisGUIDResponse,
 		httptransport.ServerBefore(transportutil.StoreHTTPRequestToContext),
 		httptransport.ServerAfter(transportutil.FinalizeSession),
 
-		httptransport.ServerBefore(transportutil.MakeStoreAnonymousRequestContext(
-			regCtx.Log, regCtx.ErrTracker, regCtx.DB)),
+		httptransport.ServerBefore(transportutil.MakeStoreInternalRequestContext(*regCtx)),
 
 		httptransport.ServerFinalizer(transportutil.FinalizeRequest),
 		httptransport.ServerErrorEncoder(transportutil.EncodeError),
 		httptransport.ServerErrorLogger(transportutil.AdaptErrorLogger(regCtx.Log)),
 	)
-	regCtx.Router.Methods("PUT").Path("/v1/repos/{provider}/{owner}/{name}/repoanalyzes/{analysisguid}").Handler(hUpdate)
+	r.Methods("PUT").Path("/v1/repos/{provider}/{owner}/{name}/repoanalyzes/{analysisguid}").Handler(hUpdateByAnalysisGUID)
 
 }
 
@@ -106,8 +105,8 @@ func encodeGetStatusResponse(ctx context.Context, w http.ResponseWriter, respons
 	return json.NewEncoder(w).Encode(wrappedResp)
 }
 
-func decodeGetRequest(_ context.Context, r *http.Request) (interface{}, error) {
-	var request GetRequest
+func decodeGetByAnalysisGUIDRequest(_ context.Context, r *http.Request) (interface{}, error) {
+	var request GetByAnalysisGUIDRequest
 	if err := transportutil.DecodeRequest(&request, r); err != nil {
 		return nil, errors.Wrap(err, "can't decode request")
 	}
@@ -115,7 +114,7 @@ func decodeGetRequest(_ context.Context, r *http.Request) (interface{}, error) {
 	return request, nil
 }
 
-func encodeGetResponse(ctx context.Context, w http.ResponseWriter, response interface{}) error {
+func encodeGetByAnalysisGUIDResponse(ctx context.Context, w http.ResponseWriter, response interface{}) error {
 	w.Header().Add("Content-Type", "application/json; charset=UTF-8")
 	if err := transportutil.GetContextError(ctx); err != nil {
 		wrappedResp := struct {
@@ -127,12 +126,12 @@ func encodeGetResponse(ctx context.Context, w http.ResponseWriter, response inte
 		return json.NewEncoder(w).Encode(wrappedResp)
 	}
 
-	resp := response.(GetResponse)
+	resp := response.(GetByAnalysisGUIDResponse)
 	wrappedResp := struct {
 		transportutil.ErrorResponse
-		GetResponse
+		GetByAnalysisGUIDResponse
 	}{
-		GetResponse: resp,
+		GetByAnalysisGUIDResponse: resp,
 	}
 
 	if resp.err != nil {
@@ -148,8 +147,8 @@ func encodeGetResponse(ctx context.Context, w http.ResponseWriter, response inte
 	return json.NewEncoder(w).Encode(wrappedResp)
 }
 
-func decodeUpdateRequest(_ context.Context, r *http.Request) (interface{}, error) {
-	var request UpdateRequest
+func decodeUpdateByAnalysisGUIDRequest(_ context.Context, r *http.Request) (interface{}, error) {
+	var request UpdateByAnalysisGUIDRequest
 	if err := transportutil.DecodeRequest(&request, r); err != nil {
 		return nil, errors.Wrap(err, "can't decode request")
 	}
@@ -157,7 +156,7 @@ func decodeUpdateRequest(_ context.Context, r *http.Request) (interface{}, error
 	return request, nil
 }
 
-func encodeUpdateResponse(ctx context.Context, w http.ResponseWriter, response interface{}) error {
+func encodeUpdateByAnalysisGUIDResponse(ctx context.Context, w http.ResponseWriter, response interface{}) error {
 	w.Header().Add("Content-Type", "application/json; charset=UTF-8")
 	if err := transportutil.GetContextError(ctx); err != nil {
 		wrappedResp := struct {
@@ -169,12 +168,12 @@ func encodeUpdateResponse(ctx context.Context, w http.ResponseWriter, response i
 		return json.NewEncoder(w).Encode(wrappedResp)
 	}
 
-	resp := response.(UpdateResponse)
+	resp := response.(UpdateByAnalysisGUIDResponse)
 	wrappedResp := struct {
 		transportutil.ErrorResponse
-		UpdateResponse
+		UpdateByAnalysisGUIDResponse
 	}{
-		UpdateResponse: resp,
+		UpdateByAnalysisGUIDResponse: resp,
 	}
 
 	if resp.err != nil {

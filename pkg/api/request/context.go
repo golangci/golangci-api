@@ -4,9 +4,10 @@ import (
 	"context"
 	"time"
 
+	"github.com/golangci/golangci-api/pkg/api/auth"
+
 	"github.com/golangci/golangci-api/internal/api/session"
 	"github.com/golangci/golangci-api/internal/shared/logutil"
-	"github.com/golangci/golangci-api/pkg/api/models"
 	"github.com/jinzhu/gorm"
 )
 
@@ -43,12 +44,15 @@ type AnonymousContext struct {
 	BaseContext
 }
 
+// InternalContext used for internal requests and provides internal authorization
+type InternalContext struct {
+	BaseContext
+}
+
 type AuthorizedContext struct {
 	BaseContext
 
-	Auth     *models.Auth
-	User     *models.User
-	AuthSess *session.Session
+	auth.AuthenticatedUser
 }
 
 func (ac AuthorizedContext) ToAnonumousContext() *AnonymousContext {

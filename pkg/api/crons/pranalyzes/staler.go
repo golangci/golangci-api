@@ -4,6 +4,8 @@ import (
 	"context"
 	"time"
 
+	"github.com/golangci/golangci-api/internal/shared/config"
+
 	"github.com/golangci/golangci-api/internal/shared/logutil"
 	"github.com/golangci/golangci-api/internal/shared/providers"
 	"github.com/golangci/golangci-api/internal/shared/providers/provider"
@@ -14,6 +16,7 @@ import (
 )
 
 type Staler struct {
+	Cfg             config.Config
 	DB              *gorm.DB
 	Log             logutil.Log
 	ProviderFactory providers.Factory
@@ -70,10 +73,10 @@ func (r Staler) setGithubStatus(ctx context.Context, analysis models.PullRequest
 		return errors.Wrapf(err, "failed to get pull request %s#%d", repo.String(), analysis.PullRequestNumber)
 	}
 
-	err = p.SetCommitStatus(ctx, repo.Owner(), repo.Repo(), pr.HeadCommitSHA, &provider.CommitStatus{
+	err = p.SetCommitStatus(ctx, repo.Owner(), repo.Repo(), pr.Head.CommitSHA, &provider.CommitStatus{
 		Description: "Processing timeout",
 		State:       string(github.StatusError),
-		Context:     "GolangCI",
+		Context:     r.Cfg.GetString("APP_NAME"),
 	})
 	if err != nil {
 		if err == provider.ErrUnauthorized || err == provider.ErrNotFound {

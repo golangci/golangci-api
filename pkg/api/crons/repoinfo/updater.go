@@ -47,7 +47,7 @@ func (u Updater) runIteration(lastErrors map[uint]time.Time) error {
 		if err := u.updateRepoInfo(&r); err != nil {
 			failedN++
 			if printAllErrors {
-				u.Log.Warnf("Failed to update repo %s ID=%d info: %s", r.Name, r.ID, err)
+				u.Log.Warnf("Failed to update repo %s ID=%d info: %s", r.FullName, r.ID, err)
 			}
 
 			cause := errors.Cause(err)
@@ -58,7 +58,7 @@ func (u Updater) runIteration(lastErrors map[uint]time.Time) error {
 			if !printAllErrors {
 				lastErroredAt, ok := lastErrors[r.ID]
 				if ok && lastErroredAt.Add(errorsTimeout).Before(time.Now()) {
-					u.Log.Warnf("Failed to update repo %s ID=%d info: %s", r.Name, r.ID, err)
+					u.Log.Warnf("Failed to update repo %s ID=%d info: %s", r.FullName, r.ID, err)
 					lastErrors[r.ID] = time.Now()
 				}
 			}
@@ -89,16 +89,16 @@ func (u Updater) updateRepoInfo(r *models.Repo) error {
 		up = up.SetStargazersCount(r.StargazersCount)
 	}
 
-	if r.DisplayName != providerRepo.Name {
-		r.DisplayName = providerRepo.Name
-		up = up.SetDisplayName(r.DisplayName)
+	if r.DisplayFullName != providerRepo.FullName {
+		r.DisplayFullName = providerRepo.FullName
+		up = up.SetDisplayFullName(r.DisplayFullName)
 	}
 
-	lcName := strings.ToLower(providerRepo.Name)
-	if r.Name != lcName {
-		u.Log.Infof("Updating repo ID=%d name from %s to %s", r.ID, r.Name, lcName)
-		r.Name = lcName
-		up = up.SetName(r.Name)
+	lcName := strings.ToLower(providerRepo.FullName)
+	if r.FullName != lcName {
+		u.Log.Infof("Updating repo ID=%d name from %s to %s", r.ID, r.FullName, lcName)
+		r.FullName = lcName
+		up = up.SetFullName(r.FullName)
 	}
 
 	if err = up.Update(); err != nil {

@@ -8,10 +8,8 @@ import (
 	httptransport "github.com/go-kit/kit/transport/http"
 	"github.com/golangci/golangci-api/internal/api/endpointutil"
 	"github.com/golangci/golangci-api/internal/api/session"
-	"github.com/golangci/golangci-api/internal/shared/apperrors"
 	"github.com/golangci/golangci-api/internal/shared/logutil"
 	"github.com/gorilla/sessions"
-	"github.com/jinzhu/gorm"
 	"github.com/pkg/errors"
 )
 
@@ -22,20 +20,35 @@ func makeSessionContext(r *http.Request, log logutil.Log) *session.RequestContex
 	}
 }
 
-func MakeStoreAnonymousRequestContext(log logutil.Log, et apperrors.Tracker, db *gorm.DB) httptransport.RequestFunc {
+func MakeStoreInternalRequestContext(hctx endpointutil.HandlerRegContext) httptransport.RequestFunc {
 	return func(ctx context.Context, r *http.Request) context.Context {
-		rc := endpointutil.MakeAnonymousRequestContext(ctx, log, et.WithHTTPRequest(r),
-			db, makeSessionContext(r, log))
+		hctx.ErrTracker = hctx.ErrTracker.WithHTTPRequest(r)
+
+		rc, err := endpointutil.MakeInternalRequestContext(ctx,
+			makeSessionContext(r, hctx.Log), &hctx,
+			r.Header.Get("X-Internal-Access-Token"))
+		if err != nil {
+			return endpointutil.StoreError(ctx, errors.Wrap(err, "failed to authorize internal request"))
+		}
+
 		return endpointutil.StoreRequestContext(ctx, rc)
 	}
 }
 
-func MakeStoreAuthorizedRequestContext(log logutil.Log, et apperrors.Tracker, db *gorm.DB, sf *session.Factory) httptransport.RequestFunc {
+func MakeStoreAnonymousRequestContext(hctx endpointutil.HandlerRegContext) httptransport.RequestFunc {
 	return func(ctx context.Context, r *http.Request) context.Context {
-		rc, err := endpointutil.MakeAuthorizedRequestContext(ctx, log, et.WithHTTPRequest(r),
-			db, sf, makeSessionContext(r, log))
+		hctx.ErrTracker = hctx.ErrTracker.WithHTTPRequest(r)
+		rc := endpointutil.MakeAnonymousRequestContext(ctx, makeSessionContext(r, hctx.Log), &hctx)
+		return endpointutil.StoreRequestContext(ctx, rc)
+	}
+}
+
+func MakeStoreAuthorizedRequestContext(hctx endpointutil.HandlerRegContext) httptransport.RequestFunc {
+	return func(ctx context.Context, r *http.Request) context.Context {
+		hctx.ErrTracker = hctx.ErrTracker.WithHTTPRequest(r)
+		rc, err := endpointutil.MakeAuthorizedRequestContext(ctx, makeSessionContext(r, hctx.Log), &hctx)
 		if err != nil {
-			return endpointutil.StoreError(ctx, errors.Wrap(err, "failed to make authorized request context"))
+			return endpointutil.StoreError(ctx, errors.Wrap(err, "failed to authorize"))
 		}
 
 		return endpointutil.StoreRequestContext(ctx, rc)

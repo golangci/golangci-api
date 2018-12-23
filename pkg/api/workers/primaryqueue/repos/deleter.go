@@ -17,7 +17,7 @@ import (
 	"github.com/golangci/golangci-api/pkg/api/workers/primaryqueue"
 	"github.com/jinzhu/gorm"
 	"github.com/pkg/errors"
-	"gopkg.in/redsync.v1"
+	redsync "gopkg.in/redsync.v1"
 )
 
 const deleteQueueID = "repos/delete"

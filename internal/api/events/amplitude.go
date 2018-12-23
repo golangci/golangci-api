@@ -4,7 +4,7 @@ import (
 	"os"
 	"sync"
 
-	"github.com/savaki/amplitude-go"
+	amplitude "github.com/savaki/amplitude-go"
 )
 
 var amplitudeClient *amplitude.Client

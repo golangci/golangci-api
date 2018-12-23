@@ -9,7 +9,6 @@ import (
 
 	"github.com/golangci/golangci-api/internal/api/apierrors"
 	"github.com/golangci/golangci-api/internal/api/events"
-	"github.com/golangci/golangci-api/internal/api/session"
 	"github.com/golangci/golangci-api/internal/shared/config"
 	"github.com/golangci/golangci-api/internal/shared/db/gormdb"
 	"github.com/golangci/golangci-api/internal/shared/logutil"
@@ -64,9 +63,9 @@ type Service interface {
 }
 
 type BasicService struct {
-	Cfg             config.Config
-	OAuthFactory    *oauth.Factory
-	AuthSessFactory *session.Factory
+	Cfg          config.Config
+	OAuthFactory *oauth.Factory
+	Authorizer   *auth.Authorizer
 }
 
 func (s BasicService) CheckAuth(rc *request.AuthorizedContext) (*returntypes.CheckAuthResponse, error) {
@@ -243,13 +242,7 @@ func (s BasicService) LoginUser(rc *request.AnonymousContext, gu *goth.User) (re
 		}
 	}
 
-	authSess, err := s.AuthSessFactory.Build(rc.SessCtx, auth.SessType)
-	if err != nil {
-		return errors.Wrap(err, "failed to build auth sess")
-	}
-
-	auth.Create(authSess, u.ID)
-	return nil
+	return s.Authorizer.CreateAuthorization(rc.SessCtx, u)
 }
 
 func updateUserDataIfNeeded(log logutil.Log, tx *gorm.DB, u *models.User, gu *goth.User) error {

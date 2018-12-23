@@ -5,6 +5,10 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/golangci/golangci-api/internal/shared/config"
+
+	"github.com/golangci/golangci-api/pkg/api/policy"
+
 	"github.com/golangci/golangci-api/pkg/worker/analyze/analyzesqueue/pullanalyzesqueue"
 
 	"github.com/golangci/golangci-api/internal/api/apierrors"
@@ -43,6 +47,8 @@ type BasicService struct {
 	ProviderFactory       providers.Factory
 	AnalysisLauncherQueue *repoanalyzes.LauncherProducer
 	PullAnalyzeQueue      *pullanalyzesqueue.Producer
+	ActiveSubPolicy       *policy.ActiveSubscription
+	Cfg                   config.Config
 }
 
 func (s BasicService) HandleGithubWebhook(rc *request.AnonymousContext, req *GithubWebhook, body request.Body) error {
@@ -83,37 +89,9 @@ func (s BasicService) HandleGithubWebhook(rc *request.AnonymousContext, req *Git
 func (s BasicService) handleGithubPullRequestWebhook(rc *request.AnonymousContext, repo *models.Repo,
 	req *GithubWebhook, body request.Body) error {
 
-	var payload gh.PullRequestEvent
-	if err := json.Unmarshal(body, &payload); err != nil {
-		return errors.Wrapf(apierrors.ErrBadRequest, "invalid payload json: %s", err)
-	}
-
-	if payload.PullRequest == nil {
-		rc.Log.Infof("Got github webhook without PR")
-		return nil
-	}
-
-	if payload.GetAction() != "opened" && payload.GetAction() != "synchronize" {
-		rc.Log.Infof("Got github webhook with action %s, skip it", payload.GetAction())
-		return nil
-	}
-
-	rc.Log.Infof("Got repo %s github pull request #%d webhook", repo.String(), payload.GetPullRequest().GetNumber())
-
 	var auth models.Auth
 	if err := models.NewAuthQuerySet(rc.DB).UserIDEq(repo.UserID).One(&auth); err != nil {
 		return errors.Wrapf(err, "failed to get auth for repo %d", repo.ID)
-	}
-
-	if payload.GetRepo().GetPrivate() {
-		rc.Log.Errorf("Got PR webhook to the private repo %s, private repos aren't supported yet", repo.String())
-		return nil
-	}
-
-	// TODO: create pr analysis only if could set commit status
-	analysis, err := s.createGithubPullRequestAnalysis(rc, payload.PullRequest, repo, req)
-	if err != nil {
-		return err
 	}
 
 	p, err := s.ProviderFactory.Build(&auth)
@@ -121,10 +99,41 @@ func (s BasicService) handleGithubPullRequestWebhook(rc *request.AnonymousContex
 		return errors.Wrapf(err, "failed to build provider for auth %d", auth.ID)
 	}
 
+	ev, err := p.ParsePullRequestEvent(rc.Ctx, body)
+	if err != nil {
+		return errors.Wrap(err, "failed to parse pull request event")
+	}
+
+	rc.Log.Infof("Got repo %s github pull request #%d webhook", repo.String(), ev.PullRequestNumber)
+
+	if ev.Action != provider.Opened && ev.Action != provider.Synchronized {
+		rc.Log.Infof("Got github webhook with action %s, skip it", ev.Action)
+		return nil
+	}
+
+	if ev.Repo.IsPrivate {
+		if err = s.ActiveSubPolicy.CheckForProviderPullRequestEvent(rc.Ctx, p, ev); err != nil {
+			if errors.Cause(err) == policy.ErrNoActiveSubscription {
+				rc.Log.Warnf("Got PR to %s with no active subscription: %s", repo.FullName, err)
+				return nil // TODO(d.isaev): set proper error status
+			}
+
+			return err
+		}
+
+		rc.Log.Infof("Got PR webhook to the private repo %s", repo.String())
+	}
+
+	// TODO: create pr analysis only if could set commit status
+	analysis, err := s.createGithubPullRequestAnalysis(rc, ev, repo, req)
+	if err != nil {
+		return err
+	}
+
 	err = p.SetCommitStatus(rc.Ctx, repo.Owner(), repo.Repo(), analysis.CommitSHA, &provider.CommitStatus{
 		State:       string(github.StatusPending),
 		Description: "Waiting in queue...",
-		Context:     "GolangCI",
+		Context:     s.Cfg.GetString("APP_NAME"),
 	})
 	if err != nil {
 		if err == provider.ErrUnauthorized || err == provider.ErrNotFound {
@@ -157,14 +166,14 @@ func (s BasicService) handleGithubPullRequestWebhook(rc *request.AnonymousContex
 	return nil
 }
 
-func (s BasicService) createGithubPullRequestAnalysis(rc *request.AnonymousContext, pr *gh.PullRequest,
+func (s BasicService) createGithubPullRequestAnalysis(rc *request.AnonymousContext, ev *provider.PullRequestEvent,
 	repo *models.Repo, req *GithubWebhook) (*models.PullRequestAnalysis, error) {
 
 	analysis := models.PullRequestAnalysis{
 		RepoID:             repo.ID,
-		PullRequestNumber:  pr.GetNumber(),
+		PullRequestNumber:  ev.PullRequestNumber,
 		GithubDeliveryGUID: req.DeliveryGUID,
-		CommitSHA:          pr.GetHead().GetSHA(),
+		CommitSHA:          ev.Head.CommitSHA,
 
 		Status:     "sent_to_queue",
 		ResultJSON: []byte("{}"),

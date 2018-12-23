@@ -7,6 +7,8 @@ import (
 	"os"
 	"time"
 
+	"github.com/golangci/golangci-api/pkg/api/policy"
+
 	"github.com/golangci/golangci-api/pkg/worker/lib/experiments"
 
 	"github.com/golangci/golangci-api/internal/shared/fsutil"
@@ -20,9 +22,9 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	redigo "github.com/garyburd/redigo/redis"
+	"github.com/golangci/golangci-api/internal/api/endpointutil"
 	"github.com/golangci/golangci-api/internal/api/paymentproviders"
 	apisession "github.com/golangci/golangci-api/internal/api/session"
-	"github.com/golangci/golangci-api/internal/api/transportutil"
 	"github.com/golangci/golangci-api/internal/shared/apperrors"
 	"github.com/golangci/golangci-api/internal/shared/cache"
 	"github.com/golangci/golangci-api/internal/shared/config"
@@ -35,11 +37,11 @@ import (
 	"github.com/golangci/golangci-api/internal/shared/queue/aws/sqs"
 	"github.com/golangci/golangci-api/internal/shared/queue/consumers"
 	"github.com/golangci/golangci-api/internal/shared/queue/producers"
+	apiauth "github.com/golangci/golangci-api/pkg/api/auth"
 	"github.com/golangci/golangci-api/pkg/api/auth/oauth"
 	"github.com/golangci/golangci-api/pkg/api/crons/pranalyzes"
 	repoanalyzeslib "github.com/golangci/golangci-api/pkg/api/crons/repoanalyzes"
 	"github.com/golangci/golangci-api/pkg/api/crons/repoinfo"
-	orgchecker "github.com/golangci/golangci-api/pkg/api/organization"
 	"github.com/golangci/golangci-api/pkg/api/services/auth"
 	"github.com/golangci/golangci-api/pkg/api/services/events"
 	"github.com/golangci/golangci-api/pkg/api/services/organization"
@@ -58,7 +60,7 @@ import (
 	_ "github.com/mattes/migrate/database/postgres" // must be first
 	"github.com/rs/cors"
 	"github.com/urfave/negroni"
-	"gopkg.in/redsync.v1"
+	redsync "gopkg.in/redsync.v1"
 )
 
 type appServices struct {
@@ -88,6 +90,12 @@ type queues struct {
 	}
 }
 
+type policies struct {
+	org       *policy.Organization
+	activeSub *policy.ActiveSubscription
+	repo      *policy.Repo
+}
+
 type App struct {
 	cfg                    config.Config
 	log                    logutil.Log
@@ -99,13 +107,13 @@ type App struct {
 	services               appServices
 	awsSess                *session.Session
 	queues                 queues
-	authSessFactory        *apisession.Factory
+	authorizer             *apiauth.Authorizer
 	providerFactory        providers.Factory
 	paymentProviderFactory paymentproviders.Factory
 	distLockFactory        *redsync.Redsync
 	redisPool              *redigo.Pool
 	ec                     *experiments.Checker
-	ac                     *orgchecker.AccessChecker
+	policies               policies
 	cache                  cache.Cache
 
 	PRAnalyzesStaler      *pranalyzes.Staler // TODO: make private
@@ -183,8 +191,23 @@ func (a *App) buildDeps() {
 		a.cache = cache.NewRedis(a.cfg.GetString("REDIS_URL") + "/1")
 	}
 
-	if a.ac == nil {
-		a.ac = orgchecker.NewAccessChecker(a.providerFactory, a.cache, a.cfg)
+	if a.authorizer == nil {
+		authSessFactory, err := apisession.NewFactory(a.redisPool, a.cfg, 365*24*time.Hour) // 1 year
+		if err != nil {
+			a.log.Fatalf("Failed to make auth session factory: %s", err)
+		}
+
+		a.authorizer = apiauth.NewAuthorizer(a.gormDB, authSessFactory)
+	}
+
+	if a.policies.org == nil {
+		a.policies.org = policy.NewOrganization(a.providerFactory, a.cache, a.cfg)
+	}
+	if a.policies.activeSub == nil {
+		a.policies.activeSub = policy.NewActiveSubscription(a.trackedLog, a.gormDB)
+	}
+	if a.policies.repo == nil {
+		a.policies.repo = policy.NewRepo(a.providerFactory, a.trackedLog, a.cache, a.authorizer)
 	}
 }
 
@@ -235,13 +258,19 @@ func (a *App) buildQueues() {
 }
 
 func (a *App) buildServices() {
-	a.services.repoanalysis = repoanalysis.BasicService{}
+	a.services.repoanalysis = repoanalysis.BasicService{
+		RepoPolicy: a.policies.repo,
+	}
 	a.services.repohook = repohook.BasicService{
 		ProviderFactory:       a.providerFactory,
 		AnalysisLauncherQueue: a.queues.producers.repoAnalyzesLauncher,
 		PullAnalyzeQueue:      a.queues.producers.pullAnalyzesRunner,
+		ActiveSubPolicy:       a.policies.activeSub,
+		Cfg:                   a.cfg,
 	}
-	a.services.pranalysis = pranalysis.BasicService{}
+	a.services.pranalysis = pranalysis.BasicService{
+		RepoPolicy: a.policies.repo,
+	}
 	a.services.events = events.BasicService{}
 
 	sf, err := apisession.NewFactory(a.redisPool, a.cfg, time.Hour)
@@ -249,12 +278,12 @@ func (a *App) buildServices() {
 		a.log.Fatalf("Can't build oauth session factory: %s", err)
 	}
 	a.services.auth = auth.BasicService{
-		Cfg:             a.cfg,
-		OAuthFactory:    oauth.NewFactory(sf, a.trackedLog, a.cfg),
-		AuthSessFactory: a.authSessFactory,
+		Cfg:          a.cfg,
+		OAuthFactory: oauth.NewFactory(sf, a.trackedLog, a.cfg),
+		Authorizer:   a.authorizer,
 	}
 
-	a.services.organisation = organization.NewBasicService(a.ac)
+	a.services.organisation = organization.NewBasicService(a.policies.org)
 
 	a.buildRepoService()
 	a.buildSubService()
@@ -279,7 +308,7 @@ func (a *App) buildSubService() {
 		a.log.Fatalf("Failed to create 'create payment event' producer: %s", err)
 	}
 
-	a.services.subscription = subscription.NewBasicService(a.ac, a.cfg, updateSubQP, createEventQP)
+	a.services.subscription = subscription.NewBasicService(a.policies.org, a.cfg, updateSubQP, createEventQP)
 }
 
 func (a *App) buildRepoService() {
@@ -299,16 +328,9 @@ func (a *App) buildRepoService() {
 		ProviderFactory: a.providerFactory,
 		Cache:           a.cache,
 		Ec:              a.ec,
-		Ac:              a.ac,
+		OrgPolicy:       a.policies.org,
+		ActiveSubPolicy: a.policies.activeSub,
 	}
-}
-
-func (a *App) buildAuthSessFactory() {
-	authSessFactory, err := apisession.NewFactory(a.redisPool, a.cfg, 365*24*time.Hour) // 1 year
-	if err != nil {
-		a.log.Fatalf("Failed to make auth session factory: %s", err)
-	}
-	a.authSessFactory = authSessFactory
 }
 
 func (a *App) buildMigrationsRunner() {
@@ -329,11 +351,11 @@ func NewApp(modifiers ...Modifier) *App {
 	a.buildDeps()
 	a.buildAwsSess()
 	a.buildQueues()
-	a.buildAuthSessFactory()
 	a.buildServices()
 	a.buildMigrationsRunner()
 
 	a.PRAnalyzesStaler = &pranalyzes.Staler{
+		Cfg:             a.cfg,
 		DB:              a.gormDB,
 		Log:             a.trackedLog,
 		ProviderFactory: a.providerFactory,
@@ -356,21 +378,21 @@ func NewApp(modifiers ...Modifier) *App {
 }
 
 func (a App) registerHandlers(r *mux.Router) {
-	regCtx := &transportutil.HandlerRegContext{
-		Router:          r,
-		Log:             a.log,
-		ErrTracker:      a.errTracker,
-		DB:              a.gormDB,
-		AuthSessFactory: a.authSessFactory,
+	regCtx := &endpointutil.HandlerRegContext{
+		Log:        a.log,
+		ErrTracker: a.errTracker,
+		Cfg:        a.cfg,
+		DB:         a.gormDB,
+		Authorizer: a.authorizer,
 	}
-	repoanalysis.RegisterHandlers(a.services.repoanalysis, regCtx)
-	repo.RegisterHandlers(a.services.repo, regCtx)
-	repohook.RegisterHandlers(a.services.repohook, regCtx)
-	pranalysis.RegisterHandlers(a.services.pranalysis, regCtx)
-	events.RegisterHandlers(a.services.events, regCtx)
-	auth.RegisterHandlers(a.services.auth, regCtx)
-	organization.RegisterHandlers(a.services.organisation, regCtx)
-	subscription.RegisterHandlers(a.services.subscription, regCtx)
+	repoanalysis.RegisterHandlers(a.services.repoanalysis, r, regCtx)
+	repo.RegisterHandlers(a.services.repo, r, regCtx)
+	repohook.RegisterHandlers(a.services.repohook, r, regCtx)
+	pranalysis.RegisterHandlers(a.services.pranalysis, r, regCtx)
+	events.RegisterHandlers(a.services.events, r, regCtx)
+	auth.RegisterHandlers(a.services.auth, r, regCtx)
+	organization.RegisterHandlers(a.services.organisation, r, regCtx)
+	subscription.RegisterHandlers(a.services.subscription, r, regCtx)
 }
 
 func (a App) runMigrations() {

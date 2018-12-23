@@ -3,7 +3,6 @@ package auth
 
 import (
 	"context"
-	"errors"
 	"runtime/debug"
 
 	"github.com/go-kit/kit/endpoint"
@@ -12,6 +11,7 @@ import (
 	"github.com/golangci/golangci-api/internal/shared/logutil"
 	"github.com/golangci/golangci-api/pkg/api/request"
 	"github.com/golangci/golangci-api/pkg/api/returntypes"
+	"github.com/pkg/errors"
 )
 
 type CheckAuthRequest struct {

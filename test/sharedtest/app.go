@@ -7,7 +7,7 @@ import (
 	"path"
 
 	"github.com/golangci/golangci-api/internal/shared/fsutil"
-	"github.com/golangci/golangci-api/pkg/api"
+	app "github.com/golangci/golangci-api/pkg/api"
 	"github.com/joho/godotenv"
 )
 

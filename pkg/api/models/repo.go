@@ -9,6 +9,11 @@ import (
 
 //go:generate goqueryset -in repo.go
 
+type UniversalRepo interface {
+	Owner() string
+	Repo() string
+}
+
 type RepoCommitState string
 
 const (
@@ -43,8 +48,8 @@ type Repo struct {
 	// take organizations into account
 	UserID uint // user who the last time connected this repo
 
-	Name        string // lower-cased DisplayName to avoid case-sensitivity bugs
-	DisplayName string // original name of repo from github: original register is saved
+	FullName        string `gorm:"column:name"`         // lower-cased DisplayName to avoid case-sensitivity bugs
+	DisplayFullName string `gorm:"column:display_name"` // original name of repo from github: original register is saved
 
 	HookID string
 
@@ -55,22 +60,23 @@ type Repo struct {
 	CommitState RepoCommitState // state of creation or deletion
 
 	StargazersCount int
+	IsPrivate       bool
 }
 
 func (r *Repo) Owner() string {
-	return strings.ToLower(strings.Split(r.Name, "/")[0])
+	return strings.ToLower(strings.Split(r.FullName, "/")[0])
 }
 
 func (r *Repo) Repo() string {
-	return strings.ToLower(strings.Split(r.Name, "/")[1])
+	return strings.ToLower(strings.Split(r.FullName, "/")[1])
 }
 
 func (r *Repo) String() string {
-	return r.Name
+	return r.FullName
 }
 
 func (r *Repo) GoString() string {
-	return fmt.Sprintf("{Name: %s, ID: %d, CommitState: %s}", r.Name, r.ID, r.CommitState)
+	return fmt.Sprintf("{Name: %s, ID: %d, CommitState: %s}", r.FullName, r.ID, r.CommitState)
 }
 
 func (r Repo) IsDeleting() bool {
