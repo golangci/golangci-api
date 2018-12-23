@@ -29,7 +29,7 @@ var availableGolangciLintVersions = map[int]map[int][]int{
 	1: {
 		10: {0, 1, 2},
 		11: {0, 1, 2, 3},
-		12: {0, 1, 2, 3},
+		12: {0, 1, 2, 3, 4, 5},
 	},
 }
 
