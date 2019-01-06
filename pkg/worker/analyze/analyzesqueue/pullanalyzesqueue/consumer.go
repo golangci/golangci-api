@@ -6,7 +6,7 @@ import (
 	"github.com/golangci/golangci-api/internal/shared/queue/consumers"
 	analyzesConsumers "github.com/golangci/golangci-api/pkg/worker/analyze/analyzequeue/consumers"
 	"github.com/golangci/golangci-api/pkg/worker/analyze/analyzesqueue"
-	"gopkg.in/redsync.v1"
+	redsync "gopkg.in/redsync.v1"
 )
 
 type Consumer struct {

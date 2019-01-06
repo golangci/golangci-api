@@ -19,7 +19,7 @@ import (
 	"github.com/jinzhu/gorm"
 	"github.com/pkg/errors"
 	uuid "github.com/satori/go.uuid"
-	"gopkg.in/redsync.v1"
+	redsync "gopkg.in/redsync.v1"
 )
 
 const launchQueueID = "repoanalyzes/launch"
@@ -197,7 +197,7 @@ func (c LauncherConsumer) createNewAnalysis(ctx context.Context, tx *gorm.DB, as
 		return errors.Wrap(err, "failed to get private access token")
 	}
 
-	if err := c.runProducer.Put(repo.Name, a.AnalysisGUID, as.DefaultBranch, pat); err != nil {
+	if err := c.runProducer.Put(repo.FullName, a.AnalysisGUID, as.DefaultBranch, pat); err != nil {
 		return errors.Wrap(err, "failed to enqueue repo analysis for running")
 	}
 
@@ -217,7 +217,7 @@ func (c LauncherConsumer) getPrivateAccessToken(ctx context.Context, db *gorm.DB
 
 	providerRepo, err := p.GetRepoByName(ctx, repo.Owner(), repo.Repo())
 	if err != nil {
-		return "", errors.Wrapf(err, "failed to fetch provider repo %s", repo.Name)
+		return "", errors.Wrapf(err, "failed to fetch provider repo %s", repo.FullName)
 	}
 
 	if providerRepo.IsPrivate {

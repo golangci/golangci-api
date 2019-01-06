@@ -108,7 +108,7 @@ func storeEvent(event *Event) error {
 
 	var gr models.Repo
 	err = models.NewRepoQuerySet(db.Unscoped()).
-		NameEq(event.EventProperties.RepoName).
+		FullNameEq(event.EventProperties.RepoName).
 		One(&gr)
 	if err != nil {
 		return fmt.Errorf("can't find repo %s: %s", event.EventProperties.RepoName, err)

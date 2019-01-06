@@ -99,7 +99,9 @@ func newGithubGoPR(ctx context.Context, c *github.Context, cfg githubGoPRConfig,
 	}
 
 	if cfg.state == nil {
-		cfg.state = prstate.NewAPIStorage(httputils.GrequestsClient{})
+		cfg.state = prstate.NewAPIStorage(httputils.NewGrequestsClient(map[string]string{
+			"X-Internal-Access-Token": envCfg.GetString("INTERNAL_ACCESS_TOKEN"),
+		}))
 	}
 
 	return &githubGoPR{

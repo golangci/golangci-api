@@ -9,7 +9,7 @@ import (
 
 	"github.com/golangci/golangci-api/internal/shared/queue"
 	"github.com/pkg/errors"
-	"gopkg.in/redsync.v1"
+	redsync "gopkg.in/redsync.v1"
 )
 
 type ReflectConsumer struct {

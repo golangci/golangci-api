@@ -17,7 +17,7 @@ import (
 	"github.com/golangci/golangci-api/pkg/api/workers/primaryqueue/repoanalyzes"
 	"github.com/jinzhu/gorm"
 	"github.com/pkg/errors"
-	"gopkg.in/redsync.v1"
+	redsync "gopkg.in/redsync.v1"
 )
 
 const createQueueID = "repos/create"
@@ -79,7 +79,7 @@ func (cc CreatorConsumer) createHook(ctx context.Context, repo *models.Repo, p p
 		Name:   "web",
 		Events: []string{"push", "pull_request"},
 		URL: cc.cfg.GetString("GITHUB_CALLBACK_HOST") +
-			fmt.Sprintf("/v1/repos/%s/hooks/%s", repo.Name, repo.HookID),
+			fmt.Sprintf("/v1/repos/%s/hooks/%s", repo.FullName, repo.HookID),
 		ContentType: "json",
 	}
 
@@ -163,7 +163,7 @@ func (cc CreatorConsumer) createRepoAnalysisStatusInDB(ctx context.Context, db *
 	if providerRepoBranch != nil {
 		as = models.RepoAnalysisStatus{
 			DefaultBranch:     providerRepo.DefaultBranch,
-			PendingCommitSHA:  providerRepoBranch.HeadCommitSHA,
+			PendingCommitSHA:  providerRepoBranch.CommitSHA,
 			HasPendingChanges: true,
 			Active:            true,
 			RepoID:            r.ID,

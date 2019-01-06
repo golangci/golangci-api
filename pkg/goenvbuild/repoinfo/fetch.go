@@ -8,7 +8,7 @@ import (
 	"strconv"
 	"strings"
 
-	"gopkg.in/yaml.v2"
+	yaml "gopkg.in/yaml.v2"
 
 	"github.com/golangci/golangci-api/internal/shared/logutil"
 	"github.com/golangci/golangci-api/pkg/goenvbuild/packages"

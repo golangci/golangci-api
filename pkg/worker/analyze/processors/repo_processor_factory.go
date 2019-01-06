@@ -1,6 +1,8 @@
 package processors
 
 import (
+	"os"
+
 	"github.com/golangci/golangci-api/internal/shared/apperrors"
 	"github.com/golangci/golangci-api/internal/shared/config"
 	"github.com/golangci/golangci-api/internal/shared/logutil"
@@ -44,7 +46,9 @@ func (f RepoProcessorFactory) BuildProcessor(ctx *RepoContext) (*Repo, func(), e
 	}
 
 	if cfg.State == nil {
-		cfg.State = repostate.NewAPIStorage(httputils.GrequestsClient{})
+		cfg.State = repostate.NewAPIStorage(httputils.NewGrequestsClient(map[string]string{
+			"X-Internal-Access-Token": os.Getenv("INTERNAL_ACCESS_TOKEN"),
+		}))
 	}
 
 	if cfg.Cfg == nil {

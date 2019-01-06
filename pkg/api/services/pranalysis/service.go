@@ -3,6 +3,8 @@ package pranalysis
 import (
 	"encoding/json"
 
+	"github.com/golangci/golangci-api/pkg/api/policy"
+
 	"github.com/golangci/golangci-api/internal/api/apierrors"
 	"github.com/golangci/golangci-api/internal/shared/logutil"
 	"github.com/golangci/golangci-api/pkg/api/models"
@@ -39,18 +41,20 @@ type RepoPullRequest struct {
 
 type Service interface {
 	//url:/v1/repos/{provider}/{owner}/{name}/analyzes/{analysisguid}/state
-	GetAnalysisStateByAnalysisGUID(rc *request.AnonymousContext, req *AnalyzedRepo) (*State, error)
+	GetAnalysisStateByAnalysisGUID(rc *request.InternalContext, req *AnalyzedRepo) (*State, error)
 
 	//url:/v1/repos/{provider}/{owner}/{name}/pulls/{pullrequestnumber}
 	GetAnalysisStateByPRNumber(rc *request.AnonymousContext, req *RepoPullRequest) (*State, error)
 
 	//url:/v1/repos/{provider}/{owner}/{name}/analyzes/{analysisguid}/state method:PUT
-	UpdateAnalysisStateByAnalysisGUID(rc *request.AnonymousContext, req *AnalyzedRepo, state *State) error
+	UpdateAnalysisStateByAnalysisGUID(rc *request.InternalContext, req *AnalyzedRepo, state *State) error
 }
 
-type BasicService struct{}
+type BasicService struct {
+	RepoPolicy *policy.Repo
+}
 
-func (s BasicService) GetAnalysisStateByAnalysisGUID(rc *request.AnonymousContext, req *AnalyzedRepo) (*State, error) {
+func (s BasicService) GetAnalysisStateByAnalysisGUID(rc *request.InternalContext, req *AnalyzedRepo) (*State, error) {
 	var analysis models.PullRequestAnalysis
 	err := models.NewPullRequestAnalysisQuerySet(rc.DB).GithubDeliveryGUIDEq(req.AnalysisGUID).One(&analysis)
 	if err != nil {
@@ -70,14 +74,14 @@ func (s BasicService) GetAnalysisStateByAnalysisGUID(rc *request.AnonymousContex
 		ResultJSON:              analysis.ResultJSON,
 		CommitSHA:               analysis.CommitSHA,
 		GithubPullRequestNumber: analysis.PullRequestNumber,
-		GithubRepoName:          repo.Name,
+		GithubRepoName:          repo.FullName,
 	}, nil
 }
 
 func (s BasicService) GetAnalysisStateByPRNumber(rc *request.AnonymousContext, req *RepoPullRequest) (*State, error) {
 	var repos []models.Repo // use could have reconnected repo so we would have two repos
 	err := models.NewRepoQuerySet(rc.DB.Unscoped()).
-		NameEq(req.FullName()).ProviderEq(req.Provider).
+		FullNameEq(req.FullName()).ProviderEq(req.Provider).
 		OrderDescByCreatedAt().
 		All(&repos)
 	if err != nil {
@@ -86,6 +90,12 @@ func (s BasicService) GetAnalysisStateByPRNumber(rc *request.AnonymousContext, r
 
 	if len(repos) == 0 {
 		return nil, errors.Wrapf(apierrors.ErrNotFound, "failed to find repos with name %s", req.FullName())
+	}
+
+	if repos[0].IsPrivate {
+		if err = s.RepoPolicy.CanReadPrivateRepo(rc, &repos[0]); err != nil {
+			return nil, err
+		}
 	}
 
 	var repoIDs []uint
@@ -112,11 +122,11 @@ func (s BasicService) GetAnalysisStateByPRNumber(rc *request.AnonymousContext, r
 		ResultJSON:              analysis.ResultJSON,
 		CommitSHA:               analysis.CommitSHA,
 		GithubPullRequestNumber: analysis.PullRequestNumber,
-		GithubRepoName:          repos[0].Name,
+		GithubRepoName:          repos[0].FullName,
 	}, nil
 }
 
-func (s BasicService) UpdateAnalysisStateByAnalysisGUID(rc *request.AnonymousContext, req *AnalyzedRepo, state *State) error {
+func (s BasicService) UpdateAnalysisStateByAnalysisGUID(rc *request.InternalContext, req *AnalyzedRepo, state *State) error {
 	var analysis models.PullRequestAnalysis
 	err := models.NewPullRequestAnalysisQuerySet(rc.DB).GithubDeliveryGUIDEq(req.AnalysisGUID).One(&analysis)
 	if err != nil {

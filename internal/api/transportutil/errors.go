@@ -49,13 +49,15 @@ func makeError(code int, e error) *Error {
 func MakeError(e error) *Error {
 	srcErr := errors.Cause(e)
 
+	if srcErr == provider.ErrUnauthorized {
+		srcErr = apierrors.ErrNotAuthorized // TODO
+	}
+
 	switch srcErr {
 	case apierrors.ErrNotFound:
 		return makeError(http.StatusNotFound, e)
 	case apierrors.ErrBadRequest:
 		return makeError(http.StatusBadRequest, e)
-	case apierrors.ErrNotAuthorized, provider.ErrUnauthorized:
-		return makeError(http.StatusForbidden, e)
 	case apierrors.ErrInternal:
 		return makeError(http.StatusInternalServerError, errors.New("internal error"))
 	}
@@ -65,6 +67,10 @@ func MakeError(e error) *Error {
 		return makeError(http.StatusNotAcceptable, err)
 	case *apierrors.RaceConditionError:
 		return makeError(http.StatusConflict, err)
+	}
+
+	if err, ok := srcErr.(apierrors.ErrorWithHTTPCode); ok && err.GetHTTPCode() != 0 {
+		return makeError(err.GetHTTPCode(), srcErr)
 	}
 
 	return makeError(http.StatusInternalServerError, errors.New("internal error"))

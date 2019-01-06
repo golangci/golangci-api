@@ -6,7 +6,7 @@ import (
 
 	"github.com/golangci/golangci-api/pkg/worker/analyze/analyzesqueue/repoanalyzesqueue"
 
-	"github.com/golangci/golangci-api/pkg/api"
+	app "github.com/golangci/golangci-api/pkg/api"
 
 	"github.com/pkg/errors"
 
@@ -46,7 +46,7 @@ func reanalyzeRepo(repoName string) error {
 	}
 
 	var repo models.Repo
-	if err = models.NewRepoQuerySet(db).NameEq(repoName).One(&repo); err != nil {
+	if err = models.NewRepoQuerySet(db).FullNameEq(repoName).One(&repo); err != nil {
 		return errors.Wrap(err, "failed to get repo by name")
 	}
 
@@ -64,5 +64,5 @@ func restartAnalysis(db *gorm.DB, repo *models.Repo, runQueue *repoanalyzesqueue
 		return errors.Wrap(err, "can't get repo analysis")
 	}
 
-	return runQueue.Put(repo.Name, a.AnalysisGUID, as.DefaultBranch, "")
+	return runQueue.Put(repo.FullName, a.AnalysisGUID, as.DefaultBranch, "")
 }

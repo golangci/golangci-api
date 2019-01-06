@@ -12,7 +12,7 @@ import (
 	"github.com/gavv/httpexpect"
 	"github.com/golangci/golangci-api/pkg/api/request"
 	"github.com/golangci/golangci-api/pkg/api/returntypes"
-	"github.com/satori/go.uuid"
+	uuid "github.com/satori/go.uuid"
 )
 
 type Repo struct {

@@ -3,7 +3,6 @@ package repoanalysis
 
 import (
 	"context"
-	"errors"
 	"runtime/debug"
 
 	"github.com/go-kit/kit/endpoint"
@@ -12,6 +11,7 @@ import (
 	"github.com/golangci/golangci-api/internal/shared/logutil"
 	"github.com/golangci/golangci-api/pkg/api/models"
 	"github.com/golangci/golangci-api/pkg/api/request"
+	"github.com/pkg/errors"
 )
 
 type GetStatusRequest struct {
@@ -64,26 +64,26 @@ func makeGetStatusEndpoint(svc Service, log logutil.Log) endpoint.Endpoint {
 	}
 }
 
-type GetRequest struct {
+type GetByAnalysisGUIDRequest struct {
 	Rac *Context
 }
 
-type GetResponse struct {
+type GetByAnalysisGUIDResponse struct {
 	err error
 	*models.RepoAnalysis
 }
 
-func makeGetEndpoint(svc Service, log logutil.Log) endpoint.Endpoint {
+func makeGetByAnalysisGUIDEndpoint(svc Service, log logutil.Log) endpoint.Endpoint {
 	return func(ctx context.Context, reqObj interface{}) (resp interface{}, err error) {
 
-		req := reqObj.(GetRequest)
+		req := reqObj.(GetByAnalysisGUIDRequest)
 
 		reqLogger := log
 		defer func() {
 			if rerr := recover(); rerr != nil {
 				reqLogger.Errorf("Panic occured")
 				reqLogger.Infof("%s", debug.Stack())
-				resp = GetResponse{
+				resp = GetByAnalysisGUIDResponse{
 					err: errors.New("panic occured"),
 				}
 				err = nil
@@ -92,48 +92,48 @@ func makeGetEndpoint(svc Service, log logutil.Log) endpoint.Endpoint {
 
 		if err := endpointutil.Error(ctx); err != nil {
 			log.Warnf("Error occurred during request context creation: %s", err)
-			resp = GetResponse{
+			resp = GetByAnalysisGUIDResponse{
 				err: err,
 			}
 			return resp, nil
 		}
 
-		rc := endpointutil.RequestContext(ctx).(*request.AnonymousContext)
+		rc := endpointutil.RequestContext(ctx).(*request.InternalContext)
 		reqLogger = rc.Log
 
 		req.Rac.FillLogContext(rc.Lctx)
 
-		v, err := svc.Get(rc, req.Rac)
+		v, err := svc.GetByAnalysisGUID(rc, req.Rac)
 		if err != nil {
-			rc.Log.Errorf("repoanalysis.Service.Get failed: %s", err)
-			return GetResponse{err, v}, nil
+			rc.Log.Errorf("repoanalysis.Service.GetByAnalysisGUID failed: %s", err)
+			return GetByAnalysisGUIDResponse{err, v}, nil
 		}
 
-		return GetResponse{nil, v}, nil
+		return GetByAnalysisGUIDResponse{nil, v}, nil
 
 	}
 }
 
-type UpdateRequest struct {
+type UpdateByAnalysisGUIDRequest struct {
 	Rac    *Context
 	Update *updateRepoPayload
 }
 
-type UpdateResponse struct {
+type UpdateByAnalysisGUIDResponse struct {
 	err error
 }
 
-func makeUpdateEndpoint(svc Service, log logutil.Log) endpoint.Endpoint {
+func makeUpdateByAnalysisGUIDEndpoint(svc Service, log logutil.Log) endpoint.Endpoint {
 	return func(ctx context.Context, reqObj interface{}) (resp interface{}, err error) {
 
-		req := reqObj.(UpdateRequest)
+		req := reqObj.(UpdateByAnalysisGUIDRequest)
 
 		reqLogger := log
 		defer func() {
 			if rerr := recover(); rerr != nil {
 				reqLogger.Errorf("Panic occured")
 				reqLogger.Infof("%s", debug.Stack())
-				resp = UpdateResponse{
+				resp = UpdateByAnalysisGUIDResponse{
 					err: errors.New("panic occured"),
 				}
 				err = nil
@@ -142,27 +142,27 @@ func makeUpdateEndpoint(svc Service, log logutil.Log) endpoint.Endpoint {
 
 		if err := endpointutil.Error(ctx); err != nil {
 			log.Warnf("Error occurred during request context creation: %s", err)
-			resp = UpdateResponse{
+			resp = UpdateByAnalysisGUIDResponse{
 				err: err,
 			}
 			return resp, nil
 		}
 
-		rc := endpointutil.RequestContext(ctx).(*request.AnonymousContext)
+		rc := endpointutil.RequestContext(ctx).(*request.InternalContext)
 		reqLogger = rc.Log
 
 		req.Rac.FillLogContext(rc.Lctx)
 		req.Update.FillLogContext(rc.Lctx)
 
-		err = svc.Update(rc, req.Rac, req.Update)
+		err = svc.UpdateByAnalysisGUID(rc, req.Rac, req.Update)
 		if err != nil {
 			if !apierrors.IsErrorLikeResult(err) {
-				rc.Log.Errorf("repoanalysis.Service.Update failed: %s", err)
+				rc.Log.Errorf("repoanalysis.Service.UpdateByAnalysisGUID failed: %s", err)
 			}
-			return UpdateResponse{err}, nil
+			return UpdateByAnalysisGUIDResponse{err}, nil
 		}
 
-		return UpdateResponse{nil}, nil
+		return UpdateByAnalysisGUIDResponse{nil}, nil
 
 	}
 }

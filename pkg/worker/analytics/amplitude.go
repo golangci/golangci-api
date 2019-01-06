@@ -5,7 +5,7 @@ import (
 	"sync"
 
 	"github.com/golangci/golangci-api/pkg/worker/lib/runmode"
-	"github.com/savaki/amplitude-go"
+	amplitude "github.com/savaki/amplitude-go"
 )
 
 var amplitudeClient *amplitude.Client

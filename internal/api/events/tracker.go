@@ -5,7 +5,7 @@ import (
 	"strconv"
 
 	"github.com/dukex/mixpanel"
-	"github.com/savaki/amplitude-go"
+	amplitude "github.com/savaki/amplitude-go"
 	"github.com/sirupsen/logrus"
 )
 

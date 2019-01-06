@@ -2,16 +2,28 @@ package apierrors
 
 import (
 	"fmt"
+	"net/http"
 
 	"github.com/pkg/errors"
 )
 
 var (
-	ErrNotFound      = errors.New("no data")
-	ErrBadRequest    = errors.New("bad request")
-	ErrInternal      = errors.New("interal error")
-	ErrNotAuthorized = errors.New("not authorized")
+	ErrNotFound            = errors.New("no data")
+	ErrBadRequest          = errors.New("bad request")
+	ErrInternal            = errors.New("interal error")
+	ErrNotAuthorized error = BaseRichError{
+		HTTPCode:     http.StatusForbidden,
+		ErrorCode:    "NOT_AUTHORIZED",
+		DebugMessage: "not authorized",
+	}
 )
+
+func NewForbiddenError(code string) error {
+	return BaseRichError{
+		HTTPCode:  http.StatusForbidden,
+		ErrorCode: code,
+	}
+}
 
 type ErrorLikeResult interface {
 	IsErrorLikeResult() bool
@@ -33,6 +45,10 @@ type LocalizedError interface {
 
 type ErrorWithCode interface {
 	GetCode() string
+}
+
+type ErrorWithHTTPCode interface {
+	GetHTTPCode() int
 }
 
 type RedirectError struct {
@@ -132,4 +148,39 @@ func (e RaceConditionError) Error() string {
 
 func (e RaceConditionError) GetMessage() string {
 	return e.message
+}
+
+type BaseRichError struct {
+	HTTPCode     int
+	ErrorCode    string
+	UserMessage  string
+	DebugMessage string
+}
+
+func (e BaseRichError) Error() string {
+	if e.DebugMessage != "" {
+		return e.DebugMessage
+	}
+
+	if e.UserMessage != "" {
+		return e.UserMessage
+	}
+
+	if e.ErrorCode != "" {
+		return e.ErrorCode
+	}
+
+	return "base rich error"
+}
+
+func (e BaseRichError) GetMessage() string {
+	return e.UserMessage
+}
+
+func (e BaseRichError) GetCode() string {
+	return e.ErrorCode
+}
+
+func (e BaseRichError) GetHTTPCode() int {
+	return e.HTTPCode
 }

@@ -27,5 +27,8 @@ type Provider interface {
 	ListRepos(ctx context.Context, cfg *ListReposConfig) ([]Repo, error)
 	ListOrgs(ctx context.Context, cfg *ListOrgsConfig) ([]Org, error)
 
+	ListPullRequestCommits(ctx context.Context, owner, repo string, number int) ([]*Commit, error)
 	SetCommitStatus(ctx context.Context, owner, repo, ref string, status *CommitStatus) error
+
+	ParsePullRequestEvent(ctx context.Context, payload []byte) (*PullRequestEvent, error)
 }

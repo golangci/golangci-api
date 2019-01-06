@@ -8,11 +8,13 @@ import (
 
 	httptransport "github.com/go-kit/kit/transport/http"
 	"github.com/golangci/golangci-api/internal/api/apierrors"
+	"github.com/golangci/golangci-api/internal/api/endpointutil"
 	"github.com/golangci/golangci-api/internal/api/transportutil"
+	"github.com/gorilla/mux"
 	"github.com/pkg/errors"
 )
 
-func RegisterHandlers(svc Service, regCtx *transportutil.HandlerRegContext) {
+func RegisterHandlers(svc Service, r *mux.Router, regCtx *endpointutil.HandlerRegContext) {
 
 	hGetAnalysisStateByAnalysisGUID := httptransport.NewServer(
 		makeGetAnalysisStateByAnalysisGUIDEndpoint(svc, regCtx.Log),
@@ -21,14 +23,13 @@ func RegisterHandlers(svc Service, regCtx *transportutil.HandlerRegContext) {
 		httptransport.ServerBefore(transportutil.StoreHTTPRequestToContext),
 		httptransport.ServerAfter(transportutil.FinalizeSession),
 
-		httptransport.ServerBefore(transportutil.MakeStoreAnonymousRequestContext(
-			regCtx.Log, regCtx.ErrTracker, regCtx.DB)),
+		httptransport.ServerBefore(transportutil.MakeStoreInternalRequestContext(*regCtx)),
 
 		httptransport.ServerFinalizer(transportutil.FinalizeRequest),
 		httptransport.ServerErrorEncoder(transportutil.EncodeError),
 		httptransport.ServerErrorLogger(transportutil.AdaptErrorLogger(regCtx.Log)),
 	)
-	regCtx.Router.Methods("GET").Path("/v1/repos/{provider}/{owner}/{name}/analyzes/{analysisguid}/state").Handler(hGetAnalysisStateByAnalysisGUID)
+	r.Methods("GET").Path("/v1/repos/{provider}/{owner}/{name}/analyzes/{analysisguid}/state").Handler(hGetAnalysisStateByAnalysisGUID)
 
 	hGetAnalysisStateByPRNumber := httptransport.NewServer(
 		makeGetAnalysisStateByPRNumberEndpoint(svc, regCtx.Log),
@@ -37,14 +38,13 @@ func RegisterHandlers(svc Service, regCtx *transportutil.HandlerRegContext) {
 		httptransport.ServerBefore(transportutil.StoreHTTPRequestToContext),
 		httptransport.ServerAfter(transportutil.FinalizeSession),
 
-		httptransport.ServerBefore(transportutil.MakeStoreAnonymousRequestContext(
-			regCtx.Log, regCtx.ErrTracker, regCtx.DB)),
+		httptransport.ServerBefore(transportutil.MakeStoreAnonymousRequestContext(*regCtx)),
 
 		httptransport.ServerFinalizer(transportutil.FinalizeRequest),
 		httptransport.ServerErrorEncoder(transportutil.EncodeError),
 		httptransport.ServerErrorLogger(transportutil.AdaptErrorLogger(regCtx.Log)),
 	)
-	regCtx.Router.Methods("GET").Path("/v1/repos/{provider}/{owner}/{name}/pulls/{pullrequestnumber}").Handler(hGetAnalysisStateByPRNumber)
+	r.Methods("GET").Path("/v1/repos/{provider}/{owner}/{name}/pulls/{pullrequestnumber}").Handler(hGetAnalysisStateByPRNumber)
 
 	hUpdateAnalysisStateByAnalysisGUID := httptransport.NewServer(
 		makeUpdateAnalysisStateByAnalysisGUIDEndpoint(svc, regCtx.Log),
@@ -53,14 +53,13 @@ func RegisterHandlers(svc Service, regCtx *transportutil.HandlerRegContext) {
 		httptransport.ServerBefore(transportutil.StoreHTTPRequestToContext),
 		httptransport.ServerAfter(transportutil.FinalizeSession),
 
-		httptransport.ServerBefore(transportutil.MakeStoreAnonymousRequestContext(
-			regCtx.Log, regCtx.ErrTracker, regCtx.DB)),
+		httptransport.ServerBefore(transportutil.MakeStoreInternalRequestContext(*regCtx)),
 
 		httptransport.ServerFinalizer(transportutil.FinalizeRequest),
 		httptransport.ServerErrorEncoder(transportutil.EncodeError),
 		httptransport.ServerErrorLogger(transportutil.AdaptErrorLogger(regCtx.Log)),
 	)
-	regCtx.Router.Methods("PUT").Path("/v1/repos/{provider}/{owner}/{name}/analyzes/{analysisguid}/state").Handler(hUpdateAnalysisStateByAnalysisGUID)
+	r.Methods("PUT").Path("/v1/repos/{provider}/{owner}/{name}/analyzes/{analysisguid}/state").Handler(hUpdateAnalysisStateByAnalysisGUID)
 
 }
 

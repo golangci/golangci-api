@@ -4,7 +4,7 @@ import (
 	"context"
 
 	"github.com/dukex/mixpanel"
-	"github.com/savaki/amplitude-go"
+	amplitude "github.com/savaki/amplitude-go"
 	log "github.com/sirupsen/logrus"
 )
 

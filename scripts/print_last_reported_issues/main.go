@@ -89,7 +89,7 @@ func printPullIssues(log logutil.Log, pull *pull) error {
 	for _, a := range pull.analyzes {
 		issues, err := getAnalysisIssues(&a)
 		if err != nil {
-			return errors.Wrapf(err, "failed to get pull %s#%d issues", pull.repo.Name, a.PullRequestNumber)
+			return errors.Wrapf(err, "failed to get pull %s#%d issues", pull.repo.FullName, a.PullRequestNumber)
 		}
 
 		for _, i := range issues {
@@ -107,7 +107,7 @@ func printPullIssues(log logutil.Log, pull *pull) error {
 	}
 
 	log.Infof("https://github.com/%s/pull/%d - %d uniq issues, last analysis status is %s",
-		pull.repo.DisplayName, lastAnalysis.PullRequestNumber, len(uniqIssues), lastAnalysis.Status)
+		pull.repo.DisplayFullName, lastAnalysis.PullRequestNumber, len(uniqIssues), lastAnalysis.Status)
 	for issueID := range uniqIssues {
 		log.Infof("    %s", issueID)
 	}

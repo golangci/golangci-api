@@ -55,7 +55,7 @@ func make{{.Name}}Endpoint(svc Service, log logutil.Log) endpoint.Endpoint {
 			return resp, nil
 		}
 
-		rc := endpointutil.RequestContext(ctx).(*request.{{if .Authorized}}Authorized{{else}}Anonymous{{end}}Context)
+		rc := endpointutil.RequestContext(ctx).(*request.{{.AuthType}}Context)
 		reqLogger = rc.Log
 
 		{{range .ArgsToFillLctx}}{{.}}.FillLogContext(rc.Lctx)
@@ -90,7 +90,7 @@ package {{.PkgName}}
 
 import httptransport "github.com/go-kit/kit/transport/http"
 
-func RegisterHandlers(svc Service, regCtx *transportutil.HandlerRegContext) {
+func RegisterHandlers(svc Service, r *mux.Router, regCtx *endpointutil.HandlerRegContext) {
 	{{range .ServiceMethods}}
 		h{{.Name}} := httptransport.NewServer(
 			make{{.Name}}Endpoint(svc, regCtx.Log),
@@ -98,18 +98,18 @@ func RegisterHandlers(svc Service, regCtx *transportutil.HandlerRegContext) {
 			encode{{.Name}}Response,
 			httptransport.ServerBefore(transportutil.StoreHTTPRequestToContext),
 			httptransport.ServerAfter(transportutil.FinalizeSession),
-			{{if .Authorized}}
-			httptransport.ServerBefore(transportutil.MakeStoreAuthorizedRequestContext(regCtx.Log,
-				regCtx.ErrTracker, regCtx.DB, regCtx.AuthSessFactory)),
+			{{if eq .AuthType "Authorized"}}
+			httptransport.ServerBefore(transportutil.MakeStoreAuthorizedRequestContext(*regCtx)),
+			{{else if eq .AuthType "Anonymous"}}
+			httptransport.ServerBefore(transportutil.MakeStoreAnonymousRequestContext(*regCtx)),
 			{{else}}
-			httptransport.ServerBefore(transportutil.MakeStoreAnonymousRequestContext(
-				regCtx.Log, regCtx.ErrTracker, regCtx.DB)),
+			httptransport.ServerBefore(transportutil.MakeStoreInternalRequestContext(*regCtx)),
 			{{end}}
 			httptransport.ServerFinalizer(transportutil.FinalizeRequest),
 			httptransport.ServerErrorEncoder(transportutil.EncodeError),
 			httptransport.ServerErrorLogger(transportutil.AdaptErrorLogger(regCtx.Log)),
 		)
-		regCtx.Router.Methods("{{.HTTPMethod}}").Path("{{.URL}}").Handler(h{{.Name}})
+		r.Methods("{{.HTTPMethod}}").Path("{{.URL}}").Handler(h{{.Name}})
 
 	{{end}}
 }
@@ -377,7 +377,7 @@ func parseServiceMethodComment(doc string) map[string]string {
 }
 
 func (sg *serviceGenerator) generateForMethod(fn *ast.FuncType, method *ast.Field) (map[string]interface{}, error) {
-	isAuthorized, err := sg.checkMethod(fn)
+	methodAuthType, err := sg.checkMethod(fn)
 	if err != nil {
 		return nil, err
 	}
@@ -427,52 +427,60 @@ func (sg *serviceGenerator) generateForMethod(fn *ast.FuncType, method *ast.Fiel
 		"HasRequestParams": fn.Params.NumFields() > 1,
 		"ArgsToFillLctx":   argsToFillLctx,
 		"HasRetVal":        fn.Results.NumFields() == 2, // value and error
-		"Authorized":       isAuthorized,
+		"AuthType":         methodAuthType,
 	}
 	return ctx, nil
 }
 
+type methodAuth string
+
+const (
+	methodAuthRequired methodAuth = "Authorized"
+	methodAnonymous    methodAuth = "Anonymous"
+	methodInternal     methodAuth = "Internal"
+	methodNone         methodAuth = ""
+)
+
 //nolint:gocyclo
-func (sg serviceGenerator) checkMethod(fn *ast.FuncType) (bool, error) {
+func (sg serviceGenerator) checkMethod(fn *ast.FuncType) (methodAuth, error) {
 	res := fn.Results
 	if res.NumFields() == 0 || res.NumFields() > 2 {
-		return false, fmt.Errorf("unsupported return values count: %d", res.NumFields())
+		return methodNone, fmt.Errorf("unsupported return values count: %d", res.NumFields())
 	}
 
 	lastRet := res.List[res.NumFields()-1]
 	if err := checkIsIdentWithName(lastRet.Type, "error"); err != nil {
-		return false, errors.Wrap(err, "invalid last return value type")
+		return methodNone, errors.Wrap(err, "invalid last return value type")
 	}
 
 	args := fn.Params
 	if args.NumFields() == 0 {
-		return false, fmt.Errorf("unsupported args count: %d", args.NumFields())
+		return methodNone, fmt.Errorf("unsupported args count: %d", args.NumFields())
 	}
 
 	firstArg := args.List[0]
 	firstArgStarExpr, ok := firstArg.Type.(*ast.StarExpr)
 	if !ok {
-		return false, fmt.Errorf("invalid first arg value type %#v, star expr expected", firstArg.Type)
+		return methodNone, fmt.Errorf("invalid first arg value type %#v, star expr expected", firstArg.Type)
 	}
 
 	firstArgSE, ok := firstArgStarExpr.X.(*ast.SelectorExpr)
 	if !ok {
-		return false, fmt.Errorf("invalid first arg value type %#v, selector expr expected", firstArgStarExpr.X)
-	}
-
-	var isAuthorized bool
-	switch firstArgSE.Sel.Name {
-	case "AnonymousContext":
-		break
-	case "AuthorizedContext":
-		isAuthorized = true
-	default:
-		return false, fmt.Errorf("invalid first arg value type %#v", firstArgSE.Sel.Name)
+		return methodNone, fmt.Errorf("invalid first arg value type %#v, selector expr expected", firstArgStarExpr.X)
 	}
 
 	if err := checkIsIdentWithName(firstArgSE.X, "request"); err != nil {
-		return false, errors.Wrap(err, "invalid first arg selector type")
+		return methodNone, errors.Wrap(err, "invalid first arg selector type")
 	}
 
-	return isAuthorized, nil
+	switch firstArgSE.Sel.Name {
+	case "InternalContext":
+		return methodInternal, nil
+	case "AnonymousContext":
+		return methodAnonymous, nil
+	case "AuthorizedContext":
+		return methodAuthRequired, nil
+	}
+
+	return methodNone, fmt.Errorf("invalid first arg value type %#v", firstArgSE.Sel.Name)
 }

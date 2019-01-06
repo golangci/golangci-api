@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"os"
 	"time"
 
 	"github.com/cenkalti/backoff"
@@ -142,7 +143,7 @@ func (gc *MyClient) SetCommitStatus(ctx context.Context, c *Context, ref string,
 	rs := &gh.RepoStatus{
 		Description: gh.String(desc),
 		State:       gh.String(string(status)),
-		Context:     gh.String("GolangCI"),
+		Context:     gh.String(os.Getenv("APP_NAME")),
 	}
 	if url != "" {
 		rs.TargetURL = gh.String(url)

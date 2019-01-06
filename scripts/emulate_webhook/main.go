@@ -6,6 +6,7 @@ import (
 	"flag"
 	"fmt"
 	"log"
+	"math/rand"
 	"net/http"
 	"time"
 
@@ -20,7 +21,7 @@ import (
 	"github.com/jinzhu/gorm"
 	_ "github.com/joho/godotenv/autoload"
 	_ "github.com/lib/pq"
-	"github.com/satori/go.uuid"
+	uuid "github.com/satori/go.uuid"
 	"github.com/sirupsen/logrus"
 )
 
@@ -38,6 +39,7 @@ func main() {
 	hookID := flag.String("hook-id", "", "Hook ID for repo")
 	isProd := flag.Bool("prod", false, "is production")
 	branchName := flag.String("branch", "master", "branch name")
+	isPrivateRepo := flag.Bool("private", false, "is private repo")
 	flag.Parse()
 
 	if *repoName == "" || *commitSHA == "" {
@@ -54,11 +56,11 @@ func main() {
 
 	switch *hookType {
 	case eventTypePullRequest:
-		if err := emulatePullRequestWebhook(*repoName, *commitSHA, *hookID, *prNumber, *isProd); err != nil {
+		if err := emulatePullRequestWebhook(*repoName, *commitSHA, *hookID, *prNumber, *isProd, *isPrivateRepo); err != nil {
 			log.Fatalf("Can't emulate pull_request webhook: %s", err)
 		}
 	case eventTypePush:
-		if err := emulatePushWebhook(*repoName, *commitSHA, *branchName, *hookID, *isProd); err != nil {
+		if err := emulatePushWebhook(*repoName, *commitSHA, *branchName, *hookID, *isProd, *isPrivateRepo); err != nil {
 			log.Fatalf("Can't emulate push webhook: %s", err)
 		}
 	default:
@@ -68,29 +70,34 @@ func main() {
 	log.Printf("Successfully emulated webhook")
 }
 
-func emulatePullRequestWebhook(repoName, commitSHA, hookID string, prNumber int, isProd bool) error {
+func emulatePullRequestWebhook(repoName, commitSHA, hookID string, prNumber int, isProd, isPrivate bool) error {
 	payload := gh.PullRequestEvent{
 		Action: gh.String("opened"),
 		PullRequest: &gh.PullRequest{
-			Number: gh.Int(prNumber),
+			Number: &prNumber,
 			Head: &gh.PullRequestBranch{
-				SHA: gh.String(commitSHA),
+				SHA: &commitSHA,
 			},
+		},
+		Repo: &gh.Repository{
+			FullName: &repoName,
+			Private:  &isPrivate,
 		},
 	}
 
 	return sendWebhookPayload(repoName, eventTypePullRequest, hookID, isProd, payload)
 }
 
-func emulatePushWebhook(repoName, commitSHA, branchName, hookID string, isProd bool) error {
+func emulatePushWebhook(repoName, commitSHA, branchName, hookID string, isProd, isPrivate bool) error {
 	payload := gh.PushEvent{
 		Ref: gh.String(fmt.Sprintf("refs/heads/%s", branchName)),
 		Repo: &gh.PushEventRepository{
-			DefaultBranch: gh.String(branchName),
-			FullName:      gh.String(repoName),
+			DefaultBranch: &branchName,
+			FullName:      &repoName,
+			Private:       &isPrivate,
 		},
 		HeadCommit: &gh.PushEventCommit{
-			ID: gh.String(commitSHA),
+			ID: &commitSHA,
 		},
 	}
 
@@ -150,7 +157,7 @@ func getOrCreateRepo(repoName string, isProd bool) (*models.Repo, error) {
 	}
 
 	var repo models.Repo
-	if err = models.NewRepoQuerySet(db).NameEq(repoName).One(&repo); err == nil {
+	if err = models.NewRepoQuerySet(db).FullNameEq(repoName).One(&repo); err == nil {
 		return &repo, nil
 	}
 
@@ -169,11 +176,14 @@ func getOrCreateRepo(repoName string, isProd bool) (*models.Repo, error) {
 		return nil, fmt.Errorf("can't get user: %s", err)
 	}
 
-	repo.Name = repoName
-	repo.DisplayName = repoName
+	repo.FullName = repoName
+	repo.DisplayFullName = repoName
 	repo.UserID = u.ID
 	repo.ProviderHookID = 1
 	repo.HookID = uuid.NewV4().String()[:32]
+	repo.Provider = "github.com"
+	repo.ProviderID = int(rand.Int31())
+	repo.CommitState = models.RepoCommitStateCreateDone
 	if err = repo.Create(db); err != nil {
 		return nil, fmt.Errorf("can't create repo %#v: %s", repo, err)
 	}

@@ -29,8 +29,13 @@ func (o *Org) IsFake() bool {
 	return o.ProviderPersonalUserID != 0
 }
 
-func (o *Org) UnmarshalSettings(v interface{}) error {
-	return errors.Wrapf(json.Unmarshal(o.Settings, v), "failed to unmarshal settings for org(%d)", o.ID)
+func (o *Org) UnmarshalSettings() (*OrgSettings, error) {
+	var s OrgSettings
+	if err := json.Unmarshal(o.Settings, &s); err != nil {
+		return nil, errors.Wrapf(err, "failed to unmarshal settings for org(%d)", o.ID)
+	}
+
+	return &s, nil
 }
 
 func (o *Org) MarshalSettings(v interface{}) error {
@@ -42,12 +47,12 @@ func (o *Org) MarshalSettings(v interface{}) error {
 	return nil
 }
 
-type Seat struct {
+type OrgSeat struct {
 	Email string `json:"email"`
 }
 
-type Settings struct {
-	Seats []Seat `json:"seats,omitempty"`
+type OrgSettings struct {
+	Seats []OrgSeat `json:"seats,omitempty"`
 }
 
 func (u OrgUpdater) UpdateRequired() error {
@@ -61,4 +66,15 @@ func (u OrgUpdater) UpdateRequired() error {
 	}
 
 	return nil
+}
+
+func (qs OrgQuerySet) ForProviderRepo(providerName, orgName string, providerOwnerID int) OrgQuerySet {
+	qs = qs.ProviderEq(providerName)
+	if orgName == "" {
+		qs = qs.ProviderPersonalUserIDEq(providerOwnerID)
+	} else {
+		qs = qs.ProviderIDEq(providerOwnerID)
+	}
+
+	return qs
 }

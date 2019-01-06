@@ -6,3 +6,4 @@
 /logs/
 /tmp/
 /gin-bin
+/*.token

@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/getsentry/raven-go"
+	raven "github.com/getsentry/raven-go"
 	"github.com/pkg/errors"
 )
 

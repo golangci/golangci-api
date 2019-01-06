@@ -2,10 +2,12 @@ package implementations
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/url"
 
+	"github.com/golangci/golangci-api/internal/api/apierrors"
 	"github.com/golangci/golangci-api/internal/shared/logutil"
 	"github.com/golangci/golangci-api/internal/shared/providers/provider"
 	"github.com/golangci/golangci-api/pkg/api/models"
@@ -37,7 +39,7 @@ func (p Github) Name() string {
 }
 
 func (p Github) LinkToPullRequest(repo *models.Repo, num int) string {
-	return fmt.Sprintf("https://github.com/%s/pull/%d", repo.DisplayName, num)
+	return fmt.Sprintf("https://github.com/%s/pull/%d", repo.DisplayFullName, num)
 }
 
 func (p *Github) SetBaseURL(s string) error {
@@ -96,7 +98,7 @@ func parseGithubRepository(r *github.Repository, root bool) *provider.Repo {
 
 	return &provider.Repo{
 		ID:              r.GetID(),
-		Name:            r.GetFullName(),
+		FullName:        r.GetFullName(),
 		IsAdmin:         r.GetPermissions()["admin"],
 		IsPrivate:       r.GetPrivate(),
 		DefaultBranch:   r.GetDefaultBranch(),
@@ -104,6 +106,19 @@ func parseGithubRepository(r *github.Repository, root bool) *provider.Repo {
 		StargazersCount: r.GetStargazersCount(),
 		Language:        r.GetLanguage(),
 		Organization:    orgName,
+		OwnerID:         r.GetOwner().GetID(),
+	}
+}
+
+func parseGithubBranch(b *github.Branch) *provider.Branch {
+	return &provider.Branch{
+		CommitSHA: b.GetCommit().GetSHA(),
+	}
+}
+
+func parseGithubPullRequestBranch(b *github.PullRequestBranch) *provider.Branch {
+	return &provider.Branch{
+		CommitSHA: b.GetSHA(),
 	}
 }
 
@@ -208,9 +223,7 @@ func (p Github) GetBranch(ctx context.Context, owner, repo, branch string) (*pro
 		return nil, p.unwrapError(err)
 	}
 
-	return &provider.Branch{
-		HeadCommitSHA: grb.GetCommit().GetSHA(),
-	}, nil
+	return parseGithubBranch(grb), nil
 }
 
 func (p Github) DeleteRepoHook(ctx context.Context, owner, repo string, hookID int) error {
@@ -220,6 +233,37 @@ func (p Github) DeleteRepoHook(ctx context.Context, owner, repo string, hookID i
 	}
 
 	return nil
+}
+
+func parseGithubCommitAuthor(ca *github.CommitAuthor) *provider.CommitAuthor {
+	return &provider.CommitAuthor{
+		Email: ca.GetEmail(),
+	}
+}
+
+func parseGithubCommit(c *github.RepositoryCommit) *provider.Commit {
+	gc := c.GetCommit()
+	return &provider.Commit{
+		SHA:       c.GetSHA(),
+		Author:    parseGithubCommitAuthor(gc.GetAuthor()),
+		Committer: parseGithubCommitAuthor(gc.GetCommitter()),
+	}
+}
+
+func (p Github) ListPullRequestCommits(ctx context.Context, owner, repo string, number int) ([]*provider.Commit, error) {
+	commits, _, err := p.client(ctx).PullRequests.ListCommits(ctx, owner, repo, number, &github.ListOptions{
+		PerPage: 100,
+	})
+	if err != nil {
+		return nil, p.unwrapError(err)
+	}
+
+	var ret []*provider.Commit
+	for _, c := range commits {
+		ret = append(ret, parseGithubCommit(c))
+	}
+
+	return ret, nil
 }
 
 func (p Github) SetCommitStatus(ctx context.Context, owner, repo, ref string, status *provider.CommitStatus) error {
@@ -316,7 +360,27 @@ func (p Github) GetPullRequest(ctx context.Context, owner, repo string, number i
 	}
 
 	return &provider.PullRequest{
-		HeadCommitSHA: pr.GetHead().GetSHA(),
-		State:         pr.GetState(),
+		Head:  parseGithubPullRequestBranch(pr.GetHead()),
+		State: pr.GetState(),
+	}, nil
+}
+
+func (p Github) ParsePullRequestEvent(ctx context.Context, payload []byte) (*provider.PullRequestEvent, error) {
+	var ghEvent github.PullRequestEvent
+	if err := json.Unmarshal(payload, &ghEvent); err != nil {
+		return nil, errors.Wrapf(apierrors.ErrBadRequest, "invalid payload json: %s", err)
+	}
+
+	if ghEvent.PullRequest == nil {
+		return nil, errors.New("got github webhook event without pull request field")
+	}
+
+	pr := ghEvent.GetPullRequest()
+
+	return &provider.PullRequestEvent{
+		Repo:              parseGithubRepository(ghEvent.GetRepo(), true),
+		Head:              parseGithubPullRequestBranch(pr.GetHead()),
+		PullRequestNumber: pr.GetNumber(),
+		Action:            provider.PullRequestAction(ghEvent.GetAction()),
 	}, nil
 }

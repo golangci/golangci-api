@@ -3,7 +3,6 @@ package pranalysis
 
 import (
 	"context"
-	"errors"
 	"runtime/debug"
 
 	"github.com/go-kit/kit/endpoint"
@@ -11,6 +10,7 @@ import (
 	"github.com/golangci/golangci-api/internal/api/endpointutil"
 	"github.com/golangci/golangci-api/internal/shared/logutil"
 	"github.com/golangci/golangci-api/pkg/api/request"
+	"github.com/pkg/errors"
 )
 
 type GetAnalysisStateByAnalysisGUIDRequest struct {
@@ -47,7 +47,7 @@ func makeGetAnalysisStateByAnalysisGUIDEndpoint(svc Service, log logutil.Log) en
 			return resp, nil
 		}
 
-		rc := endpointutil.RequestContext(ctx).(*request.AnonymousContext)
+		rc := endpointutil.RequestContext(ctx).(*request.InternalContext)
 		reqLogger = rc.Log
 
 		req.Req.FillLogContext(rc.Lctx)
@@ -147,7 +147,7 @@ func makeUpdateAnalysisStateByAnalysisGUIDEndpoint(svc Service, log logutil.Log)
 			return resp, nil
 		}
 
-		rc := endpointutil.RequestContext(ctx).(*request.AnonymousContext)
+		rc := endpointutil.RequestContext(ctx).(*request.InternalContext)
 		reqLogger = rc.Log
 
 		req.Req.FillLogContext(rc.Lctx)

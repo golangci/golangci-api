@@ -1,7 +1,7 @@
 package main
 
 import (
-	"github.com/golangci/golangci-api/pkg/api"
+	app "github.com/golangci/golangci-api/pkg/api"
 )
 
 func main() {

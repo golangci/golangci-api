@@ -16,11 +16,20 @@ type Client interface {
 	Put(ctx context.Context, url string, jsonObj interface{}) error
 }
 
-type GrequestsClient struct{}
+type GrequestsClient struct {
+	header map[string]string
+}
+
+func NewGrequestsClient(header map[string]string) *GrequestsClient {
+	return &GrequestsClient{
+		header: header,
+	}
+}
 
 func (c GrequestsClient) Get(ctx context.Context, url string) (io.ReadCloser, error) {
 	resp, err := grequests.Get(url, &grequests.RequestOptions{
 		Context: ctx,
+		Headers: c.header,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("unable to make GET http request %q: %s", url, err)
@@ -40,6 +49,7 @@ func (c GrequestsClient) Get(ctx context.Context, url string) (io.ReadCloser, er
 func (c GrequestsClient) Put(ctx context.Context, url string, jsonObj interface{}) error {
 	resp, err := grequests.Put(url, &grequests.RequestOptions{
 		Context: ctx,
+		Headers: c.header,
 		JSON:    jsonObj,
 	})
 	if err != nil {
