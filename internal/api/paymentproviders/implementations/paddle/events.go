@@ -138,7 +138,7 @@ type subPaymentSucceededEvent struct {
 	CustomerName   string `schema:"customer_name"`
 	UserID         string `schema:"user_id"`
 	PlanName       string `schema:"plan_name"`
-	PaymentTax     int    `schema:"payment_tax"`
+	PaymentTax     string `schema:"payment_tax"`
 	PaymentMethod  string `schema:"payment_method"`
 	Coupon         string
 	ReceiptURL     string `schema:"receipt_url"`
