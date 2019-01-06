@@ -376,9 +376,17 @@ func (p Github) ParsePullRequestEvent(ctx context.Context, payload []byte) (*pro
 	}
 
 	pr := ghEvent.GetPullRequest()
+	repo := ghEvent.GetRepo()
+
+	// don't extract repo just as parseGithubRepository(ghEvent.GetRepo(), true)
+	// because ghEvent.GetRepo() doesn't contain organization info
+	fetchedRepo, err := p.GetRepoByName(ctx, repo.GetOwner().GetLogin(), repo.GetName())
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to fetch repo %s/%s", repo.GetOwner().GetLogin(), repo.GetName())
+	}
 
 	return &provider.PullRequestEvent{
-		Repo:              parseGithubRepository(ghEvent.GetRepo(), true),
+		Repo:              fetchedRepo,
 		Head:              parseGithubPullRequestBranch(pr.GetHead()),
 		PullRequestNumber: pr.GetNumber(),
 		Action:            provider.PullRequestAction(ghEvent.GetAction()),

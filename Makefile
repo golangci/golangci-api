@@ -42,6 +42,7 @@ test_lint_dev:
 test_api_dev:
 	echo "DROP DATABASE api_test;" | docker-compose exec -T pg psql -U postgres
 	echo "CREATE DATABASE api_test;" | docker-compose exec -T pg psql -U postgres
+	echo "FLUSHALL" | docker-compose exec -T redis redis-cli
 	make test_api
 
 test_worker:

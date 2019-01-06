@@ -7,3 +7,4 @@
 /tmp/
 /gin-bin
 /*.token
+/*.json

@@ -3,6 +3,7 @@ package test
 import (
 	"fmt"
 	"net/http"
+	"strings"
 	"testing"
 	"time"
 
@@ -18,7 +19,8 @@ func TestReceivePingWebhook(t *testing.T) {
 	r.ExpectWebhook("ping", gh.PingEvent{}).Status(http.StatusOK)
 }
 
-func getTestPREvent() gh.PullRequestEvent {
+func getTestPREvent(r *sharedtest.Repo) gh.PullRequestEvent {
+	ownerAndName := strings.Split(r.Name, "/")
 	return gh.PullRequestEvent{
 		Action: gh.String("opened"),
 		PullRequest: &gh.PullRequest{
@@ -27,12 +29,18 @@ func getTestPREvent() gh.PullRequestEvent {
 				SHA: gh.String(fmt.Sprintf("sha_%d", time.Now().UnixNano())),
 			},
 		},
+		Repo: &gh.Repository{
+			Owner: &gh.User{
+				Login: gh.String(ownerAndName[0]),
+			},
+			Name: gh.String(ownerAndName[1]),
+		},
 	}
 }
 
 func TestReceivePullRequestOpenedWebhook(t *testing.T) {
 	r, _ := sharedtest.GetActivatedRepo(t)
-	r.ExpectWebhook("pull_request", getTestPREvent()).Status(http.StatusOK)
+	r.ExpectWebhook("pull_request", getTestPREvent(r)).Status(http.StatusOK)
 }
 
 func TestReceivePushWebhook(t *testing.T) {
@@ -55,7 +63,7 @@ func TestStaleAnalyzes(t *testing.T) {
 	err := models.NewPullRequestAnalysisQuerySet(deps.DB).Delete()
 	assert.NoError(t, err)
 
-	r.ExpectWebhook("pull_request", getTestPREvent()).Status(http.StatusOK)
+	r.ExpectWebhook("pull_request", getTestPREvent(r)).Status(http.StatusOK)
 
 	timeout := 3 * time.Second
 	staler := pranalyzes.Staler{

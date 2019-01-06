@@ -118,6 +118,11 @@ func (s BasicService) handleGithubPullRequestWebhook(rc *request.AnonymousContex
 				return nil // TODO(d.isaev): set proper error status and notify
 			}
 
+			if errors.Cause(err) == policy.ErrNoSeatInSubscription {
+				rc.Log.Warnf("Got PR to %s without matched private seat: %s", repo.FullName, err)
+				return nil // TODO(d.isaev): set proper error status and notify
+			}
+
 			return err
 		}
 
