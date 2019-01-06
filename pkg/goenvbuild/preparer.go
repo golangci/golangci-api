@@ -76,7 +76,7 @@ func (p Preparer) RunAndPrint() {
 //nolint:gocyclo
 func (p Preparer) run(needStreamToOutput bool) *result.Result {
 	ctx := context.Background()
-	timeout := p.cfg.GetDuration("TIMEOUT", time.Minute*2)
+	timeout := p.cfg.GetDuration("TIMEOUT", time.Minute*3)
 	ctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 
