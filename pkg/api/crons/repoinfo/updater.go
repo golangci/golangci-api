@@ -84,14 +84,18 @@ func (u Updater) updateRepoInfo(r *models.Repo) error {
 	}
 
 	up := models.NewRepoQuerySet(u.DB).IDEq(r.ID).GetUpdater()
+	var needUpdate bool
+
 	if r.StargazersCount != providerRepo.StargazersCount {
 		r.StargazersCount = providerRepo.StargazersCount
 		up = up.SetStargazersCount(r.StargazersCount)
+		needUpdate = true
 	}
 
 	if r.DisplayFullName != providerRepo.FullName {
 		r.DisplayFullName = providerRepo.FullName
 		up = up.SetDisplayFullName(r.DisplayFullName)
+		needUpdate = true
 	}
 
 	lcName := strings.ToLower(providerRepo.FullName)
@@ -99,10 +103,21 @@ func (u Updater) updateRepoInfo(r *models.Repo) error {
 		u.Log.Infof("Updating repo ID=%d name from %s to %s", r.ID, r.FullName, lcName)
 		r.FullName = lcName
 		up = up.SetFullName(r.FullName)
+		needUpdate = true
 	}
 
-	if err = up.Update(); err != nil {
-		return errors.Wrap(err, "failed to update stargazers count")
+	if r.IsPrivate != providerRepo.IsPrivate {
+		u.Log.Infof("Updating is_private from %t to %t for repo %s",
+			r.IsPrivate, providerRepo.IsPrivate, r.FullName)
+		r.IsPrivate = providerRepo.IsPrivate
+		up = up.SetIsPrivate(r.IsPrivate)
+		needUpdate = true
+	}
+
+	if needUpdate {
+		if err = up.Update(); err != nil {
+			return errors.Wrap(err, "failed to update stargazers count")
+		}
 	}
 
 	return nil
