@@ -40,6 +40,6 @@ COPY --from=builder ${GOPATH}/bin/* ${GOPATH}/bin/
 
 WORKDIR /goapp
 
-ENV PORT=7000 MAX_LIFETIME=30m
+ENV PORT=7000 MAX_LIFETIME=30m TIMEOUT=5m
 
 CMD ["buildrunner"]
