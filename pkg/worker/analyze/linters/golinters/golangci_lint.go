@@ -29,7 +29,6 @@ func (g GolangciLint) Run(ctx context.Context, exec executors.Executor) (*result
 		"run",
 		"--out-format=json",
 		"--issues-exit-code=0",
-		"--print-welcome=false",
 		"--deadline=5m",
 		"--new=false",
 		"--new-from-rev=",
