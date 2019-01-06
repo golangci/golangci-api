@@ -183,6 +183,14 @@ func (r *Reanalyzer) processAnalysis(ctx context.Context, a *models.PullRequestA
 		return nil
 	}
 
+	reposToSkip := strings.Split(r.cfg.GetString("PR_REANALYZER_SKIP_REPOS"), ",")
+	for _, rts := range reposToSkip {
+		if rts == repo.FullName {
+			r.log.Infof("Skip repo for %s", link)
+			return nil
+		}
+	}
+
 	var res resultJSON
 	if err = json.Unmarshal(a.ResultJSON, &res); err != nil {
 		return errors.Wrapf(err, "invalid result json")

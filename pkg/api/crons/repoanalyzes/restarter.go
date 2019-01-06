@@ -66,7 +66,13 @@ func (r Restarter) runIteration(repoAnalysisTimeout time.Duration) error {
 		return nil
 	}
 
+	const maxAttemptsCount = 10
+
 	for _, a := range analyzes {
+		if a.AttemptNumber >= maxAttemptsCount {
+			continue
+		}
+
 		retryTime := getNextRetryTime(&a)
 		if retryTime.After(time.Now()) {
 			continue

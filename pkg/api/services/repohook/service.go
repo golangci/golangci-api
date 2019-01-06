@@ -115,7 +115,7 @@ func (s BasicService) handleGithubPullRequestWebhook(rc *request.AnonymousContex
 		if err = s.ActiveSubPolicy.CheckForProviderPullRequestEvent(rc.Ctx, p, ev); err != nil {
 			if errors.Cause(err) == policy.ErrNoActiveSubscription {
 				rc.Log.Warnf("Got PR to %s with no active subscription: %s", repo.FullName, err)
-				return nil // TODO(d.isaev): set proper error status
+				return nil // TODO(d.isaev): set proper error status and notify
 			}
 
 			return err
@@ -186,6 +186,25 @@ func (s BasicService) createGithubPullRequestAnalysis(rc *request.AnonymousConte
 	return &analysis, nil
 }
 
+func (s BasicService) checkSubscription(rc *request.AnonymousContext, repo *models.Repo) error {
+	var auth models.Auth
+	if err := models.NewAuthQuerySet(rc.DB).UserIDEq(repo.UserID).One(&auth); err != nil {
+		return errors.Wrapf(err, "failed to get auth for repo %d", repo.ID)
+	}
+
+	p, err := s.ProviderFactory.Build(&auth)
+	if err != nil {
+		return errors.Wrapf(err, "failed to build provider for auth %d", auth.ID)
+	}
+
+	pr, err := p.GetRepoByName(rc.Ctx, repo.Owner(), repo.Repo())
+	if err != nil {
+		return errors.Wrap(err, "failed to get provider repo by name")
+	}
+
+	return s.ActiveSubPolicy.CheckForProviderRepo(p, pr)
+}
+
 func (s BasicService) handleGithubPushWebhook(rc *request.AnonymousContext, repo *models.Repo, body request.Body) error {
 	var payload gh.PushEvent
 	if err := json.Unmarshal(body, &payload); err != nil {
@@ -196,6 +215,13 @@ func (s BasicService) handleGithubPushWebhook(rc *request.AnonymousContext, repo
 		rc.Log.Errorf("Got push webhook without default branch: %+v, %+v",
 			payload.GetRepo(), payload)
 		return nil
+	}
+
+	if payload.GetRepo().GetPrivate() {
+		if err := s.checkSubscription(rc, repo); err != nil {
+			// TODO: render message about inactive sub and send notification
+			return errors.Wrap(err, "failed to check subscription")
+		}
 	}
 
 	branch := strings.TrimPrefix(payload.GetRef(), "refs/heads/")
