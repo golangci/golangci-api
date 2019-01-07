@@ -120,7 +120,7 @@ func (r *Repo) prepare(ctx *RepoContext, res *repoResult) error {
 	defer res.addTimingFrom("Prepare", time.Now())
 
 	fr := buildFetchersRepo(ctx)
-	exec, resLog, err := r.Wi.Setup(ctx.Ctx, fr, "github.com", ctx.Repo.Owner, ctx.Repo.Name)
+	exec, resLog, err := r.Wi.Setup(ctx.Ctx, ctx.PrivateAccessToken, fr, "github.com", ctx.Repo.Owner, ctx.Repo.Name)
 	if err != nil {
 		return errors.Wrap(err, "failed to setup workspace")
 	}

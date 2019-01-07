@@ -25,7 +25,7 @@ RUN curl -sfL https://install.goreleaser.com/github.com/golangci/golangci-lint.s
 
 WORKDIR ${GOPATH}/src/github.com/golangci/golangci-api
 RUN git clone https://github.com/golangci/golangci-api.git . && \
-    git checkout 6ca91c7c462a4441397c61e5cb71949d69622e3f && \
+    git checkout afe3f1fb25f93da45777fd12b042e9671e905bee && \
     GO111MODULE=on go mod vendor && \
     go install ./cmd/buildrunner && \
     go install ./cmd/goenvbuild

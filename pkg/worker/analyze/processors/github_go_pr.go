@@ -336,7 +336,8 @@ func (g githubGoPR) Process(ctx context.Context) error {
 	g.setCommitStatus(ctx, github.StatusPending, "GolangCI is reviewing your Pull Request...")
 
 	startedAt := time.Now()
-	exec, resLog, err := g.workspaceInstaller.Setup(ctx, g.getRepo(), "github.com", g.context.Repo.Owner, g.context.Repo.Name) //nolint:govet
+	exec, resLog, err := g.workspaceInstaller.Setup(ctx, g.context.GithubAccessToken,
+		g.getRepo(), "github.com", g.context.Repo.Owner, g.context.Repo.Name) //nolint:govet
 	if err != nil {
 		analytics.Log(ctx).Warnf("Failed to setup workspace: %s", err)
 		publicError := fmt.Sprintf("failed to setup workspace: %s", err)

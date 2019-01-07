@@ -29,12 +29,18 @@ func NewGo(exec executors.Executor, log logutil.Log, repoFetcher fetchers.Fetche
 	}
 }
 
-func (w *Go) Setup(ctx context.Context, repo *fetchers.Repo, projectPathParts ...string) (executors.Executor, *result.Log, error) {
+func (w *Go) Setup(ctx context.Context, privateAccessToken string, repo *fetchers.Repo, projectPathParts ...string) (executors.Executor, *result.Log, error) {
 	if err := w.repoFetcher.Fetch(ctx, repo, w.exec); err != nil {
 		return nil, nil, errors.Wrap(err, "failed to fetch repo")
 	}
 
-	exec := w.exec.WithEnv("REPO", path.Join(projectPathParts...)).WithEnv("FORMAT_JSON", "1")
+	exec := w.exec.
+		WithEnv("REPO", path.Join(projectPathParts...)).
+		WithEnv("FORMAT_JSON", "1")
+	if privateAccessToken != "" {
+		exec = exec.WithEnv("PRIVATE_ACCESS_TOKEN", privateAccessToken)
+	}
+
 	out, err := exec.Run(ctx, "goenvbuild")
 	if err != nil {
 		return nil, nil, errors.Wrap(err, "goenvbuild failed")

@@ -155,6 +155,17 @@ func (p Preparer) run(needStreamToOutput bool) *result.Result {
 		return saveErr(err)
 	}
 
+	// setup git
+	privateAccessToken := p.cfg.GetString("PRIVATE_ACCESS_TOKEN")
+	if privateAccessToken != "" {
+		err = runStepGroup(res.Log, "setup git", func(sg *result.StepGroup, log logutil.Log) error {
+			return p.setupGit(ctx, sg, log, runner, privateAccessToken)
+		})
+		if err != nil {
+			return saveErr(err)
+		}
+	}
+
 	// prepare repo
 	err = runStepGroup(res.Log, "prepare repo", func(sg *result.StepGroup, log logutil.Log) error {
 		return p.runPreparation(ctx, sg, log, &res.ServiceConfig, projectPath, runner)
@@ -374,6 +385,19 @@ func (p Preparer) parseGolangciLintVersion(sg *result.StepGroup, log logutil.Log
 
 	log.Infof("No golangci-lint version in config, use default: %q", defaultVersion)
 	return v, nil
+}
+
+func (p Preparer) setupGit(ctx context.Context, sg *result.StepGroup, log logutil.Log,
+	runner *command.StreamingRunner, privateAccessToken string) error {
+
+	sg.AddStep("setup git overrides for GitHub private dependencies")
+	overridePattern := fmt.Sprintf(`url.https://%s@github.com/.insteadOf`, privateAccessToken)
+	_, err := runner.Run(ctx, "git", "config", "--global", overridePattern, "https://github.com/")
+	if err != nil {
+		return errors.Wrap(err, "failed to setup git overrides")
+	}
+
+	return nil
 }
 
 func (p Preparer) runPreparation(ctx context.Context, sg *result.StepGroup, log logutil.Log,

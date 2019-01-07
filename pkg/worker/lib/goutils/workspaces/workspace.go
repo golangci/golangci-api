@@ -9,5 +9,5 @@ import (
 )
 
 type Installer interface {
-	Setup(ctx context.Context, repo *fetchers.Repo, projectPathParts ...string) (executors.Executor, *result.Log, error)
+	Setup(ctx context.Context, privateAccessToken string, repo *fetchers.Repo, projectPathParts ...string) (executors.Executor, *result.Log, error)
 }
