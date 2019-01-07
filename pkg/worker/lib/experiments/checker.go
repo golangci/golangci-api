@@ -32,7 +32,7 @@ func (c Checker) parseConfigVarToBoolMap(k string) map[string]bool {
 	elemList := strings.Split(elems, ",")
 	ret := map[string]bool{}
 	for _, e := range elemList {
-		ret[e] = true
+		ret[strings.ToLower(e)] = true
 	}
 
 	return ret
@@ -42,13 +42,13 @@ func (c Checker) IsActiveForRepo(name string, owner, repo string) bool {
 	fullRepoName := fmt.Sprintf("%s/%s", owner, repo)
 
 	enabledRepos := c.parseConfigVarToBoolMap(c.getConfigKey(name, "repos"))
-	if enabledRepos[fullRepoName] {
+	if enabledRepos[strings.ToLower(fullRepoName)] {
 		c.log.Infof("Experiment %s is enabled for repo %s", name, fullRepoName)
 		return true
 	}
 
 	enabledOwners := c.parseConfigVarToBoolMap(c.getConfigKey(name, "owners"))
-	if enabledOwners[owner] {
+	if enabledOwners[strings.ToLower(owner)] {
 		c.log.Infof("Experiment %s is enabled for owner of repo %s", name, fullRepoName)
 		return true
 	}
