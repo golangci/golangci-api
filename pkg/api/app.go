@@ -207,7 +207,7 @@ func (a *App) buildDeps() {
 		a.policies.activeSub = policy.NewActiveSubscription(a.trackedLog, a.gormDB)
 	}
 	if a.policies.repo == nil {
-		a.policies.repo = policy.NewRepo(a.providerFactory, a.trackedLog, a.cache, a.authorizer)
+		a.policies.repo = policy.NewRepo(a.providerFactory, a.cfg, a.trackedLog, a.cache, a.authorizer)
 	}
 }
 

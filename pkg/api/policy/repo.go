@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/golangci/golangci-api/internal/shared/config"
+
 	"github.com/golangci/golangci-api/internal/api/apierrors"
 	"github.com/golangci/golangci-api/pkg/api/auth"
 	"github.com/golangci/golangci-api/pkg/api/request"
@@ -22,14 +24,16 @@ var ErrNoProviderRepoOrAccess = errors.New("no provider repo or access to it")
 
 type Repo struct {
 	pf         providers.Factory
+	cfg        config.Config
 	log        logutil.Log
 	cache      cache.Cache
 	authorizer *auth.Authorizer
 }
 
-func NewRepo(pf providers.Factory, log logutil.Log, cache cache.Cache, authorizer *auth.Authorizer) *Repo {
+func NewRepo(pf providers.Factory, cfg config.Config, log logutil.Log, cache cache.Cache, authorizer *auth.Authorizer) *Repo {
 	return &Repo{
 		pf:         pf,
+		cfg:        cfg,
 		log:        log,
 		cache:      cache,
 		authorizer: authorizer,
@@ -87,8 +91,15 @@ func (r Repo) CanReadPrivateRepo(rc *request.AnonymousContext, repo models.Unive
 		return apierrors.NewForbiddenError("NEED_PRIVATE_ACCESS_TOKEN_TO_ACCESS_PRIVATE_REPO")
 	}
 
+	// TODO: make proper error if providers of repo and auth don't match
 	if accessErr := r.CanRead(rc.Ctx, repo, au.Auth); accessErr != nil {
 		if accessErr == ErrNoProviderRepoOrAccess {
+			adminLogin := r.cfg.GetString("ADMIN_GITHUB_LOGIN")
+			if adminLogin != "" && au.Auth.Provider == "github.com" && au.Auth.Login == adminLogin {
+				r.log.Infof("Access repo %s as github admin user %s", repo.Owner(), repo.Repo(), adminLogin)
+				return nil
+			}
+
 			return apierrors.NewForbiddenError("NO_ACCESS_TO_PRIVATE_REPO_OR_DOESNT_EXIST")
 		}
 
