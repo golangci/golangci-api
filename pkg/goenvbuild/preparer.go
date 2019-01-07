@@ -159,7 +159,7 @@ func (p Preparer) run(needStreamToOutput bool) *result.Result {
 	privateAccessToken := p.cfg.GetString("PRIVATE_ACCESS_TOKEN")
 	if privateAccessToken != "" {
 		err = runStepGroup(res.Log, "setup git", func(sg *result.StepGroup, log logutil.Log) error {
-			return p.setupGit(ctx, sg, log, runner, privateAccessToken)
+			return p.setupGit(ctx, sg, runner, privateAccessToken)
 		})
 		if err != nil {
 			return saveErr(err)
@@ -387,7 +387,7 @@ func (p Preparer) parseGolangciLintVersion(sg *result.StepGroup, log logutil.Log
 	return v, nil
 }
 
-func (p Preparer) setupGit(ctx context.Context, sg *result.StepGroup, log logutil.Log,
+func (p Preparer) setupGit(ctx context.Context, sg *result.StepGroup,
 	runner *command.StreamingRunner, privateAccessToken string) error {
 
 	sg.AddStep("setup git overrides for GitHub private dependencies")
