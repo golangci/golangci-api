@@ -1,0 +1,1 @@
+ALTER TABLE repos ADD COLUMN create_fail_reason VARCHAR(128) NULL;

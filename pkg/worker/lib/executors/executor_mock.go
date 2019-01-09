@@ -5,9 +5,8 @@ package executors
 
 import (
 	context "context"
-	reflect "reflect"
-
 	gomock "github.com/golang/mock/gomock"
+	reflect "reflect"
 )
 
 // MockExecutor is a mock of Executor interface

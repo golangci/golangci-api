@@ -9,16 +9,17 @@ type Error struct {
 }
 
 type RepoInfo struct {
-	ID           uint   `json:"id"`
-	HookID       string `json:"hookId"` // needed only for tests
-	Name         string `json:"name"`
-	Organization string `json:"organization,omitempty"`
-	IsAdmin      bool   `json:"isAdmin"`
-	IsActivated  bool   `json:"isActivated,omitempty"`
-	IsPrivate    bool   `json:"isPrivate,omitempty"`
-	IsCreating   bool   `json:"isCreating,omitempty"`
-	IsDeleting   bool   `json:"isDeleting,omitempty"`
-	Language     string `json:"language,omitempty"`
+	ID               uint   `json:"id"`
+	HookID           string `json:"hookId"` // needed only for tests
+	Name             string `json:"name"`
+	Organization     string `json:"organization,omitempty"`
+	IsAdmin          bool   `json:"isAdmin"`
+	IsActivated      bool   `json:"isActivated,omitempty"`
+	IsPrivate        bool   `json:"isPrivate,omitempty"`
+	IsCreating       bool   `json:"isCreating,omitempty"`
+	IsDeleting       bool   `json:"isDeleting,omitempty"`
+	Language         string `json:"language,omitempty"`
+	CreateFailReason string `json:"createFailReason,omitempty"`
 }
 
 type WrappedRepoInfo struct {

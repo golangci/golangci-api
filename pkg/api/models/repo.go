@@ -1,6 +1,7 @@
 package models
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 
@@ -22,6 +23,9 @@ const (
 	RepoCommitStateCreateCreatedRepo RepoCommitState = "create/created_repo"
 	RepoCommitStateCreateDone        RepoCommitState = "create/done"
 
+	RepoCommitStateCreateRollbackInit RepoCommitState = "create/rollback/init"
+	RepoCommitStateCreateRollbackDone RepoCommitState = "create/rollback/done"
+
 	RepoCommitStateDeleteInit        RepoCommitState = "delete/init"
 	RepoCommitStateDeleteSentToQueue RepoCommitState = "delete/sent_to_queue"
 	RepoCommitStateDeleteDone        RepoCommitState = "delete/done"
@@ -33,11 +37,12 @@ func (s RepoCommitState) IsDeleteState() bool {
 
 func (s RepoCommitState) IsCreateState() bool {
 	return s == RepoCommitStateCreateInit || s == RepoCommitStateCreateSentToQueue ||
-		s == RepoCommitStateCreateCreatedRepo || s == RepoCommitStateCreateDone
+		s == RepoCommitStateCreateCreatedRepo || s == RepoCommitStateCreateDone ||
+		s == RepoCommitStateCreateRollbackInit || s == RepoCommitStateCreateRollbackDone
 }
 
-func (s RepoCommitState) IsDone() bool {
-	return s == RepoCommitStateDeleteDone || s == RepoCommitStateCreateDone
+func (s RepoCommitState) IsTerminalState() bool {
+	return s == RepoCommitStateDeleteDone || s == RepoCommitStateCreateDone || s == RepoCommitStateCreateRollbackDone
 }
 
 //gen:qs
@@ -61,6 +66,8 @@ type Repo struct {
 
 	StargazersCount int
 	IsPrivate       bool
+
+	CreateFailReason string
 }
 
 func (r *Repo) Owner() string {
@@ -80,9 +87,22 @@ func (r *Repo) GoString() string {
 }
 
 func (r Repo) IsDeleting() bool {
-	return r.CommitState.IsDeleteState() && !r.CommitState.IsDone()
+	return r.CommitState.IsDeleteState() && !r.CommitState.IsTerminalState()
 }
 
 func (r Repo) IsCreating() bool {
-	return r.CommitState.IsCreateState() && !r.CommitState.IsDone()
+	return r.CommitState.IsCreateState() && !r.CommitState.IsTerminalState()
+}
+
+func (u RepoUpdater) UpdateRequired() error {
+	n, err := u.UpdateNum()
+	if err != nil {
+		return err
+	}
+
+	if n == 0 {
+		return errors.New("repo was changed in parallel request")
+	}
+
+	return nil
 }

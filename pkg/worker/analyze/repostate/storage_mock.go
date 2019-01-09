@@ -5,9 +5,8 @@ package repostate
 
 import (
 	context "context"
-	reflect "reflect"
-
 	gomock "github.com/golang/mock/gomock"
+	reflect "reflect"
 )
 
 // MockStorage is a mock of Storage interface

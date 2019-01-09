@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"time"
 
 	"github.com/golangci/golangci-api/internal/shared/config"
 	"github.com/golangci/golangci-api/internal/shared/db/gormdb"
@@ -72,6 +73,8 @@ func (cc CreatorConsumer) createHook(ctx context.Context, repo *models.Repo, p p
 	// List hooks because they could be created in previous run: make run idempotent
 	hooks, err := p.ListRepoHooks(ctx, repo.Owner(), repo.Repo())
 	if err != nil {
+		// TODO: check here and everywhere in this module for
+		// unrecoverable provider errors: not found, no auth
 		return errors.Wrap(err, "failed to list repo hooks")
 	}
 
@@ -121,22 +124,47 @@ func (cc CreatorConsumer) run(ctx context.Context, m *createMessage, gormDB *gor
 		return errors.Wrap(err, "failed to build provider")
 	}
 
-	switch repo.CommitState {
-	case models.RepoCommitStateCreateInit, models.RepoCommitStateCreateSentToQueue:
-		if err := cc.createRepo(ctx, &repo, gormDB, provider); err != nil {
-			return errors.Wrap(err, "failed to create repo")
+	return cc.processStates(ctx, &repo, gormDB, provider)
+}
+
+//nolint:gocyclo
+func (cc CreatorConsumer) processStates(ctx context.Context, repo *models.Repo, gormDB *gorm.DB, p provider.Provider) error {
+	for {
+		cc.log.Infof("Repo creation: handling state %s", repo.CommitState)
+		switch repo.CommitState {
+		case models.RepoCommitStateCreateInit, models.RepoCommitStateCreateSentToQueue:
+			if err := cc.createRepo(ctx, repo, gormDB, p); err != nil {
+				if !provider.IsPermanentError(err) {
+					return errors.Wrap(err, "failed to create repo")
+				}
+
+				cc.log.Warnf("Failed to create repo %s: permanent provider error %s: rollbacking it",
+					repo.FullName, err)
+				if uErr := cc.markRepoForRollback(repo, gormDB, err); uErr != nil {
+					return errors.Wrap(uErr, "failed to mark repo for rollback")
+				}
+
+				// handle RepoCommitStateCreateRollbackInit in the next iteration
+				continue
+			}
+			continue
+		case models.RepoCommitStateCreateCreatedRepo:
+			if err := cc.createRepoAnalysisStatus(ctx, repo, gormDB, p); err != nil {
+				return errors.Wrap(err, "failed to create repo analysis status")
+			}
+			continue
+		case models.RepoCommitStateCreateDone:
+			return nil // terminal state
+		case models.RepoCommitStateCreateRollbackInit:
+			if err := cc.rollbackRepo(repo, gormDB); err != nil {
+				return errors.Wrap(err, "failed to rollback repo")
+			}
+			continue
+		case models.RepoCommitStateCreateRollbackDone:
+			return nil // terminal state
+		default:
+			return fmt.Errorf("invalid repo commit state %s for repo %#v", repo.CommitState, repo)
 		}
-		fallthrough
-	case models.RepoCommitStateCreateCreatedRepo:
-		if err := cc.createRepoAnalysisStatus(ctx, &repo, gormDB, provider); err != nil {
-			return errors.Wrap(err, "failed to create repo analysis status")
-		}
-		return nil
-	case models.RepoCommitStateCreateDone:
-		cc.log.Warnf("Got repo with commit state %s: %#v", repo.CommitState, repo)
-		return nil
-	default:
-		return fmt.Errorf("invalid repo commit state %s for repo %#v", repo.CommitState, repo)
 	}
 }
 
@@ -207,19 +235,7 @@ func (cc CreatorConsumer) createRepoAnalysisStatus(ctx context.Context, r *model
 		}
 	}
 
-	n, err := models.NewRepoQuerySet(db).IDEq(r.ID).
-		CommitStateEq(models.RepoCommitStateCreateCreatedRepo).
-		GetUpdater().
-		SetCommitState(models.RepoCommitStateCreateDone).
-		UpdateNum()
-	if err != nil {
-		return errors.Wrapf(err, "failed to update repo with id %d", r.ID)
-	}
-	if n != 1 {
-		return fmt.Errorf("race condition during update repo with id %d", r.ID)
-	}
-
-	return nil
+	return cc.updateRepoCommitState(r, db, models.RepoCommitStateCreateDone)
 }
 
 func (cc CreatorConsumer) createRepo(ctx context.Context, repo *models.Repo,
@@ -229,19 +245,67 @@ func (cc CreatorConsumer) createRepo(ctx context.Context, repo *models.Repo,
 		return err
 	}
 
-	n, err := models.NewRepoQuerySet(gormDB).IDEq(repo.ID).
+	nextState := models.RepoCommitStateCreateCreatedRepo
+	err := models.NewRepoQuerySet(gormDB).IDEq(repo.ID).
 		CommitStateIn(models.RepoCommitStateCreateInit, models.RepoCommitStateCreateSentToQueue).
 		GetUpdater().
 		SetProviderHookID(repo.ProviderHookID).
-		SetCommitState(models.RepoCommitStateCreateCreatedRepo).
-		UpdateNum()
+		SetCommitState(nextState).
+		UpdateRequired()
 	if err != nil {
 		return errors.Wrapf(err, "failed to update repo with id %d", repo.ID)
 	}
-	if n != 1 {
-		return fmt.Errorf("race condition during update repo with id %d, n=%d", repo.ID, n)
+
+	repo.CommitState = nextState
+	return nil
+}
+
+func (cc CreatorConsumer) updateRepoCommitState(repo *models.Repo, gormDB *gorm.DB, state models.RepoCommitState) error {
+	prevState := repo.CommitState
+	err := models.NewRepoQuerySet(gormDB).IDEq(repo.ID).
+		CommitStateEq(prevState).
+		GetUpdater().
+		SetCommitState(state).
+		UpdateRequired()
+	if err != nil {
+		return errors.Wrapf(err, "failed to update repo with id %d", repo.ID)
 	}
 
+	repo.CommitState = state
+	return nil
+}
+
+func (cc CreatorConsumer) markRepoForRollback(repo *models.Repo, gormDB *gorm.DB, sourceErr error) error {
+	nextState := models.RepoCommitStateCreateRollbackInit
+	err := models.NewRepoQuerySet(gormDB).IDEq(repo.ID).
+		CommitStateIn(models.RepoCommitStateCreateInit, models.RepoCommitStateCreateSentToQueue).
+		GetUpdater().
+		SetCreateFailReason(errors.Cause(sourceErr).Error()).
+		SetCommitState(nextState).
+		UpdateRequired()
+	if err != nil {
+		return errors.Wrapf(err, "failed to update repo with id %d", repo.ID)
+	}
+
+	repo.CommitState = nextState
+	return nil
+}
+
+func (cc CreatorConsumer) rollbackRepo(repo *models.Repo, gormDB *gorm.DB) error {
+
+	nextState := models.RepoCommitStateCreateRollbackDone
+	now := time.Now()
+	err := models.NewRepoQuerySet(gormDB).IDEq(repo.ID).
+		CommitStateEq(models.RepoCommitStateCreateRollbackInit).
+		GetUpdater().
+		SetCommitState(nextState).
+		SetDeletedAt(&now).
+		UpdateRequired()
+	if err != nil {
+		return errors.Wrapf(err, "failed to update repo with id %d", repo.ID)
+	}
+
+	repo.CommitState = nextState
 	return nil
 }
 

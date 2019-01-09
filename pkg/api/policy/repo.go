@@ -96,7 +96,7 @@ func (r Repo) CanReadPrivateRepo(rc *request.AnonymousContext, repo models.Unive
 		if accessErr == ErrNoProviderRepoOrAccess {
 			adminLogin := r.cfg.GetString("ADMIN_GITHUB_LOGIN")
 			if adminLogin != "" && au.Auth.Provider == "github.com" && au.Auth.Login == adminLogin {
-				r.log.Infof("Access repo %s as github admin user %s", repo.Owner(), repo.Repo(), adminLogin)
+				r.log.Infof("Access repo %s/%s as github admin user %s", repo.Owner(), repo.Repo(), adminLogin)
 				return nil
 			}
 

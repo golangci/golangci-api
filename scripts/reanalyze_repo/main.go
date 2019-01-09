@@ -64,5 +64,10 @@ func restartAnalysis(db *gorm.DB, repo *models.Repo, runQueue *repoanalyzesqueue
 		return errors.Wrap(err, "can't get repo analysis")
 	}
 
-	return runQueue.Put(repo.FullName, a.AnalysisGUID, as.DefaultBranch, "")
+	var auth models.Auth
+	if err := models.NewAuthQuerySet(db).UserIDEq(repo.UserID).One(&auth); err != nil {
+		return errors.Wrap(err, "can't get auth")
+	}
+
+	return runQueue.Put(repo.FullName, a.AnalysisGUID, as.DefaultBranch, auth.PrivateAccessToken)
 }
