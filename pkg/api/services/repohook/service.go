@@ -122,18 +122,18 @@ func (s BasicService) handleGithubPullRequestWebhook(rc *request.AnonymousContex
 	}
 
 	setCommitStatus := func(state github.Status, desc string) error {
-		err := p.SetCommitStatus(rc.Ctx, repo.Owner(), repo.Repo(), ev.Head.CommitSHA, &provider.CommitStatus{
+		commitErr := p.SetCommitStatus(rc.Ctx, repo.Owner(), repo.Repo(), ev.Head.CommitSHA, &provider.CommitStatus{
 			State:       string(state),
 			Description: desc,
 			Context:     s.Cfg.GetString("APP_NAME"),
 		})
-		if err != nil {
-			if err == provider.ErrUnauthorized || err == provider.ErrNotFound {
-				rc.Log.Warnf("Can't set github commit status to '%s', skipping webhook: %s", desc, err)
+		if commitErr != nil {
+			if commitErr == provider.ErrUnauthorized || commitErr == provider.ErrNotFound {
+				rc.Log.Warnf("Can't set github commit status to '%s', skipping webhook: %s", desc, commitErr)
 				return errSkipWehbook
 			}
 
-			return errors.Wrap(err, "failed to set commit status")
+			return errors.Wrap(commitErr, "failed to set commit status")
 		}
 
 		return nil
