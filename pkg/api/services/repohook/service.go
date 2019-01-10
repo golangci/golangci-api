@@ -43,6 +43,8 @@ type Service interface {
 	HandleGithubWebhook(rc *request.AnonymousContext, reqRepo *GithubWebhook, body request.Body) error
 }
 
+var errSkipWehbook = errors.New("skip webhook")
+
 type BasicService struct {
 	ProviderFactory       providers.Factory
 	AnalysisLauncherQueue *repoanalyzes.LauncherProducer
@@ -72,11 +74,19 @@ func (s BasicService) HandleGithubWebhook(rc *request.AnonymousContext, req *Git
 	switch eventType {
 	case "pull_request":
 		if err := s.handleGithubPullRequestWebhook(rc, &repo, req, body); err != nil {
+			if errors.Cause(err) == errSkipWehbook {
+				return nil
+			}
+
 			return errors.Wrapf(err, "failed to handle github %s webhook", eventType)
 		}
 		return nil
 	case "push":
 		if err := s.handleGithubPushWebhook(rc, &repo, body); err != nil {
+			if errors.Cause(err) == errSkipWehbook {
+				return nil
+			}
+
 			return errors.Wrapf(err, "failed to handle github %s webhook", eventType)
 		}
 		return nil
@@ -108,19 +118,37 @@ func (s BasicService) handleGithubPullRequestWebhook(rc *request.AnonymousContex
 
 	if ev.Action != provider.Opened && ev.Action != provider.Synchronized {
 		rc.Log.Infof("Got github webhook with action %s, skip it", ev.Action)
+		return errSkipWehbook
+	}
+
+	setCommitStatus := func(state github.Status, desc string) error {
+		err := p.SetCommitStatus(rc.Ctx, repo.Owner(), repo.Repo(), ev.Head.CommitSHA, &provider.CommitStatus{
+			State:       string(state),
+			Description: desc,
+			Context:     s.Cfg.GetString("APP_NAME"),
+		})
+		if err != nil {
+			if err == provider.ErrUnauthorized || err == provider.ErrNotFound {
+				rc.Log.Warnf("Can't set github commit status to '%s', skipping webhook: %s", desc, err)
+				return errSkipWehbook
+			}
+
+			return errors.Wrap(err, "failed to set commit status")
+		}
+
 		return nil
 	}
 
 	if ev.Repo.IsPrivate {
 		if err = s.ActiveSubPolicy.CheckForProviderPullRequestEvent(rc.Ctx, p, ev); err != nil {
 			if errors.Cause(err) == policy.ErrNoActiveSubscription {
-				rc.Log.Warnf("Got PR to %s with no active subscription: %s", repo.FullName, err)
-				return nil // TODO(d.isaev): set proper error status and notify
+				rc.Log.Warnf("Got PR to %s with no active subscription, skip it: %s", repo.FullName, err)
+				return setCommitStatus(github.StatusError, "No active paid subscription for the private repo")
 			}
 
 			if errors.Cause(err) == policy.ErrNoSeatInSubscription {
-				rc.Log.Warnf("Got PR to %s without matched private seat: %s", repo.FullName, err)
-				return nil // TODO(d.isaev): set proper error status and notify
+				rc.Log.Warnf("Got PR to %s without matched private seat, skip it: %s", repo.FullName, err)
+				return setCommitStatus(github.StatusError, "Git author's email wasn't configured in GolangCI")
 			}
 
 			return err
@@ -135,18 +163,9 @@ func (s BasicService) handleGithubPullRequestWebhook(rc *request.AnonymousContex
 		return err
 	}
 
-	err = p.SetCommitStatus(rc.Ctx, repo.Owner(), repo.Repo(), analysis.CommitSHA, &provider.CommitStatus{
-		State:       string(github.StatusPending),
-		Description: "Waiting in queue...",
-		Context:     s.Cfg.GetString("APP_NAME"),
-	})
+	err = setCommitStatus(github.StatusPending, "Waiting in queue...")
 	if err != nil {
-		if err == provider.ErrUnauthorized || err == provider.ErrNotFound {
-			rc.Log.Warnf("Can't set github commit status to 'pending in queue', skipping webhook: %s", err)
-			return nil
-		}
-
-		return errors.Wrap(err, "failed to set commit status")
+		return err
 	}
 
 	githubCtx := github.Context{
@@ -164,7 +183,7 @@ func (s BasicService) handleGithubPullRequestWebhook(rc *request.AnonymousContex
 		AnalysisGUID: analysis.GithubDeliveryGUID,
 	}
 	if err = s.PullAnalyzeQueue.Put(&msg); err != nil {
-		return errors.Wrap(err, "can't send pull request for analysis into queue: %s")
+		return errors.Wrap(err, "can't send pull request for analysis into queue")
 	}
 
 	rc.Log.Infof("Sent task to pull request analyze queue")
@@ -217,15 +236,16 @@ func (s BasicService) handleGithubPushWebhook(rc *request.AnonymousContext, repo
 	}
 
 	if payload.GetRepo().GetDefaultBranch() == "" {
-		rc.Log.Errorf("Got push webhook without default branch: %+v, %+v",
+		rc.Log.Errorf("Got push webhook without default branch, skip it: %+v, %+v",
 			payload.GetRepo(), payload)
-		return nil
+		return errSkipWehbook
 	}
 
 	if payload.GetRepo().GetPrivate() {
 		if err := s.checkSubscription(rc, repo); err != nil {
 			// TODO: render message about inactive sub and send notification
-			return errors.Wrap(err, "failed to check subscription")
+			rc.Log.Warnf("Failed to check subscription for push webhook, skip it: %s", err)
+			return errSkipWehbook
 		}
 	}
 
@@ -233,7 +253,7 @@ func (s BasicService) handleGithubPushWebhook(rc *request.AnonymousContext, repo
 	if branch != payload.GetRepo().GetDefaultBranch() {
 		rc.Log.Infof("Got push webhook for branch %s, but default branch is %s, skip it",
 			branch, payload.GetRepo().GetDefaultBranch())
-		return nil
+		return errSkipWehbook
 	}
 
 	// TODO: update default branch if changed

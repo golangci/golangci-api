@@ -377,6 +377,15 @@ func (p Github) ParsePullRequestEvent(ctx context.Context, payload []byte) (*pro
 	pr := ghEvent.GetPullRequest()
 	repo := ghEvent.GetRepo()
 
+	owner := repo.GetOwner().GetLogin()
+	name := repo.GetName()
+	if owner == "" {
+		return nil, errors.New("no repo owner in event")
+	}
+	if name == "" {
+		return nil, errors.New("no repo name in event")
+	}
+
 	// don't extract repo just as parseGithubRepository(ghEvent.GetRepo(), true)
 	// because ghEvent.GetRepo() doesn't contain organization info
 	fetchedRepo, err := p.GetRepoByName(ctx, repo.GetOwner().GetLogin(), repo.GetName())

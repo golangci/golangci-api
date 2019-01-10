@@ -13,7 +13,9 @@ var mixpanelClientOnce sync.Once
 func GetMixpanelClient() mixpanel.Mixpanel {
 	mixpanelClientOnce.Do(func() {
 		apiKey := os.Getenv("MIXPANEL_API_KEY")
-		mixpanelClient = mixpanel.New(apiKey, "")
+		if apiKey != "" {
+			mixpanelClient = mixpanel.New(apiKey, "")
+		}
 	})
 
 	return mixpanelClient

@@ -8,6 +8,7 @@ import (
 	"log"
 	"math/rand"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/pkg/errors"
@@ -71,6 +72,7 @@ func main() {
 }
 
 func emulatePullRequestWebhook(repoName, commitSHA, hookID string, prNumber int, isProd, isPrivate bool) error {
+	nameParts := strings.Split(repoName, "/")
 	payload := gh.PullRequestEvent{
 		Action: gh.String("opened"),
 		PullRequest: &gh.PullRequest{
@@ -82,6 +84,10 @@ func emulatePullRequestWebhook(repoName, commitSHA, hookID string, prNumber int,
 		Repo: &gh.Repository{
 			FullName: &repoName,
 			Private:  &isPrivate,
+			Owner: &gh.User{
+				Login: gh.String(nameParts[0]),
+			},
+			Name: gh.String(nameParts[1]),
 		},
 	}
 
