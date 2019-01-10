@@ -66,7 +66,8 @@ func (r Restarter) runIteration(repoAnalysisTimeout time.Duration) error {
 		return nil
 	}
 
-	const maxAttemptsCount = 10
+	// TODO: remove this Restarter completely and use SQS retry mechanism
+	const maxAttemptsCount = 3
 
 	for _, a := range analyzes {
 		if a.AttemptNumber >= maxAttemptsCount {
