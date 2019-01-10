@@ -83,7 +83,7 @@ func (s ActiveSubscription) doesCommitAuthorHaveActiveSub(ca *provider.CommitAut
 	}
 
 	for _, paidSeat := range paidSeats {
-		if strings.ToLower(paidSeat.Email) == strings.ToLower(ca.Email) {
+		if strings.EqualFold(paidSeat.Email, ca.Email) {
 			s.log.Infof("Matched commit %v by seat %v", ca, paidSeat)
 			return true
 		}

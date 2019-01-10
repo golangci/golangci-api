@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"strings"
 
 	"github.com/golangci/golangci-api/internal/api/apierrors"
 	"github.com/golangci/golangci-api/internal/shared/logutil"
@@ -74,11 +75,18 @@ func (p Github) client(ctx context.Context) *github.Client {
 
 func (p Github) unwrapError(err error) error {
 	if er, ok := err.(*github.ErrorResponse); ok {
-		if er.Response.StatusCode == http.StatusNotFound {
+		respCode := er.Response.StatusCode
+		if respCode == http.StatusNotFound {
 			return provider.ErrNotFound
 		}
-		if er.Response.StatusCode == http.StatusUnauthorized {
+		if respCode == http.StatusUnauthorized {
 			return provider.ErrUnauthorized
+		}
+		if respCode == http.StatusForbidden {
+			if strings.Contains(er.Message, "Repository was archived") {
+				// usually it contains "Repository was archived so is read-only."
+				return provider.ErrRepoWasArchived
+			}
 		}
 	}
 

@@ -24,7 +24,7 @@ type User struct {
 func (ta App) newHTTPExpect(t *testing.T) *httpexpect.Expect {
 	httpClient := &http.Client{
 		Jar: httpexpect.NewJar(),
-		CheckRedirect: func(req *http.Request, via []*http.Request) error {
+		CheckRedirect: func(req *http.Request, _ []*http.Request) error {
 			isRedirectToFakeGithub := strings.HasPrefix(req.URL.String(), ta.fakeGithubServer.URL)
 			if isRedirectToFakeGithub || strings.HasPrefix(req.URL.Path, "/v1/auth/github") {
 				return nil // follow redirect

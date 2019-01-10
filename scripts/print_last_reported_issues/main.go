@@ -42,6 +42,7 @@ func printLastReportedIssues() error {
 	}
 
 	duration := cfg.GetDuration("REPORT_DURATION", 3*24*time.Hour)
+	log.Infof("Printing info for last %s", duration)
 	analyzeAfterCreatedAt := time.Now().Add(-duration)
 
 	var pullAnalyzes []models.PullRequestAnalysis
@@ -52,6 +53,7 @@ func printLastReportedIssues() error {
 	if err != nil {
 		return errors.Wrap(err, "failed to get pull analyzes")
 	}
+	log.Infof("Fetched %d analyzes, mapping them to pull requests...", len(pullAnalyzes))
 
 	pullToAnalyzes := map[string]*pull{}
 	for _, a := range pullAnalyzes {

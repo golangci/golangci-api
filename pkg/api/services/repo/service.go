@@ -88,14 +88,15 @@ func (s BasicService) sendToCreateQueue(rc *request.AuthorizedContext, repo *mod
 func (s BasicService) buildResponseRepo(repo *models.Repo) *returntypes.WrappedRepoInfo {
 	return &returntypes.WrappedRepoInfo{
 		Repo: returntypes.RepoInfo{
-			ID:           repo.ID,
-			Name:         repo.DisplayFullName,
-			HookID:       repo.HookID,
-			Organization: repo.Owner(),
-			IsAdmin:      true, // otherwise can't create or delete, it's checked
-			IsDeleting:   repo.IsDeleting(),
-			IsCreating:   repo.IsCreating(),
-			IsActivated:  repo.DeletedAt == nil,
+			ID:               repo.ID,
+			Name:             repo.DisplayFullName,
+			HookID:           repo.HookID,
+			Organization:     repo.Owner(),
+			IsAdmin:          true, // otherwise can't create or delete, it's checked
+			IsDeleting:       repo.IsDeleting(),
+			IsCreating:       repo.IsCreating(),
+			IsActivated:      repo.DeletedAt == nil,
+			CreateFailReason: repo.CreateFailReason,
 		},
 	}
 }
@@ -345,7 +346,7 @@ func (s BasicService) startDelete(rc *request.AuthorizedContext, repo *models.Re
 		return nil, err
 	}
 
-	rc.Log.Infof("Deleted repo %s", repo.FullName)
+	rc.Log.Infof("Sent repo %s to delete queue", repo.FullName)
 	return ret, nil
 }
 

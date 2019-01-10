@@ -19,7 +19,7 @@ func NewRedis(redisURL string) *Redis {
 		pool: &redis.Pool{
 			MaxIdle:     10,
 			IdleTimeout: 240 * time.Second,
-			TestOnBorrow: func(c redis.Conn, t time.Time) error {
+			TestOnBorrow: func(c redis.Conn, _ time.Time) error {
 				_, pingErr := c.Do("PING")
 				return pingErr
 			},
