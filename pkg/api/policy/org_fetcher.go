@@ -16,7 +16,7 @@ type orgFetcher struct {
 	cfg   config.Config
 }
 
-func (of orgFetcher) fetch(rc *request.AuthorizedContext, p provider.Provider, orgName string) (*provider.Org, error) {
+func (of orgFetcher) fetch(rc *request.AuthorizedContext, p provider.Provider, orgName string) (*provider.OrgMembership, error) {
 	providerOrg, fromCache, err := of.fetchCached(rc, true, p, orgName)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to fetch org from cached provider")
@@ -35,11 +35,11 @@ func (of orgFetcher) fetch(rc *request.AuthorizedContext, p provider.Provider, o
 }
 
 func (of orgFetcher) fetchCached(rc *request.AuthorizedContext, useCache bool,
-	p provider.Provider, orgName string) (*provider.Org, bool, error) {
+	p provider.Provider, orgName string) (*provider.OrgMembership, bool, error) {
 
 	key := fmt.Sprintf("orgs/%s/fetch?user_id=%d&org_name=%s&v=1", p.Name(), rc.Auth.UserID, orgName)
 
-	var org *provider.Org
+	var org *provider.OrgMembership
 	if useCache {
 		if err := of.cache.Get(key, &org); err != nil {
 			rc.Log.Warnf("Can't fetch org from cache by key %s: %s", key, err)
@@ -71,8 +71,8 @@ func (of orgFetcher) fetchCached(rc *request.AuthorizedContext, useCache bool,
 	return org, false, nil
 }
 
-func (of orgFetcher) fetchFromProvider(rc *request.AuthorizedContext, p provider.Provider, orgName string) (*provider.Org, error) {
-	org, err := p.GetOrgByName(rc.Ctx, orgName)
+func (of orgFetcher) fetchFromProvider(rc *request.AuthorizedContext, p provider.Provider, orgName string) (*provider.OrgMembership, error) {
+	org, err := p.GetOrgMembershipByName(rc.Ctx, orgName)
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to fetch org from provider by name %s", orgName)
 	}

@@ -36,24 +36,34 @@ func (f Factory) BuildAuthorizer(providerName string, isPrivate bool) (*Authoriz
 		cbURL += "public"
 	}
 
+	key := f.cfg.GetString("GITHUB_KEY")
+	secret := f.cfg.GetString("GITHUB_SECRET")
+	cbHost := f.cfg.GetString("GITHUB_CALLBACK_HOST")
+
+	if key == "" || secret == "" || cbHost == "" {
+		return nil, fmt.Errorf("not all required GITHUB_* config params are set")
+	}
+
+	var scopes []string
+
 	if isPrivate {
-		provider := github.New(
-			f.cfg.GetString("GITHUB_KEY"),
-			f.cfg.GetString("GITHUB_SECRET"),
-			f.cfg.GetString("GITHUB_CALLBACK_HOST")+cbURL,
+		scopes = []string{
 			"user:email",
 			"repo",
 			//"read:org", // TODO(d.isaev): add it gracefully: save enabled grants to db and re-authorize only on needed page for needed users
-		)
-		return NewAuthorizer(providerName, provider, f.sessFactory, f.log), nil
+		}
+	} else {
+		scopes = []string{
+			"user:email",
+			"public_repo",
+		}
 	}
 
 	provider := github.New(
-		f.cfg.GetString("GITHUB_KEY"),
-		f.cfg.GetString("GITHUB_SECRET"),
-		f.cfg.GetString("GITHUB_CALLBACK_HOST")+cbURL,
-		"user:email",
-		"public_repo",
+		key,
+		secret,
+		cbHost+cbURL,
+		scopes...,
 	)
 	return NewAuthorizer(providerName, provider, f.sessFactory, f.log), nil
 }

@@ -26,10 +26,12 @@ make run_dev
 Configurate via `.env` file. Dev `.env` may be like this:
 ```
 WEB_ROOT="https://dev.golangci.com"
+API_URL="https://api.golangci.com"
 GITHUB_CALLBACK_HOST=https://api.dev.golangci.com
 DATABASE_URL="postgresql://postgres:test@localhost:5432/api_prod?sslmode=disable"
 REDIS_URL="redis://127.0.0.1:6379"
 PORT=3000
+APP_NAME="GolangCI Dev"
 ```
 
 Tests need `.env.test` file, overriding options from `.env`. There can be something like this:

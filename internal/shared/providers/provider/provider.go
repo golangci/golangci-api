@@ -17,15 +17,14 @@ type Provider interface {
 	GetRepoByName(ctx context.Context, owner, repo string) (*Repo, error)
 	GetPullRequest(ctx context.Context, owner, repo string, number int) (*PullRequest, error)
 
-	GetOrgByName(ctx context.Context, org string) (*Org, error)
-	GetOrgByID(ctx context.Context, orgID int) (*Org, error)
+	GetOrgMembershipByName(ctx context.Context, org string) (*OrgMembership, error)
 
 	ListRepoHooks(ctx context.Context, owner, repo string) ([]Hook, error)
 	CreateRepoHook(ctx context.Context, owner, repo string, hook *HookConfig) (*Hook, error)
 	DeleteRepoHook(ctx context.Context, owner, repo string, hookID int) error
 
 	ListRepos(ctx context.Context, cfg *ListReposConfig) ([]Repo, error)
-	ListOrgs(ctx context.Context, cfg *ListOrgsConfig) ([]Org, error)
+	ListOrgMemberships(ctx context.Context, cfg *ListOrgsConfig) ([]OrgMembership, error)
 
 	ListPullRequestCommits(ctx context.Context, owner, repo string, number int) ([]*Commit, error)
 	SetCommitStatus(ctx context.Context, owner, repo, ref string, status *CommitStatus) error

@@ -2,7 +2,7 @@ package provider
 
 import "strings"
 
-type Org struct {
+type OrgMembership struct {
 	ID      int
 	Name    string
 	IsAdmin bool

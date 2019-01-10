@@ -130,8 +130,8 @@ func parseGithubPullRequestBranch(b *github.PullRequestBranch) *provider.Branch 
 	}
 }
 
-func parseGithubOrganization(m *github.Membership) *provider.Org {
-	return &provider.Org{
+func parseGithubOrgMembership(m *github.Membership) *provider.OrgMembership {
+	return &provider.OrgMembership{
 		ID:      m.GetOrganization().GetID(),
 		Name:    m.GetOrganization().GetLogin(),
 		IsAdmin: m.GetRole() == "admin" && m.GetState() == "active",
@@ -147,22 +147,13 @@ func (p Github) GetRepoByName(ctx context.Context, owner, repo string) (*provide
 	return parseGithubRepository(r, true), nil
 }
 
-func (p Github) GetOrgByName(ctx context.Context, org string) (*provider.Org, error) {
+func (p Github) GetOrgMembershipByName(ctx context.Context, org string) (*provider.OrgMembership, error) {
 	m, _, err := p.client(ctx).Organizations.GetOrgMembership(ctx, "", org)
 	if err != nil {
 		return nil, p.unwrapError(err)
 	}
 
-	return parseGithubOrganization(m), nil
-}
-
-func (p Github) GetOrgByID(ctx context.Context, orgID int) (*provider.Org, error) {
-	o, _, err := p.client(ctx).Organizations.GetByID(ctx, orgID)
-	if err != nil {
-		return nil, p.unwrapError(err)
-	}
-
-	return p.GetOrgByName(ctx, o.GetName())
+	return parseGithubOrgMembership(m), nil
 }
 
 func (p Github) parseHook(h *github.Hook) *provider.Hook {
@@ -327,7 +318,7 @@ func (p Github) ListRepos(ctx context.Context, cfg *provider.ListReposConfig) ([
 	return ret, nil
 }
 
-func (p Github) ListOrgs(ctx context.Context, cfg *provider.ListOrgsConfig) ([]provider.Org, error) {
+func (p Github) ListOrgMemberships(ctx context.Context, cfg *provider.ListOrgsConfig) ([]provider.OrgMembership, error) {
 	opts := github.ListOrgMembershipsOptions{
 		State: cfg.MembershipState,
 		ListOptions: github.ListOptions{
@@ -335,7 +326,7 @@ func (p Github) ListOrgs(ctx context.Context, cfg *provider.ListOrgsConfig) ([]p
 		},
 	}
 
-	var ret []provider.Org
+	var ret []provider.OrgMembership
 	for {
 		pageMemberships, resp, err := p.client(ctx).Organizations.ListOrgMemberships(ctx, &opts)
 		if err != nil {
@@ -343,7 +334,7 @@ func (p Github) ListOrgs(ctx context.Context, cfg *provider.ListOrgsConfig) ([]p
 		}
 
 		for _, m := range pageMemberships {
-			ret = append(ret, *parseGithubOrganization(m))
+			ret = append(ret, *parseGithubOrgMembership(m))
 		}
 
 		if resp.NextPage == 0 { // it's the last page

@@ -64,16 +64,9 @@ func (p StableProvider) GetRepoByName(ctx context.Context, owner, repo string) (
 	return
 }
 
-func (p StableProvider) GetOrgByName(ctx context.Context, org string) (retOrg *provider.Org, err error) {
+func (p StableProvider) GetOrgMembershipByName(ctx context.Context, org string) (retOrg *provider.OrgMembership, err error) {
 	p.retryVoid(func() {
-		retOrg, err = p.underlying.GetOrgByName(ctx, org)
-	})
-	return
-}
-
-func (p StableProvider) GetOrgByID(ctx context.Context, orgID int) (retOrg *provider.Org, err error) {
-	p.retryVoid(func() {
-		retOrg, err = p.underlying.GetOrgByID(ctx, orgID)
+		retOrg, err = p.underlying.GetOrgMembershipByName(ctx, org)
 	})
 	return
 }
@@ -114,9 +107,9 @@ func (p StableProvider) ListRepos(ctx context.Context, cfg *provider.ListReposCo
 	return
 }
 
-func (p StableProvider) ListOrgs(ctx context.Context, cfg *provider.ListOrgsConfig) (ret []provider.Org, err error) {
+func (p StableProvider) ListOrgMemberships(ctx context.Context, cfg *provider.ListOrgsConfig) (ret []provider.OrgMembership, err error) {
 	p.retryVoid(func() {
-		ret, err = p.underlying.ListOrgs(ctx, cfg)
+		ret, err = p.underlying.ListOrgMemberships(ctx, cfg)
 	})
 	return
 }
