@@ -17,7 +17,6 @@ import (
 	"github.com/golangci/golangci-api/pkg/worker/analyze/analyzesqueue/pullanalyzesqueue"
 	"github.com/golangci/golangci-api/pkg/worker/analyze/analyzesqueue/repoanalyzesqueue"
 	"github.com/golangci/golangci-api/pkg/worker/analyze/processors"
-	"github.com/golangci/golangci-api/pkg/worker/lib/experiments"
 	redsync "gopkg.in/redsync.v1"
 )
 
@@ -29,10 +28,15 @@ type App struct {
 	redisPool       *redigo.Pool
 	distLockFactory *redsync.Redsync
 	awsSess         *session.Session
+	ppf             processors.PullProcessorFactory
 }
 
-func NewApp() *App {
+func NewApp(modifiers ...Modifier) *App {
 	var a App
+	for _, modifier := range modifiers {
+		modifier(&a)
+	}
+
 	a.buildDeps()
 	a.buildAwsSess()
 
@@ -66,16 +70,17 @@ func (a *App) buildDeps() {
 	if a.distLockFactory == nil {
 		a.distLockFactory = redsync.New([]redsync.Pool{a.redisPool})
 	}
+	if a.ppf == nil {
+		a.ppf = processors.NewBasicPullProcessorFactory(&processors.BasicPullConfig{})
+	}
 }
 
 func (a App) buildMultiplexer() *consumers.Multiplexer {
-	ec := experiments.NewChecker(a.cfg, a.trackedLog)
-
-	rpf := processors.NewRepoProcessorFactory(&processors.StaticRepoConfig{}, a.trackedLog)
-	repoAnalyzer := analyzesConsumers.NewAnalyzeRepo(ec, rpf)
+	rpf := processors.NewRepoProcessorFactory(&processors.StaticRepoConfig{})
+	repoAnalyzer := analyzesConsumers.NewAnalyzeRepo(rpf, a.trackedLog, a.cfg)
 	repoAnalyzesRunner := repoanalyzesqueue.NewConsumer(repoAnalyzer)
 
-	pullAnalyzer := analyzesConsumers.NewAnalyzePR()
+	pullAnalyzer := analyzesConsumers.NewAnalyzePR(a.ppf, a.trackedLog)
 	pullAnalyzesRunner := pullanalyzesqueue.NewConsumer(pullAnalyzer)
 
 	multiplexer := consumers.NewMultiplexer()

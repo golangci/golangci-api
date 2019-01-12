@@ -40,12 +40,3 @@ func (c Context) GetCloneURL(repo *gh.Repository) string {
 
 	return repo.GetCloneURL()
 }
-
-var FakeContext = Context{
-	Repo: Repo{
-		Owner: "owner",
-		Name:  "name",
-	},
-	GithubAccessToken: "access_token",
-	PullRequestNumber: 1,
-}

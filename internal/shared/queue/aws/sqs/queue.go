@@ -79,7 +79,7 @@ func (q Queue) TryReceive() (*sqs.Message, error) {
 	return result.Messages[0], nil
 }
 
-func (q Queue) Ack(receiptHandle string, receiveCount int, ok bool) error {
+func (q Queue) Ack(receiptHandle, messageID string, receiveCount int, ok bool) error {
 	if !ok {
 		delaySec := int64((1 << uint(receiveCount)) * 60)
 		if delaySec > 43200 {
@@ -91,12 +91,12 @@ func (q Queue) Ack(receiptHandle string, receiveCount int, ok bool) error {
 			VisibilityTimeout: &delaySec,
 		})
 		if err != nil {
-			return errors.Wrapf(err, "can't change message %s visibility for %d-th attempt to %ds",
-				receiptHandle, receiveCount, delaySec)
+			return errors.Wrapf(err, "can't change message id=%s visibility for %d-th attempt to %ds",
+				messageID, receiveCount, delaySec)
 		}
 
-		q.log.Infof("Changed message %s visibility for %d-th attempt to %ds",
-			receiptHandle, receiveCount, delaySec)
+		q.log.Infof("Changed message id=%s visibility for %d-th attempt to %ds",
+			messageID, receiveCount, delaySec)
 		return nil
 	}
 
@@ -106,10 +106,10 @@ func (q Queue) Ack(receiptHandle string, receiveCount int, ok bool) error {
 	})
 
 	if err != nil {
-		return errors.Wrapf(err, "can't delete message %s from queue", receiptHandle)
+		return errors.Wrapf(err, "can't delete message id=%s from queue", messageID)
 	}
 
-	q.log.Infof("Deleted message %s from queue after succeeded consuming on %d-th attempt",
-		receiptHandle, receiveCount)
+	q.log.Infof("Deleted message id=%s from queue after succeeded consuming on %d-th attempt",
+		messageID, receiveCount)
 	return nil
 }

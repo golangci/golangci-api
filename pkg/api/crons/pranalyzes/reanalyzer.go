@@ -197,7 +197,7 @@ func (r *Reanalyzer) processAnalysis(ctx context.Context, a *models.PullRequestA
 	}
 
 	var reason string
-	if a.Status != "processed/success" && a.Status != "processed/failure" {
+	if a.Status != "processed/success" && a.Status != "processed/failure" && a.Status != "processed" {
 		reason = "not success status"
 	} else if len(res.WorkerRes.Warnings) != 0 {
 		reason = fmt.Sprintf("warnings: %v", res.WorkerRes.Warnings)

@@ -6,7 +6,8 @@ package reporters
 import (
 	context "context"
 	gomock "github.com/golang/mock/gomock"
-	result "github.com/golangci/golangci-api/pkg/worker/analyze/linters/result"
+	result "github.com/golangci/golangci-api/pkg/goenvbuild/result"
+	result0 "github.com/golangci/golangci-api/pkg/worker/analyze/linters/result"
 	reflect "reflect"
 )
 
@@ -34,13 +35,13 @@ func (_m *MockReporter) EXPECT() *MockReporterMockRecorder {
 }
 
 // Report mocks base method
-func (_m *MockReporter) Report(ctx context.Context, ref string, issues []result.Issue) error {
-	ret := _m.ctrl.Call(_m, "Report", ctx, ref, issues)
+func (_m *MockReporter) Report(ctx context.Context, buildLog *result.Log, ref string, issues []result0.Issue) error {
+	ret := _m.ctrl.Call(_m, "Report", ctx, buildLog, ref, issues)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // Report indicates an expected call of Report
-func (_mr *MockReporterMockRecorder) Report(arg0, arg1, arg2 interface{}) *gomock.Call {
-	return _mr.mock.ctrl.RecordCallWithMethodType(_mr.mock, "Report", reflect.TypeOf((*MockReporter)(nil).Report), arg0, arg1, arg2)
+func (_mr *MockReporterMockRecorder) Report(arg0, arg1, arg2, arg3 interface{}) *gomock.Call {
+	return _mr.mock.ctrl.RecordCallWithMethodType(_mr.mock, "Report", reflect.TypeOf((*MockReporter)(nil).Report), arg0, arg1, arg2, arg3)
 }

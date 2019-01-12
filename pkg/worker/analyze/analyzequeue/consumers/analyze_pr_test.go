@@ -7,6 +7,11 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/golangci/golangci-api/internal/shared/config"
+
+	"github.com/golangci/golangci-api/internal/shared/logutil"
+	"github.com/golangci/golangci-api/pkg/worker/analyze/processors"
+
 	"github.com/golangci/golangci-api/pkg/worker/test"
 	"github.com/stretchr/testify/assert"
 )
@@ -30,7 +35,11 @@ func TestAnalyzeRepo(t *testing.T) {
 		repoOwner, repoName = parts[0], parts[1]
 	}
 
-	err := NewAnalyzePR().Consume(context.Background(), repoOwner, repoName,
-		os.Getenv("TEST_GITHUB_TOKEN"), prNumber, "", userID, "test-guid")
+	pf := processors.NewBasicPullProcessorFactory(&processors.BasicPullConfig{})
+	log := logutil.NewStderrLog("")
+	cfg := config.NewEnvConfig(log)
+
+	err := NewAnalyzePR(pf, log).Consume(context.Background(), repoOwner, repoName,
+		cfg.GetString("TEST_GITHUB_TOKEN"), prNumber, "", userID, "test-guid")
 	assert.NoError(t, err)
 }

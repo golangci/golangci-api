@@ -3,7 +3,16 @@ package processors
 import (
 	"strconv"
 	"time"
+
+	"github.com/golangci/golangci-api/pkg/goenvbuild/result"
+	lintersResult "github.com/golangci/golangci-api/pkg/worker/analyze/linters/result"
 )
+
+type analysisResult struct {
+	resultCollector
+	buildLog *result.Log
+	lintRes  *lintersResult.Result
+}
 
 type JSONDuration time.Duration
 
@@ -63,6 +72,7 @@ type resultJSON struct {
 	Version         int
 	GolangciLintRes interface{}
 	WorkerRes       workerRes
+	BuildLog        *result.Log
 }
 
 func fromDBTime(t time.Time) time.Time {

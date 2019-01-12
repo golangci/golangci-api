@@ -29,9 +29,12 @@ func NewGo(exec executors.Executor, log logutil.Log, repoFetcher fetchers.Fetche
 	}
 }
 
-func (w *Go) Setup(ctx context.Context, privateAccessToken string, repo *fetchers.Repo, projectPathParts ...string) (executors.Executor, *result.Log, error) {
-	if err := w.repoFetcher.Fetch(ctx, repo, w.exec); err != nil {
-		return nil, nil, errors.Wrap(err, "failed to fetch repo")
+func (w *Go) Setup(ctx context.Context, buildLog *result.Log, privateAccessToken string, repo *fetchers.Repo, projectPathParts ...string) (executors.Executor, error) {
+	groupErr := buildLog.RunNewGroup("clone repo", func(sg *result.StepGroup) error {
+		return w.repoFetcher.Fetch(ctx, sg, repo, w.exec)
+	})
+	if groupErr != nil {
+		return nil, groupErr
 	}
 
 	exec := w.exec.
@@ -41,19 +44,34 @@ func (w *Go) Setup(ctx context.Context, privateAccessToken string, repo *fetcher
 		exec = exec.WithEnv("PRIVATE_ACCESS_TOKEN", privateAccessToken)
 	}
 
-	out, err := exec.Run(ctx, "goenvbuild")
-	if err != nil {
-		return nil, nil, errors.Wrap(err, "goenvbuild failed")
-	}
-
 	var envbuildResult result.Result
-	if err = json.Unmarshal([]byte(out), &envbuildResult); err != nil {
-		return nil, nil, errors.Wrap(err, "failed to unmarshal goenvbuild result json")
+
+	groupErr = buildLog.RunNewGroup("run goenvbuild", func(sg *result.StepGroup) error {
+		sg.AddStepCmd("goenvbuild")
+		out, err := exec.Run(ctx, "goenvbuild")
+		if err != nil {
+			return errors.Wrap(err, "goenvbuild failed")
+		}
+
+		if err = json.Unmarshal([]byte(out), &envbuildResult); err != nil {
+			return errors.Wrap(err, "failed to unmarshal goenvbuild result json")
+		}
+
+		return nil
+	})
+	if groupErr != nil {
+		return nil, groupErr
 	}
 
-	w.log.Infof("Got envbuild result %s", out)
+	// remove last group: it was needed only if error occurred
+	buildLog.Groups = buildLog.Groups[:len(buildLog.Groups)-1]
+
+	if envbuildResult.Log != nil && envbuildResult.Log.Groups != nil {
+		buildLog.Groups = append(buildLog.Groups, envbuildResult.Log.Groups...)
+	}
+
 	if envbuildResult.Error != "" {
-		return nil, nil, fmt.Errorf("goenvbuild internal error: %s", envbuildResult.Error)
+		return nil, fmt.Errorf("goenvbuild internal error: %s", envbuildResult.Error)
 	}
 
 	retExec := w.exec.WithWorkDir(envbuildResult.WorkDir)
@@ -61,5 +79,5 @@ func (w *Go) Setup(ctx context.Context, privateAccessToken string, repo *fetcher
 		retExec = retExec.WithEnv(k, v)
 	}
 
-	return retExec, envbuildResult.Log, nil
+	return retExec, nil
 }

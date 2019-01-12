@@ -3,11 +3,14 @@ package processors
 const (
 	internalError = "Internal error"
 
-	statusSentToQueue = "sent_to_queue"
-	statusProcessing  = "processing"
-	statusProcessed   = "processed"
-	statusNotFound    = "not_found"
+	StatusSentToQueue = "sent_to_queue"
+	StatusProcessing  = "processing"
+	StatusProcessed   = "processed"
+	StatusNotFound    = "not_found"
+	StatusError       = "error"
 
 	noGoFilesToAnalyzeMessage = "No Go files to analyze"
 	noGoFilesToAnalyzeErr     = "no go files to analyze"
+
+	stepUpdateStatusToProcessing = `set analysis status to "processing"`
 )

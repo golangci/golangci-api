@@ -158,12 +158,20 @@ func (p Preparer) run(needStreamToOutput bool) *result.Result {
 	// setup git
 	privateAccessToken := p.cfg.GetString("PRIVATE_ACCESS_TOKEN")
 	if privateAccessToken != "" {
-		err = runStepGroup(res.Log, "setup git", func(sg *result.StepGroup, log logutil.Log) error {
+		err = runStepGroup(res.Log, "setup git for private dependencies", func(sg *result.StepGroup, log logutil.Log) error {
 			return p.setupGit(ctx, sg, runner, privateAccessToken)
 		})
 		if err != nil {
 			return saveErr(err)
 		}
+	}
+
+	// print environment
+	err = runStepGroup(res.Log, "print environment", func(sg *result.StepGroup, log logutil.Log) error {
+		return p.printEnvironment(ctx, sg, runner)
+	})
+	if err != nil {
+		return saveErr(err)
 	}
 
 	// prepare repo
@@ -263,10 +271,31 @@ func parseVersion(v string) (*version, error) {
 }
 
 func (p Preparer) runGolangciLint(ctx context.Context, sg *result.StepGroup, runner *command.StreamingRunner) error {
+	cmd := "golangci-lint"
 	args := []string{"run", "-v", "--deadline=5m"}
-	sg.AddStep(fmt.Sprintf("golangci-lint %s", strings.Join(args, " ")))
-	_, err := runner.Run(ctx, "golangci-lint", args...)
+	sg.AddStepCmd(cmd, args...)
+	_, err := runner.Run(ctx, cmd, args...)
 	return err
+}
+
+func (p Preparer) printEnvironment(ctx context.Context, sg *result.StepGroup, runner *command.StreamingRunner) error {
+	goCmd := "go"
+
+	versionArgs := []string{"version"}
+	sg.AddStepCmd(goCmd, versionArgs...)
+	_, err := runner.Run(ctx, goCmd, versionArgs...)
+	if err != nil {
+		return err
+	}
+
+	envArgs := []string{"env"}
+	sg.AddStepCmd(goCmd, envArgs...)
+	_, err = runner.Run(ctx, goCmd, envArgs...)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func (p Preparer) setupGolangciLint(ctx context.Context, sg *result.StepGroup, log logutil.Log,
@@ -390,9 +419,12 @@ func (p Preparer) parseGolangciLintVersion(sg *result.StepGroup, log logutil.Log
 func (p Preparer) setupGit(ctx context.Context, sg *result.StepGroup,
 	runner *command.StreamingRunner, privateAccessToken string) error {
 
-	sg.AddStep("setup git overrides for GitHub private dependencies")
+	cmd := "git"
 	overridePattern := fmt.Sprintf(`url.https://%s@github.com/.insteadOf`, privateAccessToken)
-	_, err := runner.Run(ctx, "git", "config", "--global", overridePattern, "https://github.com/")
+	cmdArgs := []string{"config", "--global", overridePattern, "https://github.com/"}
+	sg.AddStepCmd(cmd, cmdArgs...)
+
+	_, err := runner.Run(ctx, cmd, cmdArgs...)
 	if err != nil {
 		return errors.Wrap(err, "failed to setup git overrides")
 	}
@@ -452,25 +484,25 @@ func (p Preparer) gopath() string {
 func (p Preparer) setupWorkDir(ctx context.Context, sg *result.StepGroup, log logutil.Log, projectAddr string, r *command.StreamingRunner) (string, error) {
 	projectDir := filepath.Join(p.gopath(), "src", projectAddr)
 
-	sg.AddStep("mkdir -p " + projectDir)
+	sg.AddStepCmd("mkdir", "-p", projectDir)
 	if err := os.MkdirAll(projectDir, os.ModePerm); err != nil {
 		return "", err
 	}
 
 	if p.cfg.GetBool("DEBUG", false) {
-		sg.AddStep("rm -r " + projectDir)
+		sg.AddStepCmd("rm", "-r", projectDir)
 		if err := os.RemoveAll(projectDir); err != nil {
 			log.Warnf("Failed to remove %s: %s", projectDir, err)
 		}
 	}
 
 	copyDest := projectDir + string(filepath.Separator)
-	sg.AddStep("cp -R . " + copyDest)
+	sg.AddStepCmd("cp", "-R", ".", copyDest)
 	if _, err := r.Run(ctx, "cp", "-R", ".", copyDest); err != nil {
 		return "", err
 	}
 
-	sg.AddStep("cd " + projectDir)
+	sg.AddStepCmd("cd", projectDir)
 	if err := os.Chdir(projectDir); err != nil {
 		return "", err
 	}
