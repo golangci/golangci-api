@@ -150,8 +150,9 @@ func getNopExecutor(ctrl *gomock.Controller) executors.Executor {
 	e := executors.NewMockExecutor(ctrl)
 	e.EXPECT().WorkDir().Return("").AnyTimes()
 	e.EXPECT().WithWorkDir(any).Return(e).AnyTimes()
-	e.EXPECT().Run(testCtxMatcher, "goenvbuild").Return("{}", nil).AnyTimes()
-	e.EXPECT().Run(testCtxMatcher, "golangci-lint", any).Return("{}", nil).AnyTimes()
+	runRes := &executors.RunResult{StdOut: "{}"}
+	e.EXPECT().Run(testCtxMatcher, "goenvbuild").Return(runRes, nil).AnyTimes()
+	e.EXPECT().Run(testCtxMatcher, "golangci-lint", any).Return(runRes, nil).AnyTimes()
 	e.EXPECT().Clean().AnyTimes()
 	e.EXPECT().WithEnv(any, any).Return(e).AnyTimes()
 	e.EXPECT().SetEnv(any, any).AnyTimes()

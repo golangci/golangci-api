@@ -33,13 +33,13 @@ func (_m *MockExecutor) EXPECT() *MockExecutorMockRecorder {
 }
 
 // Run mocks base method
-func (_m *MockExecutor) Run(ctx context.Context, name string, args ...string) (string, error) {
+func (_m *MockExecutor) Run(ctx context.Context, name string, args ...string) (*RunResult, error) {
 	_s := []interface{}{ctx, name}
 	for _, _x := range args {
 		_s = append(_s, _x)
 	}
 	ret := _m.ctrl.Call(_m, "Run", _s...)
-	ret0, _ := ret[0].(string)
+	ret0, _ := ret[0].(*RunResult)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
