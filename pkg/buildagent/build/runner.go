@@ -1,6 +1,7 @@
 package build
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -33,7 +34,8 @@ type Request struct {
 type Response struct {
 	Error        string
 	CommandError string
-	StdOut       string
+
+	RequestResult
 }
 
 const (
@@ -88,16 +90,18 @@ func (r Runner) handleRequest(w http.ResponseWriter, hr *http.Request) {
 			return nil, errors.New("invalid request token")
 		}
 
-		out, err := r.executeRequest(req)
+		res, err := r.executeRequest(req)
+		var commandError string
 		if err != nil {
-			return &Response{
-				CommandError: err.Error(),
-				StdOut:       out,
-			}, nil
+			commandError = err.Error()
 		}
 
-		return &Response{StdOut: out}, nil
+		return &Response{
+			CommandError:  commandError,
+			RequestResult: *res,
+		}, nil
 	}()
+
 	if err != nil {
 		resp = &Response{
 			Error: err.Error(),
@@ -128,7 +132,12 @@ func (r Runner) parseRequest(hr *http.Request) (*Request, error) {
 	return &req, nil
 }
 
-func (r Runner) executeRequest(req *Request) (string, error) {
+type RequestResult struct {
+	StdOut string
+	StdErr string
+}
+
+func (r Runner) executeRequest(req *Request) (*RequestResult, error) {
 	switch req.Kind {
 	case RequestKindRun:
 		return r.executeRunRequest(req)
@@ -136,16 +145,16 @@ func (r Runner) executeRequest(req *Request) (string, error) {
 		return r.executeCopyRequest(req)
 	}
 
-	return "", fmt.Errorf("invalid request kind %s", req.Kind)
+	return nil, fmt.Errorf("invalid request kind %s", req.Kind)
 }
 
-func (r Runner) executeRunRequest(req *Request) (string, error) {
+func (r Runner) executeRunRequest(req *Request) (*RequestResult, error) {
 	timeout := time.Millisecond * time.Duration(req.TimeoutMs)
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 
 	if len(req.Args) == 0 {
-		return "", errors.New("empty args")
+		return nil, errors.New("empty args")
 	}
 	var args []string
 	if len(req.Args) > 1 {
@@ -153,6 +162,8 @@ func (r Runner) executeRunRequest(req *Request) (string, error) {
 	}
 
 	cmd := exec.CommandContext(ctx, req.Args[0], args...)
+	var stderrBuf bytes.Buffer
+	cmd.Stderr = &stderrBuf
 
 	if len(req.Env) != 0 {
 		cmd.Env = append(os.Environ(), req.Env...)
@@ -161,13 +172,25 @@ func (r Runner) executeRunRequest(req *Request) (string, error) {
 		cmd.Dir = req.WorkDir
 	}
 
-	out, err := cmd.CombinedOutput()
-	return string(out), err
+	out, err := cmd.Output()
+	rr := &RequestResult{
+		StdOut: string(out),
+		StdErr: stderrBuf.String(),
+	}
+	if err != nil {
+		return rr, err
+	}
+
+	if rr.StdErr != "" {
+		r.log.Warnf("Command %v stdout: %d, stderr: %s", req.Args, rr.StdOut, rr.StdErr)
+	}
+
+	return rr, nil
 }
 
-func (r Runner) executeCopyRequest(req *Request) (string, error) {
+func (r Runner) executeCopyRequest(req *Request) (*RequestResult, error) {
 	if len(req.Args) != 2 {
-		return "", fmt.Errorf("invalid args count: %d != 2", len(req.Args))
+		return nil, fmt.Errorf("invalid args count: %d != 2", len(req.Args))
 	}
 
 	destFile := req.Args[0]
@@ -177,8 +200,8 @@ func (r Runner) executeCopyRequest(req *Request) (string, error) {
 	fileContent := req.Args[1]
 
 	if err := ioutil.WriteFile(destFile, []byte(fileContent), os.ModePerm); err != nil {
-		return "", errors.Wrapf(err, "failed to write to file %s", destFile)
+		return nil, errors.Wrapf(err, "failed to write to file %s", destFile)
 	}
 
-	return "", nil
+	return &RequestResult{}, nil
 }

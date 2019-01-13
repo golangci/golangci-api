@@ -45,7 +45,7 @@ func NewApp(modifiers ...Modifier) *App {
 
 func (a *App) buildDeps() {
 	if a.log == nil {
-		slog := logutil.NewStderrLog("golangci-api")
+		slog := logutil.NewStderrLog("golangci-worker")
 		slog.SetLevel(logutil.LogLevelInfo)
 		a.log = slog
 	}
@@ -55,7 +55,7 @@ func (a *App) buildDeps() {
 	}
 
 	if a.errTracker == nil {
-		a.errTracker = apperrors.GetTracker(a.cfg, a.log, "api")
+		a.errTracker = apperrors.GetTracker(a.cfg, a.log, "worker")
 	}
 	if a.trackedLog == nil {
 		a.trackedLog = apperrors.WrapLogWithTracker(a.log, nil, a.errTracker)

@@ -48,12 +48,12 @@ func (w *Go) Setup(ctx context.Context, buildLog *result.Log, privateAccessToken
 
 	groupErr = buildLog.RunNewGroup("run goenvbuild", func(sg *result.StepGroup) error {
 		sg.AddStepCmd("goenvbuild")
-		out, err := exec.Run(ctx, "goenvbuild")
+		runRes, err := exec.Run(ctx, "goenvbuild")
 		if err != nil {
 			return errors.Wrap(err, "goenvbuild failed")
 		}
 
-		if err = json.Unmarshal([]byte(out), &envbuildResult); err != nil {
+		if err = json.Unmarshal([]byte(runRes.StdOut), &envbuildResult); err != nil {
 			return errors.Wrap(err, "failed to unmarshal goenvbuild result json")
 		}
 

@@ -84,14 +84,14 @@ func (c *Container) Setup(ctx context.Context) error {
 	return nil
 }
 
-func (c Container) Run(ctx context.Context, name string, args ...string) (string, error) {
+func (c Container) Run(ctx context.Context, name string, args ...string) (*RunResult, error) {
 	deadline, ok := ctx.Deadline()
 	if !ok {
-		return "", errors.New("no deadline was set for context")
+		return nil, errors.New("no deadline was set for context")
 	}
 	now := time.Now()
 	if deadline.Before(now) {
-		return "", errors.New("deadline exceeded: it's before now")
+		return nil, errors.New("deadline exceeded: it's before now")
 	}
 
 	req := containers.BuildCommandRequest{
@@ -108,7 +108,7 @@ func (c Container) Run(ctx context.Context, name string, args ...string) (string
 	return c.runBuildCommand(ctx, &req)
 }
 
-func (c Container) runBuildCommand(ctx context.Context, req *containers.BuildCommandRequest) (string, error) {
+func (c Container) runBuildCommand(ctx context.Context, req *containers.BuildCommandRequest) (*RunResult, error) {
 	resp, err := grequests.Post(fmt.Sprintf("%s/buildcommand", c.orchestratorAddr), &grequests.RequestOptions{
 		Context: ctx,
 		JSON:    req,
@@ -117,30 +117,32 @@ func (c Container) runBuildCommand(ctx context.Context, req *containers.BuildCom
 		},
 	})
 	if err != nil {
-		return "", errors.Wrapf(err, "failed to make request to orchestrator with req %#v", req)
+		return nil, errors.Wrapf(err, "failed to make request to orchestrator with req %#v", req)
 	}
 
 	var containerResp containers.BuildCommandResponse
 	if err = resp.JSON(&containerResp); err != nil {
-		return "", errors.Wrap(err, "failed to parse json of container response")
+		return nil, errors.Wrap(err, "failed to parse json of container response")
 	}
 
 	if containerResp.Error != "" {
-		return "", fmt.Errorf("failed to run container build command with req %#v: %s",
+		return nil, fmt.Errorf("failed to run container build command with req %#v: %s",
 			req, containerResp.Error)
 	}
 
 	buildResp := containerResp.BuildResponse
 	if buildResp.Error != "" {
-		return "", fmt.Errorf("failed to run build command with req %#v: %s", req, buildResp.Error)
+		return nil, fmt.Errorf("failed to run build command with req %#v: %s", req, buildResp.Error)
 	}
 
+	res := RunResult(buildResp.RequestResult)
+
 	if buildResp.CommandError != "" {
-		return buildResp.StdOut, fmt.Errorf("build command for req %#v complete with error: %s",
+		return &res, fmt.Errorf("build command for req %#v complete with error: %s",
 			req, buildResp.CommandError)
 	}
 
-	return buildResp.StdOut, nil
+	return &res, nil
 }
 
 func (c Container) CopyFile(ctx context.Context, dst, src string) error {

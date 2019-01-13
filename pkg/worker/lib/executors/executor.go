@@ -4,8 +4,13 @@ import "context"
 
 //go:generate mockgen -package executors -source executor.go -destination executor_mock.go
 
+type RunResult struct {
+	StdOut string
+	StdErr string
+}
+
 type Executor interface {
-	Run(ctx context.Context, name string, args ...string) (string, error)
+	Run(ctx context.Context, name string, args ...string) (*RunResult, error)
 
 	WithEnv(k, v string) Executor
 	SetEnv(k, v string)

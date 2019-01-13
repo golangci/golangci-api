@@ -39,45 +39,47 @@ func (g GolangciLint) Run(ctx context.Context, sg *logresult.StepGroup, exec exe
 	}
 	step := sg.AddStepCmd("GOLANGCI_COM_RUN=1 golangci-lint", args...)
 
-	out, runErr := exec.Run(ctx, g.Name(), args...)
+	runRes, runErr := exec.Run(ctx, g.Name(), args...)
 
 	// logrus escapes \n when golangci-lint run not in TTY by user
-	out = strings.TrimSpace(out)
-	out = strings.TrimPrefix(out, "level=error msg=")
-	unquotedOut, err := strconv.Unquote(out)
+	stdErr := runRes.StdErr
+	stdErr = strings.TrimSpace(stdErr)
+	stdErr = strings.TrimPrefix(stdErr, "level=error msg=")
+	unquotedStdErr, err := strconv.Unquote(stdErr)
 	if err == nil {
-		out = unquotedOut
+		stdErr = unquotedStdErr
 	}
+	step.AddOutput(stdErr)
 
-	rawJSON := []byte(out)
+	rawJSON := []byte(runRes.StdOut)
 
 	if runErr != nil {
 		var res printers.JSONResult
 		if jsonErr := json.Unmarshal(rawJSON, &res); jsonErr == nil && res.Report.Error != "" {
 			return nil, &errorutils.BadInputError{
-				PublicDesc: fmt.Sprintf("can't run golangci-lint: %s", res.Report.Error),
+				PublicDesc: fmt.Sprintf("can't run golangci-lint: bad input: %s", res.Report.Error),
 			}
 		}
 
 		// it's not json in the out
-		step.AddOutput(out)
+		step.AddOutput(runRes.StdOut)
 
 		const badLoadStr = "failed to load program with go/packages"
-		if strings.Contains(out, badLoadStr) {
+		if strings.Contains(stdErr, badLoadStr) {
 			return nil, &errorutils.BadInputError{
 				PublicDesc: badLoadStr,
 			}
 		}
 
 		return nil, &errorutils.InternalError{
-			PublicDesc:  "can't run golangci-lint",
+			PublicDesc:  "can't run golangci-lint: internal error",
 			PrivateDesc: fmt.Sprintf("can't run golangci-lint: %s", runErr),
 		}
 	}
 
 	var res printers.JSONResult
 	if jsonErr := json.Unmarshal(rawJSON, &res); jsonErr != nil {
-		step.AddOutput(out)
+		step.AddOutput(runRes.StdOut)
 		return nil, &errorutils.InternalError{
 			PublicDesc:  "can't run golangci-lint: invalid output json",
 			PrivateDesc: fmt.Sprintf("can't run golangci-lint: can't parse json output: %s", jsonErr),

@@ -24,10 +24,12 @@ func (gf Git) Fetch(ctx context.Context, sg *result.StepGroup, repo *Repo, exec 
 		repo.Ref, repo.CloneURL, "."}
 	gitStep := sg.AddStepCmd("git", args...)
 
-	out, err := exec.Run(ctx, "git", args...)
-	gitStep.AddOutput(out)
+	runRes, err := exec.Run(ctx, "git", args...)
+	gitStep.AddOutput(runRes.StdOut)
+	gitStep.AddOutput(runRes.StdErr)
 
 	if err != nil {
+		out := runRes.StdOut + runRes.StdErr
 		noBranchOrRepo := strings.Contains(out, "could not read Username for") ||
 			strings.Contains(out, "Could not find remote branch")
 		if noBranchOrRepo {
@@ -39,16 +41,18 @@ func (gf Git) Fetch(ctx context.Context, sg *result.StepGroup, repo *Repo, exec 
 
 	// some repos have deps in submodules, e.g. https://github.com/orbs-network/orbs-network-go
 	submoduleInitStep := sg.AddStepCmd("git", "submodule", "init")
-	out, err = exec.Run(ctx, "git", "submodule", "init")
-	submoduleInitStep.AddOutput(out)
+	runRes, err = exec.Run(ctx, "git", "submodule", "init")
+	submoduleInitStep.AddOutput(runRes.StdOut)
+	submoduleInitStep.AddOutput(runRes.StdErr)
 	if err != nil {
 		analytics.Log(ctx).Warnf("Failed to init git submodule: %s", err)
 		return nil
 	}
 
 	submoduleUpdateStep := sg.AddStepCmd("git", "submodule", "update", "--init", "--recursive")
-	out, err = exec.Run(ctx, "git", "submodule", "update", "--init", "--recursive")
-	submoduleUpdateStep.AddOutput(out)
+	runRes, err = exec.Run(ctx, "git", "submodule", "update", "--init", "--recursive")
+	submoduleUpdateStep.AddOutput(runRes.StdOut)
+	submoduleUpdateStep.AddOutput(runRes.StdErr)
 	if err != nil {
 		analytics.Log(ctx).Warnf("Failed to update git submodule: %s", err)
 		return nil

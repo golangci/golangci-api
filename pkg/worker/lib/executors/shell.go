@@ -87,7 +87,7 @@ func (s shell) wait(ctx context.Context, name string, childPid int, outReader io
 	return lines
 }
 
-func (s shell) Run(ctx context.Context, name string, args ...string) (string, error) {
+func (s shell) Run(ctx context.Context, name string, args ...string) (*RunResult, error) {
 	for i := range args {
 		unquotedArg, err := strconv.Unquote(args[i])
 		if err == nil {
@@ -97,7 +97,7 @@ func (s shell) Run(ctx context.Context, name string, args ...string) (string, er
 	startedAt := time.Now()
 	pid, outReader, finish, err := s.runAsync(ctx, name, args...)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
 	endCh := make(chan struct{})
@@ -125,7 +125,9 @@ func (s shell) Run(ctx context.Context, name string, args ...string) (string, er
 	logger("shell[%s]: %s %v executed for %s: %v", s.wd, name, args, time.Since(startedAt), err)
 
 	// XXX: it's important to not change error here, because it holds exit code
-	return strings.Join(lines, "\n"), err
+	return &RunResult{
+		StdOut: strings.Join(lines, "\n"), // TODO: don't merge with stderr
+	}, err
 }
 
 type finishFunc func() error
