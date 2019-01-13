@@ -196,14 +196,16 @@ func (r *Reanalyzer) processAnalysis(ctx context.Context, a *models.PullRequestA
 		return errors.Wrapf(err, "invalid result json")
 	}
 
+	needReanalyzeWithWarnings := r.cfg.GetBool("PR_REANALYZER_WARNINGS", true)
+
 	var reason string
 	if a.Status != "processed/success" && a.Status != "processed/failure" && a.Status != "processed" {
 		reason = "not success status"
-	} else if len(res.WorkerRes.Warnings) != 0 {
+	} else if needReanalyzeWithWarnings && len(res.WorkerRes.Warnings) != 0 {
 		reason = fmt.Sprintf("warnings: %v", res.WorkerRes.Warnings)
 	} else if res.GolangciLintRes.Report != nil && res.GolangciLintRes.Report.Error != "" {
 		reason = "golangci-lint error: " + res.GolangciLintRes.Report.Error
-	} else if res.GolangciLintRes.Report != nil && len(res.GolangciLintRes.Report.Warnings) != 0 {
+	} else if needReanalyzeWithWarnings && res.GolangciLintRes.Report != nil && len(res.GolangciLintRes.Report.Warnings) != 0 {
 		gw := res.GolangciLintRes.Report.Warnings
 		if !(len(gw) == 1 &&
 			strings.Contains(gw[0].Text, "Can't run megacheck because of compilation errors")) {

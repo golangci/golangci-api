@@ -48,7 +48,8 @@ func (q Queue) Put(message queue.Message) error {
 		return errors.Wrapf(err, "can't send message to queue (%s)", res)
 	}
 
-	q.log.Infof("Sent message with id=%s to queue for %s: %#v", *res.MessageId, time.Since(startedAt), message)
+	q.log.Infof("Sent message with id=%s to queue for %s: %#v",
+		*res.MessageId, time.Since(startedAt), message)
 	return nil
 }
 

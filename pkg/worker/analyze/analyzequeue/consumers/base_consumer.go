@@ -4,7 +4,10 @@ import (
 	"context"
 	"fmt"
 	"runtime/debug"
+	"strings"
 	"time"
+
+	"github.com/golangci/golangci-api/internal/shared/config"
 
 	"github.com/golangci/golangci-api/internal/shared/logutil"
 	"github.com/golangci/golangci-api/pkg/worker/analytics"
@@ -12,6 +15,7 @@ import (
 
 type baseConsumer struct {
 	eventName analytics.EventName
+	cfg       config.Config
 }
 
 const statusOk = "ok"
@@ -23,7 +27,18 @@ func (c baseConsumer) prepareContext(ctx context.Context, trackingProps map[stri
 	return ctx
 }
 
-func (c baseConsumer) wrapConsuming(ctx context.Context, log logutil.Log, f func() error) (err error) {
+func (c baseConsumer) getUnrecoverableErrorLogger(log logutil.Log, repoFullName string) logutil.Func {
+	ignoredRepos := c.cfg.GetStringList("LOG_AS_INFO_UNRECOVERABLE_ERRORS_FOR_REPOS")
+	for _, ignoredRepo := range ignoredRepos {
+		if strings.EqualFold(ignoredRepo, repoFullName) {
+			return log.Infof
+		}
+	}
+
+	return log.Warnf
+}
+
+func (c baseConsumer) wrapConsuming(ctx context.Context, log logutil.Log, repoFullName string, f func() error) (err error) {
 	defer func() {
 		if r := recover(); r != nil {
 			// no errors.Wrap: err may be nil
@@ -49,10 +64,12 @@ func (c baseConsumer) wrapConsuming(ctx context.Context, log logutil.Log, f func
 			return err
 		}
 
-		log.Errorf("Processing of %q task failed, error isn't recoverable, delete the task: %s", c.eventName, err)
+		logger := c.getUnrecoverableErrorLogger(log, repoFullName)
+		logger("Processing of %q task failed, error isn't recoverable, delete the task: %s", c.eventName, err)
 		return nil
 	}
 
+	log.Infof("Processing of %q task succeeded", c.eventName)
 	return nil
 }
 

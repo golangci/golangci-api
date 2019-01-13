@@ -5,6 +5,8 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/golangci/golangci-api/internal/shared/config"
+
 	"github.com/golangci/golangci-api/internal/shared/logutil"
 	"github.com/pkg/errors"
 
@@ -20,10 +22,11 @@ type AnalyzePR struct {
 	log logutil.Log
 }
 
-func NewAnalyzePR(pf processors.PullProcessorFactory, log logutil.Log) *AnalyzePR {
+func NewAnalyzePR(pf processors.PullProcessorFactory, log logutil.Log, cfg config.Config) *AnalyzePR {
 	return &AnalyzePR{
 		baseConsumer: baseConsumer{
 			eventName: analytics.EventPRChecked,
+			cfg:       cfg,
 		},
 		pf:  pf,
 		log: log,
@@ -48,7 +51,7 @@ func (c AnalyzePR) Consume(ctx context.Context, repoOwner, repoName, githubAcces
 	ctx = c.prepareContext(ctx, lctx)
 	log := logutil.WrapLogWithContext(c.log, lctx)
 
-	return c.wrapConsuming(ctx, log, func() error {
+	return c.wrapConsuming(ctx, log, repo.FullName(), func() error {
 		var cancel context.CancelFunc
 		// If you change timeout value don't forget to change it
 		// in golangci-api stale analyzes checker
