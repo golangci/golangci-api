@@ -342,7 +342,7 @@ func (cc CreatorConsumer) addCollaborator(ctx context.Context, repo *models.Repo
 	reviewerLogin := getReviewerLogin(p.Name(), cc.cfg)
 	invite, err := p.AddCollaborator(ctx, repo.Owner(), repo.Repo(), reviewerLogin)
 	if err != nil {
-		// this text goes to user when err == ErrNeedMoreOrgSeats
+		// this text goes to user when err == ErrNoFreeOrgSeats
 		return errors.Wrapf(err, "can't add @%s as collaborator in %s",
 			reviewerLogin, p.Name())
 	}

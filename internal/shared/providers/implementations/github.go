@@ -86,7 +86,7 @@ func (p Github) unwrapError(err error) error {
 		if respCode == http.StatusUnprocessableEntity {
 			// full msg is "You must purchase at least one more seat to add this user as a collaborator."
 			if strings.Contains(er.Error(), "must purchase at least one more seat") {
-				return provider.ErrNeedMoreOrgSeats
+				return provider.ErrNoFreeOrgSeats
 			}
 		}
 	}
@@ -406,7 +406,7 @@ func (p Github) AddCollaborator(ctx context.Context, owner, repo, username strin
 	opts := github.RepositoryAddCollaboratorOptions{}
 	resp, err := p.client(ctx).Repositories.AddCollaborator(ctx, owner, repo, username, &opts)
 	if err != nil {
-		// err goes to user if err == ErrNeedMoreOrgSeats, don't write much here
+		// err goes to user if err == ErrNoFreeOrgSeats, don't write much here
 		return nil, p.unwrapError(err)
 	}
 
