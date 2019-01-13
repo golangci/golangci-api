@@ -48,8 +48,7 @@ func (c AnalyzePR) Consume(ctx context.Context, repoOwner, repoName, githubAcces
 	ctx = c.prepareContext(ctx, lctx)
 	log := logutil.WrapLogWithContext(c.log, lctx)
 
-	startedAt := time.Now()
-	finalErr := c.wrapConsuming(log, func() error {
+	return c.wrapConsuming(ctx, log, func() error {
 		var cancel context.CancelFunc
 		// If you change timeout value don't forget to change it
 		// in golangci-api stale analyzes checker
@@ -81,29 +80,4 @@ func (c AnalyzePR) Consume(ctx context.Context, repoOwner, repoName, githubAcces
 
 		return nil
 	})
-
-	c.sendAnalytics(ctx, time.Since(startedAt), finalErr)
-
-	if !isRecoverableError(finalErr) {
-		// error was already logged, but don't retry it: just delete from queue as processed
-		return nil
-	}
-
-	return finalErr
-}
-
-func (c AnalyzePR) sendAnalytics(ctx context.Context, duration time.Duration, err error) {
-	props := map[string]interface{}{
-		"durationSeconds": int(duration / time.Second),
-	}
-	if err == nil {
-		props["status"] = statusOk
-	} else {
-		props["status"] = statusFail
-		props["error"] = err.Error()
-	}
-	analytics.SaveEventProps(ctx, c.eventName, props)
-
-	tracker := analytics.GetTracker(ctx)
-	tracker.Track(ctx, c.eventName)
 }

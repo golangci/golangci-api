@@ -49,7 +49,7 @@ func (c AnalyzeRepo) Consume(ctx context.Context, repoName, analysisGUID, branch
 		return errors.New("repo analysis is disabled")
 	}
 
-	return c.wrapConsuming(log, func() error {
+	return c.wrapConsuming(ctx, log, func() error {
 		var cancel context.CancelFunc
 		// If you change timeout value don't forget to change it
 		// in golangci-api stale analyzes checker
@@ -86,6 +86,5 @@ func (c AnalyzeRepo) analyzeRepo(ctx context.Context, log logutil.Log,
 	}
 	defer cleanup()
 
-	p.Process(repoCtx)
-	return nil
+	return p.Process(repoCtx)
 }
