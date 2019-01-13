@@ -140,3 +140,22 @@ func (p StableProvider) ParsePullRequestEvent(ctx context.Context, payload []byt
 	})
 	return
 }
+
+func (p StableProvider) AddCollaborator(ctx context.Context, owner, repo, username string) (ret *provider.RepoInvitation, err error) {
+	p.retryVoid(func() {
+		ret, err = p.underlying.AddCollaborator(ctx, owner, repo, username)
+	})
+	return
+}
+
+func (p StableProvider) RemoveCollaborator(ctx context.Context, owner, repo, username string) error {
+	return p.retryErr(func() error {
+		return p.underlying.RemoveCollaborator(ctx, owner, repo, username)
+	})
+}
+
+func (p StableProvider) AcceptRepoInvitation(ctx context.Context, invitationID int) error {
+	return p.retryErr(func() error {
+		return p.underlying.AcceptRepoInvitation(ctx, invitationID)
+	})
+}

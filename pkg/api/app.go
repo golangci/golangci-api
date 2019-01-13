@@ -7,17 +7,12 @@ import (
 	"os"
 	"time"
 
-	"github.com/golangci/golangci-api/pkg/api/policy"
-
-	"github.com/golangci/golangci-api/pkg/worker/lib/experiments"
-
 	"github.com/golangci/golangci-api/internal/shared/fsutil"
-
-	"github.com/golangci/golangci-api/pkg/worker/analyze/analyzesqueue/pullanalyzesqueue"
-
-	"github.com/golangci/golangci-api/pkg/worker/analyze/analyzesqueue/repoanalyzesqueue"
-
+	"github.com/golangci/golangci-api/pkg/api/policy"
 	"github.com/golangci/golangci-api/pkg/worker/analyze/analyzesqueue"
+	"github.com/golangci/golangci-api/pkg/worker/analyze/analyzesqueue/pullanalyzesqueue"
+	"github.com/golangci/golangci-api/pkg/worker/analyze/analyzesqueue/repoanalyzesqueue"
+	"github.com/golangci/golangci-api/pkg/worker/lib/experiments"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
@@ -50,6 +45,7 @@ import (
 	"github.com/golangci/golangci-api/pkg/api/services/repohook"
 	"github.com/golangci/golangci-api/pkg/api/services/subscription"
 	"github.com/golangci/golangci-api/pkg/api/workers/primaryqueue"
+	"github.com/golangci/golangci-api/pkg/api/workers/primaryqueue/invitations"
 	"github.com/golangci/golangci-api/pkg/api/workers/primaryqueue/paymentevents"
 	"github.com/golangci/golangci-api/pkg/api/workers/primaryqueue/repoanalyzes"
 	"github.com/golangci/golangci-api/pkg/api/workers/primaryqueue/repos"
@@ -395,8 +391,13 @@ func (a App) runMigrations() {
 func (a App) buildMultiplexedPrimaryQueueConsumer() *consumers.Multiplexer {
 	multiplexer := consumers.NewMultiplexer()
 
+	acceptInvitationsQP := &invitations.AcceptorProducer{}
+	if err := acceptInvitationsQP.Register(a.queues.producers.primaryMultiplexer); err != nil {
+		a.log.Fatalf("Failed to create 'accept invitations' producer: %s", err)
+	}
+
 	repoCreator := repos.NewCreatorConsumer(a.trackedLog, a.sqlDB, a.cfg,
-		a.providerFactory, a.queues.producers.repoAnalyzesLauncher)
+		a.providerFactory, a.queues.producers.repoAnalyzesLauncher, acceptInvitationsQP)
 	if err := repoCreator.Register(multiplexer, a.distLockFactory); err != nil {
 		a.log.Fatalf("Failed to register repo creator consumer: %s", err)
 	}
@@ -429,6 +430,11 @@ func (a App) buildMultiplexedPrimaryQueueConsumer() *consumers.Multiplexer {
 		a.queues.producers.repoAnalyzesRunner, a.providerFactory)
 	if err := analyzesLauncher.Register(multiplexer, a.distLockFactory); err != nil {
 		a.log.Fatalf("Failed to register analyzes launcher consumer: %s", err)
+	}
+
+	invitationsAcceptor := invitations.NewAcceptorConsumer(a.trackedLog, a.cfg, a.providerFactory)
+	if err := invitationsAcceptor.Register(multiplexer, a.distLockFactory); err != nil {
+		a.log.Fatalf("Failed to register invitations acceptor consumer: %s", err)
 	}
 
 	return multiplexer
