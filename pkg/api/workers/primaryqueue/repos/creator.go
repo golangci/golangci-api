@@ -207,6 +207,7 @@ func (cc CreatorConsumer) createRepoAnalysisStatusInDB(ctx context.Context, db *
 			HasPendingChanges: false,
 			Active:            true,
 			RepoID:            r.ID,
+			IsEmpty:           true,
 		}
 	}
 	if err = as.Create(db); err != nil {

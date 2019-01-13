@@ -1,0 +1,1 @@
+ALTER TABLE repo_analysis_statuses ADD COLUMN is_empty BOOLEAN NOT NULL DEFAULT false;

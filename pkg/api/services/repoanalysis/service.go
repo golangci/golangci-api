@@ -16,10 +16,12 @@ import (
 
 type Status struct {
 	models.RepoAnalysis
+
 	GithubRepoName     string
 	NextAnalysisStatus string `json:",omitempty"`
 	IsPreparing        bool   `json:",omitempty"`
 	RepoIsNotConnected bool   `json:",omitempty"`
+	IsEmpty            bool   `json:",omitempty"`
 }
 
 type Context struct {
@@ -89,6 +91,13 @@ func (s BasicService) GetStatus(rc *request.AnonymousContext, reqRepo *request.R
 
 		return nil, errors.Wrapf(err, "can't get repo analysis status for %s and repo id %d",
 			reqRepo.FullName(), repo.ID)
+	}
+
+	if as.IsEmpty {
+		return &Status{
+			IsEmpty:        true,
+			GithubRepoName: repo.DisplayFullName,
+		}, nil
 	}
 
 	var analyzes []models.RepoAnalysis

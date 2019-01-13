@@ -117,6 +117,7 @@ func (c LauncherConsumer) setPendingChanges(tx *gorm.DB, m *launchMessage, as *m
 		SetHasPendingChanges(true).
 		SetPendingCommitSHA(m.CommitSHA).
 		SetVersion(as.Version + 1).
+		SetIsEmpty(false).
 		UpdateNum()
 	if err != nil {
 		return errors.Wrap(err, "can't update repo analysis status after processing")
