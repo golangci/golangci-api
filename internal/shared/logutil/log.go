@@ -1,5 +1,7 @@
 package logutil
 
+type Func func(format string, args ...interface{})
+
 type Log interface {
 	Fatalf(format string, args ...interface{})
 	Errorf(format string, args ...interface{})

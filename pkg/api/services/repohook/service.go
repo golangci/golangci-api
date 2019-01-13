@@ -141,13 +141,14 @@ func (s BasicService) handleGithubPullRequestWebhook(rc *request.AnonymousContex
 
 	if ev.Repo.IsPrivate {
 		if err = s.ActiveSubPolicy.CheckForProviderPullRequestEvent(rc.Ctx, p, ev); err != nil {
+			logger := s.getNoSubWarnLogger(rc, repo)
 			if errors.Cause(err) == policy.ErrNoActiveSubscription {
-				rc.Log.Warnf("Got PR to %s with no active subscription, skip it and set commit status: %s", repo.FullName, err)
+				logger("Got PR to %s with no active subscription, skip it and set commit status: %s", repo.FullName, err)
 				return setCommitStatus(github.StatusError, "No active paid subscription for the private repo")
 			}
 
 			if errors.Cause(err) == policy.ErrNoSeatInSubscription {
-				rc.Log.Warnf("Got PR to %s without matched private seat, skip it and set commit status: %s", repo.FullName, err)
+				logger("Got PR to %s without matched private seat, skip it and set commit status: %s", repo.FullName, err)
 				return setCommitStatus(github.StatusError, "Git author's email wasn't configured in GolangCI")
 			}
 
@@ -229,6 +230,22 @@ func (s BasicService) checkSubscription(rc *request.AnonymousContext, repo *mode
 	return s.ActiveSubPolicy.CheckForProviderRepo(p, pr)
 }
 
+func (s BasicService) getNoSubWarnLogger(rc *request.AnonymousContext, repo *models.Repo) logutil.Func {
+	ignoredRepos := s.Cfg.GetStringList("KNOWN_PRIVATE_REPOS_WO_SUB")
+	for _, ignoredRepo := range ignoredRepos {
+		if ignoredRepo == repo.FullName {
+			return rc.Log.Infof
+		}
+	}
+
+	return rc.Log.Warnf
+}
+
+func (s BasicService) isNoSubError(err error) bool {
+	causeErr := errors.Cause(err)
+	return causeErr == policy.ErrNoActiveSubscription || causeErr == policy.ErrNoSeatInSubscription
+}
+
 func (s BasicService) handleGithubPushWebhook(rc *request.AnonymousContext, repo *models.Repo, body request.Body) error {
 	var payload gh.PushEvent
 	if err := json.Unmarshal(body, &payload); err != nil {
@@ -243,10 +260,20 @@ func (s BasicService) handleGithubPushWebhook(rc *request.AnonymousContext, repo
 
 	if payload.GetRepo().GetPrivate() {
 		if err := s.checkSubscription(rc, repo); err != nil {
+			if s.isNoSubError(err) {
+				s.getNoSubWarnLogger(rc, repo)(
+					"Got push webhook to %s with no active subscription, skip it: %s",
+					repo.FullName, err)
+
+				return errSkipWehbook
+			}
+
 			// TODO: render message about inactive sub and send notification
-			rc.Log.Warnf("Failed to check subscription for push webhook, skip it: %s", err)
-			return errSkipWehbook
+			rc.Log.Warnf("Failed to check subscription for push webhook, retry it: %s", err)
+			return err
 		}
+
+		rc.Log.Infof("Got push webhook to the private repo %s", repo.String())
 	}
 
 	branch := strings.TrimPrefix(payload.GetRef(), "refs/heads/")

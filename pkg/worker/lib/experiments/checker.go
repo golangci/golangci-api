@@ -24,12 +24,11 @@ func (c Checker) getConfigKey(name, suffix string) string {
 }
 
 func (c Checker) parseConfigVarToBoolMap(k string) map[string]bool {
-	elems := c.cfg.GetString(k)
-	if elems == "" {
+	elemList := c.cfg.GetStringList(k)
+	if len(elemList) == 0 {
 		return map[string]bool{}
 	}
 
-	elemList := strings.Split(elems, ",")
 	ret := map[string]bool{}
 	for _, e := range elemList {
 		ret[strings.ToLower(e)] = true

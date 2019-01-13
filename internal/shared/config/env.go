@@ -23,6 +23,10 @@ func (c EnvConfig) GetString(key string) string {
 	return c.getValue(key)
 }
 
+func (c EnvConfig) GetStringList(key string) []string {
+	return strings.Split(c.GetString(key), ",")
+}
+
 func (c EnvConfig) getValue(key string) string {
 	return os.Getenv(strings.ToUpper(key))
 }
