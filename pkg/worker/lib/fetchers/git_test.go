@@ -5,6 +5,8 @@ import (
 	"io/ioutil"
 	"testing"
 
+	"github.com/golangci/golangci-api/pkg/goenvbuild/result"
+
 	"github.com/golangci/golangci-api/pkg/worker/lib/executors"
 	"github.com/stretchr/testify/assert"
 )
@@ -20,7 +22,8 @@ func TestGitOnTestRepo(t *testing.T) {
 		CloneURL: "git@github.com:golangci/test.git",
 	}
 
-	err = g.Fetch(context.Background(), repo, exec)
+	sg := &result.StepGroup{}
+	err = g.Fetch(context.Background(), sg, repo, exec)
 	assert.NoError(t, err)
 
 	files, err := ioutil.ReadDir(exec.WorkDir())

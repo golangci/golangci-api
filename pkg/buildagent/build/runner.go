@@ -1,7 +1,6 @@
 package build
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -154,8 +153,6 @@ func (r Runner) executeRunRequest(req *Request) (string, error) {
 	}
 
 	cmd := exec.CommandContext(ctx, req.Args[0], args...)
-	var stderrBuf bytes.Buffer
-	cmd.Stderr = &stderrBuf
 
 	if len(req.Env) != 0 {
 		cmd.Env = append(os.Environ(), req.Env...)
@@ -164,17 +161,8 @@ func (r Runner) executeRunRequest(req *Request) (string, error) {
 		cmd.Dir = req.WorkDir
 	}
 
-	out, err := cmd.Output()
-	if err != nil {
-		return "", fmt.Errorf("can't execute command %v: err: %s, stdout: %s, stderr: %s",
-			req.Args, err, string(out), stderrBuf.String())
-	}
-
-	if stderrBuf.Len() != 0 {
-		r.log.Warnf("Command %v stderr: %s", req.Args, stderrBuf.String())
-	}
-
-	return string(out), nil
+	out, err := cmd.CombinedOutput()
+	return string(out), err
 }
 
 func (r Runner) executeCopyRequest(req *Request) (string, error) {

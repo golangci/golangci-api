@@ -2,11 +2,12 @@ package github
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"net/http"
 	"os"
 	"time"
+
+	"github.com/pkg/errors"
 
 	"github.com/cenkalti/backoff"
 	gh "github.com/google/go-github/github"
@@ -21,6 +22,7 @@ var ErrPRNotFound = errors.New("no such pull request")
 var ErrUnauthorized = errors.New("invalid authorization")
 
 func IsRecoverableError(err error) bool {
+	err = errors.Cause(err)
 	return err != ErrPRNotFound && err != ErrUnauthorized
 }
 

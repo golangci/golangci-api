@@ -6,7 +6,8 @@ package linters
 import (
 	context "context"
 	gomock "github.com/golang/mock/gomock"
-	result "github.com/golangci/golangci-api/pkg/worker/analyze/linters/result"
+	result "github.com/golangci/golangci-api/pkg/goenvbuild/result"
+	result0 "github.com/golangci/golangci-api/pkg/worker/analyze/linters/result"
 	executors "github.com/golangci/golangci-api/pkg/worker/lib/executors"
 	reflect "reflect"
 )
@@ -35,16 +36,16 @@ func (_m *MockLinter) EXPECT() *MockLinterMockRecorder {
 }
 
 // Run mocks base method
-func (_m *MockLinter) Run(ctx context.Context, exec executors.Executor) (*result.Result, error) {
-	ret := _m.ctrl.Call(_m, "Run", ctx, exec)
-	ret0, _ := ret[0].(*result.Result)
+func (_m *MockLinter) Run(ctx context.Context, sg *result.StepGroup, exec executors.Executor) (*result0.Result, error) {
+	ret := _m.ctrl.Call(_m, "Run", ctx, sg, exec)
+	ret0, _ := ret[0].(*result0.Result)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // Run indicates an expected call of Run
-func (_mr *MockLinterMockRecorder) Run(arg0, arg1 interface{}) *gomock.Call {
-	return _mr.mock.ctrl.RecordCallWithMethodType(_mr.mock, "Run", reflect.TypeOf((*MockLinter)(nil).Run), arg0, arg1)
+func (_mr *MockLinterMockRecorder) Run(arg0, arg1, arg2 interface{}) *gomock.Call {
+	return _mr.mock.ctrl.RecordCallWithMethodType(_mr.mock, "Run", reflect.TypeOf((*MockLinter)(nil).Run), arg0, arg1, arg2)
 }
 
 // Name mocks base method

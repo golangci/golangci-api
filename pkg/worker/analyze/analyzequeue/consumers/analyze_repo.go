@@ -3,13 +3,14 @@ package consumers
 import (
 	"context"
 	"fmt"
-	"os"
 	"strings"
 	"time"
 
+	"github.com/golangci/golangci-api/internal/shared/config"
+	"github.com/golangci/golangci-api/internal/shared/logutil"
+
 	"github.com/golangci/golangci-api/pkg/worker/analytics"
 	"github.com/golangci/golangci-api/pkg/worker/analyze/processors"
-	"github.com/golangci/golangci-api/pkg/worker/lib/experiments"
 	"github.com/golangci/golangci-api/pkg/worker/lib/github"
 	"github.com/pkg/errors"
 )
@@ -17,45 +18,51 @@ import (
 type AnalyzeRepo struct {
 	baseConsumer
 
-	ec  *experiments.Checker
 	rpf *processors.RepoProcessorFactory
+	log logutil.Log
+	cfg config.Config
 }
 
-func NewAnalyzeRepo(ec *experiments.Checker, rpf *processors.RepoProcessorFactory) *AnalyzeRepo {
+func NewAnalyzeRepo(rpf *processors.RepoProcessorFactory, log logutil.Log, cfg config.Config) *AnalyzeRepo {
 	return &AnalyzeRepo{
 		baseConsumer: baseConsumer{
 			eventName: analytics.EventRepoAnalyzed,
 		},
-		ec:  ec,
 		rpf: rpf,
+		log: log,
+		cfg: cfg,
 	}
 }
 
 func (c AnalyzeRepo) Consume(ctx context.Context, repoName, analysisGUID, branch, privateAccessToken string) error {
-	ctx = c.prepareContext(ctx, map[string]interface{}{
-		"repoName":     repoName,
-		"provider":     "github",
-		"analysisGUID": analysisGUID,
+	lctx := logutil.Context{
 		"branch":       branch,
-	})
+		"analysisGUID": analysisGUID,
+		"provider":     "github",
+		"repoName":     repoName,
+		"analysisType": "repo",
+	}
+	log := logutil.WrapLogWithContext(c.log, lctx)
 
-	if os.Getenv("DISABLE_REPO_ANALYSIS") == "1" {
-		analytics.Log(ctx).Warnf("Repo analysis is disabled, return error to try it later")
+	if c.cfg.GetBool("DISABLE_REPO_ANALYSIS", false) {
+		log.Warnf("Repo analysis is disabled, return error to try it later")
 		return errors.New("repo analysis is disabled")
 	}
 
-	return c.wrapConsuming(ctx, func() error {
+	return c.wrapConsuming(log, func() error {
 		var cancel context.CancelFunc
 		// If you change timeout value don't forget to change it
 		// in golangci-api stale analyzes checker
 		ctx, cancel = context.WithTimeout(ctx, 10*time.Minute)
 		defer cancel()
 
-		return c.analyzeRepo(ctx, repoName, analysisGUID, branch, privateAccessToken)
+		return c.analyzeRepo(ctx, log, repoName, analysisGUID, branch, privateAccessToken)
 	})
 }
 
-func (c AnalyzeRepo) analyzeRepo(ctx context.Context, repoName, analysisGUID, branch, privateAccessToken string) error {
+func (c AnalyzeRepo) analyzeRepo(ctx context.Context, log logutil.Log,
+	repoName, analysisGUID, branch, privateAccessToken string) error {
+
 	parts := strings.Split(repoName, "/")
 	repo := &github.Repo{
 		Owner: parts[0],
@@ -71,6 +78,7 @@ func (c AnalyzeRepo) analyzeRepo(ctx context.Context, repoName, analysisGUID, br
 		Branch:             branch,
 		Repo:               repo,
 		PrivateAccessToken: privateAccessToken,
+		Log:                log,
 	}
 	p, cleanup, err := c.rpf.BuildProcessor(repoCtx)
 	if err != nil {

@@ -2,72 +2,108 @@ package consumers
 
 import (
 	"context"
-	"fmt"
 	"strconv"
 	"time"
 
+	"github.com/golangci/golangci-api/internal/shared/logutil"
+	"github.com/pkg/errors"
+
 	"github.com/golangci/golangci-api/pkg/worker/analytics"
-	"github.com/golangci/golangci-api/pkg/worker/analyze/analyzequeue/task"
 	"github.com/golangci/golangci-api/pkg/worker/analyze/processors"
 	"github.com/golangci/golangci-api/pkg/worker/lib/github"
 )
 
-var ProcessorFactory = processors.NewGithubFactory()
-
 type AnalyzePR struct {
 	baseConsumer
+
+	pf  processors.PullProcessorFactory
+	log logutil.Log
 }
 
-func NewAnalyzePR() *AnalyzePR {
+func NewAnalyzePR(pf processors.PullProcessorFactory, log logutil.Log) *AnalyzePR {
 	return &AnalyzePR{
 		baseConsumer: baseConsumer{
-			eventName:           analytics.EventPRChecked,
-			needSendToAnalytics: true,
+			eventName: analytics.EventPRChecked,
 		},
+		pf:  pf,
+		log: log,
 	}
 }
 
 func (c AnalyzePR) Consume(ctx context.Context, repoOwner, repoName, githubAccessToken string,
 	pullRequestNumber int, APIRequestID string, userID uint, analysisGUID string) error {
 
-	t := &task.PRAnalysis{
-		Context: github.Context{
-			Repo: github.Repo{
-				Owner: repoOwner,
-				Name:  repoName,
-			},
-			GithubAccessToken: githubAccessToken,
-			PullRequestNumber: pullRequestNumber,
-		},
-		APIRequestID: APIRequestID,
-		UserID:       userID,
-		AnalysisGUID: analysisGUID,
+	repo := github.Repo{
+		Owner: repoOwner,
+		Name:  repoName,
 	}
-
-	ctx = c.prepareContext(ctx, map[string]interface{}{
-		"repoName":     fmt.Sprintf("%s/%s", repoOwner, repoName),
+	lctx := logutil.Context{
+		"analysisGUID": analysisGUID,
 		"provider":     "github",
+		"repoName":     repo.FullName(),
+		"analysisType": "pull",
 		"prNumber":     pullRequestNumber,
 		"userIDString": strconv.Itoa(int(userID)),
-		"analysisGUID": analysisGUID,
-	})
+	}
+	ctx = c.prepareContext(ctx, lctx)
+	log := logutil.WrapLogWithContext(c.log, lctx)
 
-	return c.wrapConsuming(ctx, func() error {
+	startedAt := time.Now()
+	finalErr := c.wrapConsuming(log, func() error {
 		var cancel context.CancelFunc
 		// If you change timeout value don't forget to change it
 		// in golangci-api stale analyzes checker
 		ctx, cancel = context.WithTimeout(ctx, 10*time.Minute)
 		defer cancel()
 
-		p, err := ProcessorFactory.BuildProcessor(ctx, t)
-		if err != nil {
-			return fmt.Errorf("can't build processor for task %+v: %s", t, err)
+		pullCtx := &processors.PullContext{
+			Ctx:          ctx,
+			UserID:       int(userID),
+			AnalysisGUID: analysisGUID,
+			ProviderCtx: &github.Context{
+				Repo:              repo,
+				GithubAccessToken: githubAccessToken,
+				PullRequestNumber: pullRequestNumber,
+			},
+			LogCtx: lctx,
+			Log:    log,
 		}
 
-		if err = p.Process(ctx); err != nil {
-			return fmt.Errorf("can't process pr analysis of %+v: %s", t, err)
+		p, cleanup, err := c.pf.BuildProcessor(pullCtx)
+		if err != nil {
+			return errors.Wrap(err, "can't build processor")
+		}
+		defer cleanup()
+
+		if err = p.Process(pullCtx); err != nil {
+			return errors.Wrap(err, "can't process pull analysis")
 		}
 
 		return nil
 	})
+
+	c.sendAnalytics(ctx, time.Since(startedAt), finalErr)
+
+	if !isRecoverableError(finalErr) {
+		// error was already logged, but don't retry it: just delete from queue as processed
+		return nil
+	}
+
+	return finalErr
+}
+
+func (c AnalyzePR) sendAnalytics(ctx context.Context, duration time.Duration, err error) {
+	props := map[string]interface{}{
+		"durationSeconds": int(duration / time.Second),
+	}
+	if err == nil {
+		props["status"] = statusOk
+	} else {
+		props["status"] = statusFail
+		props["error"] = err.Error()
+	}
+	analytics.SaveEventProps(ctx, c.eventName, props)
+
+	tracker := analytics.GetTracker(ctx)
+	tracker.Track(ctx, c.eventName)
 }

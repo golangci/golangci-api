@@ -28,7 +28,7 @@ Resources:
                   Action: ["sqs:SendMessage", "sqs:ReceiveMessage", "sqs:ChangeMessageVisibility", "sqs:DeleteMessage"]
                   Resource:
                     - !GetAtt testPrimaryQueue.Arn
-                    - !GetAtt testAnalyzesQueue.Arn
+                    - !GetAtt testAnalyzesQueueV2.Arn
       UserName: golangciTestUser
   golangciDevUser:
     Type: AWS::IAM::User
@@ -157,7 +157,7 @@ Resources:
       VisibilityTimeout: 600 # get in sync with worker timeout and staler
       ReceiveMessageWaitTimeSeconds: 20 # save costs on polling
       MessageRetentionPeriod: 1209600 # 14d
-  testAnalyzesQueue:
+  testAnalyzesQueueV2:
     Type: AWS::SQS::Queue
     Properties:
       VisibilityTimeout: 600 # get in sync with worker timeout and staler
@@ -189,9 +189,9 @@ Outputs:
   deadLetterAnalyzesQueueURL:
     Description: "URL of the dead letter for the analyzes queue"
     Value: !Ref deadLetterAnalyzesQueue
-  testAnalyzesQueueURL:
-    Description: "URL of the test analyzes queue"
-    Value: !Ref testAnalyzesQueue
+  testAnalyzesQueueV2URL:
+    Description: "URL of the test analyzes queue V2"
+    Value: !Ref testAnalyzesQueueV2
   devIsaevAnalyzesQueueURL:
     Description: "URL of the dev Isaev analyzes queue"
     Value: !Ref devIsaevAnalyzesQueue

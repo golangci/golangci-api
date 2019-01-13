@@ -3,6 +3,7 @@ package result
 import (
 	"fmt"
 	"log"
+	"strings"
 	"time"
 
 	goenvconfig "github.com/golangci/golangci-api/pkg/goenvbuild/config"
@@ -34,6 +35,20 @@ func (s *Step) AddError(err string) {
 	s.Error = err
 }
 
+func (s *Step) AddOutput(output string) {
+	if output == "" {
+		return
+	}
+
+	lines := strings.Split(output, "\n")
+	for i, line := range lines {
+		if i == len(lines)-1 && line == "" {
+			continue // don't add trailing new line
+		}
+		s.AddOutputLine(line)
+	}
+}
+
 type StepGroup struct {
 	Name     string
 	Steps    []*Step
@@ -57,6 +72,10 @@ func (sg *StepGroup) AddStep(desc string) *Step {
 	}
 	sg.Steps = append(sg.Steps, step)
 	return step
+}
+
+func (sg *StepGroup) AddStepCmd(cmd string, args ...string) *Step {
+	return sg.AddStep(fmt.Sprintf("$ %s %s", cmd, strings.Join(args, " ")))
 }
 
 func (sg *StepGroup) Finish() {

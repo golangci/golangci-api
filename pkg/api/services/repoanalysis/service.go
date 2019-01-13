@@ -3,6 +3,8 @@ package repoanalysis
 import (
 	"strings"
 
+	"github.com/golangci/golangci-api/pkg/worker/analyze/processors"
+
 	"github.com/golangci/golangci-api/pkg/api/policy"
 
 	"github.com/golangci/golangci-api/internal/shared/logutil"
@@ -50,7 +52,7 @@ type BasicService struct {
 }
 
 func (s BasicService) isCompleteAnalysisStatus(status string) bool {
-	return status == "processed" || status == "error"
+	return status == processors.StatusProcessed || status == processors.StatusError
 }
 
 //nolint:gocyclo

@@ -4,8 +4,10 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strconv"
 	"strings"
 
+	logresult "github.com/golangci/golangci-api/pkg/goenvbuild/result"
 	"github.com/golangci/golangci-api/pkg/worker/analytics"
 	"github.com/golangci/golangci-api/pkg/worker/analyze/linters/result"
 	"github.com/golangci/golangci-api/pkg/worker/lib/errorutils"
@@ -22,7 +24,8 @@ func (g GolangciLint) Name() string {
 	return "golangci-lint"
 }
 
-func (g GolangciLint) Run(ctx context.Context, exec executors.Executor) (*result.Result, error) {
+//nolint:gocyclo
+func (g GolangciLint) Run(ctx context.Context, sg *logresult.StepGroup, exec executors.Executor) (*result.Result, error) {
 	exec = exec.WithEnv("GOLANGCI_COM_RUN", "1")
 
 	args := []string{
@@ -34,8 +37,18 @@ func (g GolangciLint) Run(ctx context.Context, exec executors.Executor) (*result
 		"--new-from-rev=",
 		"--new-from-patch=" + g.PatchPath,
 	}
+	step := sg.AddStepCmd("GOLANGCI_COM_RUN=1 golangci-lint", args...)
 
 	out, runErr := exec.Run(ctx, g.Name(), args...)
+
+	// logrus escapes \n when golangci-lint run not in TTY by user
+	out = strings.TrimSpace(out)
+	out = strings.TrimPrefix(out, "level=error msg=")
+	unquotedOut, err := strconv.Unquote(out)
+	if err == nil {
+		out = unquotedOut
+	}
+
 	rawJSON := []byte(out)
 
 	if runErr != nil {
@@ -46,31 +59,35 @@ func (g GolangciLint) Run(ctx context.Context, exec executors.Executor) (*result
 			}
 		}
 
+		// it's not json in the out
+		step.AddOutput(out)
+
 		const badLoadStr = "failed to load program with go/packages"
-		if strings.Contains(runErr.Error(), badLoadStr) {
-			ind := strings.Index(runErr.Error(), badLoadStr)
-			if ind < len(runErr.Error())-1 {
-				return nil, &errorutils.BadInputError{
-					PublicDesc: runErr.Error()[ind:],
-				}
+		if strings.Contains(out, badLoadStr) {
+			return nil, &errorutils.BadInputError{
+				PublicDesc: badLoadStr,
 			}
 		}
 
 		return nil, &errorutils.InternalError{
 			PublicDesc:  "can't run golangci-lint",
-			PrivateDesc: fmt.Sprintf("can't run golangci-lint: %s, %s", runErr, out),
+			PrivateDesc: fmt.Sprintf("can't run golangci-lint: %s", runErr),
 		}
 	}
 
 	var res printers.JSONResult
 	if jsonErr := json.Unmarshal(rawJSON, &res); jsonErr != nil {
+		step.AddOutput(out)
 		return nil, &errorutils.InternalError{
 			PublicDesc:  "can't run golangci-lint: invalid output json",
-			PrivateDesc: fmt.Sprintf("can't run golangci-lint: can't parse json output %s: %s", out, jsonErr),
+			PrivateDesc: fmt.Sprintf("can't run golangci-lint: can't parse json output: %s", jsonErr),
 		}
 	}
 
 	if res.Report != nil && len(res.Report.Warnings) != 0 {
+		for _, warn := range res.Report.Warnings {
+			step.AddOutputLine("[WARN] %s: %s", warn.Tag, warn.Text)
+		}
 		analytics.Log(ctx).Infof("Got golangci-lint warnings: %#v", res.Report.Warnings)
 	}
 
@@ -83,7 +100,9 @@ func (g GolangciLint) Run(ctx context.Context, exec executors.Executor) (*result
 			FromLinter: i.FromLinter,
 			HunkPos:    i.HunkPos,
 		})
+		step.AddOutputLine("%s:%d: %s (%s)", i.FilePath(), i.Line(), i.Text, i.FromLinter)
 	}
+
 	return &result.Result{
 		Issues:     retIssues,
 		ResultJSON: json.RawMessage(rawJSON),

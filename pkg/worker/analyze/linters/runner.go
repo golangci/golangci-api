@@ -4,21 +4,22 @@ import (
 	"context"
 	"log"
 
+	logresult "github.com/golangci/golangci-api/pkg/goenvbuild/result"
 	"github.com/golangci/golangci-api/pkg/worker/analyze/linters/result"
 	"github.com/golangci/golangci-api/pkg/worker/lib/executors"
 )
 
 type Runner interface {
-	Run(ctx context.Context, linters []Linter, exec executors.Executor) (*result.Result, error)
+	Run(ctx context.Context, sg *logresult.StepGroup, linters []Linter, exec executors.Executor) (*result.Result, error)
 }
 
 type SimpleRunner struct {
 }
 
-func (r SimpleRunner) Run(ctx context.Context, linters []Linter, exec executors.Executor) (*result.Result, error) {
+func (r SimpleRunner) Run(ctx context.Context, sg *logresult.StepGroup, linters []Linter, exec executors.Executor) (*result.Result, error) {
 	results := []result.Result{}
 	for _, linter := range linters {
-		res, err := linter.Run(ctx, exec)
+		res, err := linter.Run(ctx, sg, exec)
 		if err != nil {
 			return nil, err // don't wrap error here, need to save original error
 		}

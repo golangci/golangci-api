@@ -76,6 +76,11 @@ func (c *Container) Setup(ctx context.Context) error {
 
 	c.log.Infof("Setup of container: id is %#v", setupResp.ContainerID)
 	c.containerID = setupResp.ContainerID
+
+	// to hide it in logs
+	os.Setenv("container_id_"+c.containerID.ID, c.containerID.ID)
+	os.Setenv("container_token_"+c.containerID.BuildToken, c.containerID.BuildToken)
+
 	return nil
 }
 

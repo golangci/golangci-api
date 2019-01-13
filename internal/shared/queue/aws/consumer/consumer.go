@@ -77,7 +77,19 @@ func (c SQS) poll() {
 		return
 	}
 
-	c.log.Infof("Polling: processed message %#v for %s", message, time.Since(startedAt))
+	var rcvCountStr string
+	rcvAttrPtr := message.Attributes[awssqs.MessageSystemAttributeNameApproximateReceiveCount]
+	if rcvAttrPtr != nil {
+		rcvCountStr = *rcvAttrPtr
+	}
+
+	var body string
+	if message.Body != nil {
+		body = *message.Body
+	}
+
+	c.log.Infof("Polling: processed message ApproximateReceiveCount=%s Body=%s for %s",
+		rcvCountStr, body, time.Since(startedAt))
 }
 
 func (c SQS) runPolling() {
@@ -107,7 +119,7 @@ func (c SQS) onReceiveMessage(ctx context.Context, message *awssqs.Message) erro
 			c.log.Warnf("Invalid receive count attribute %q: %s", *receiveCountStrPtr, err)
 		}
 	}
-	if err = c.sqsQueue.Ack(*message.ReceiptHandle, receiveCount, handledOk); err != nil {
+	if err = c.sqsQueue.Ack(*message.ReceiptHandle, *message.MessageId, receiveCount, handledOk); err != nil {
 		return errors.Wrapf(err, "failed to ack message %s with receive count %d",
 			*message.ReceiptHandle, receiveCount)
 	}

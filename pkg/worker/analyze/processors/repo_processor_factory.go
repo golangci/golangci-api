@@ -5,7 +5,6 @@ import (
 
 	"github.com/golangci/golangci-api/internal/shared/apperrors"
 	"github.com/golangci/golangci-api/internal/shared/config"
-	"github.com/golangci/golangci-api/internal/shared/logutil"
 	"github.com/golangci/golangci-api/pkg/worker/analyze/linters"
 	"github.com/golangci/golangci-api/pkg/worker/analyze/linters/golinters"
 	"github.com/golangci/golangci-api/pkg/worker/analyze/repostate"
@@ -17,14 +16,12 @@ import (
 )
 
 type RepoProcessorFactory struct {
-	cfg      *StaticRepoConfig
-	noCtxLog logutil.Log
+	cfg *StaticRepoConfig
 }
 
-func NewRepoProcessorFactory(cfg *StaticRepoConfig, noCtxLog logutil.Log) *RepoProcessorFactory {
+func NewRepoProcessorFactory(cfg *StaticRepoConfig) *RepoProcessorFactory {
 	return &RepoProcessorFactory{
-		cfg:      cfg,
-		noCtxLog: noCtxLog,
+		cfg: cfg,
 	}
 }
 
@@ -52,27 +49,17 @@ func (f RepoProcessorFactory) BuildProcessor(ctx *RepoContext) (*Repo, func(), e
 	}
 
 	if cfg.Cfg == nil {
-		envCfg := config.NewEnvConfig(f.noCtxLog)
+		envCfg := config.NewEnvConfig(ctx.Log)
 		cfg.Cfg = envCfg
 	}
 
 	if cfg.Et == nil {
-		cfg.Et = apperrors.GetTracker(cfg.Cfg, f.noCtxLog, "worker")
+		cfg.Et = apperrors.GetTracker(cfg.Cfg, ctx.Log, "worker")
 	}
 
-	lctx := logutil.Context{
-		"branch":       ctx.Branch,
-		"analysisGUID": ctx.AnalysisGUID,
-		"provider":     "github",
-		"repoName":     ctx.Repo.FullName(),
-		"analysisType": "repo",
-	}
-	log := logutil.WrapLogWithContext(f.noCtxLog, lctx)
-	log = apperrors.WrapLogWithTracker(log, lctx, cfg.Et)
+	ec := experiments.NewChecker(cfg.Cfg, ctx.Log)
 
-	ec := experiments.NewChecker(cfg.Cfg, log)
-
-	exec, err := makeExecutor(ctx.Ctx, log)
+	exec, err := makeExecutor(ctx.Ctx, ctx.Log)
 	if err != nil {
 		return nil, nil, errors.Wrap(err, "can't make executor")
 	}
@@ -82,9 +69,8 @@ func (f RepoProcessorFactory) BuildProcessor(ctx *RepoContext) (*Repo, func(), e
 	}
 	p := NewRepo(&RepoConfig{
 		StaticRepoConfig: cfg,
-		Log:              log,
 		Exec:             exec,
-		Wi:               workspaces.NewGo(exec, log, cfg.RepoFetcher),
+		Wi:               workspaces.NewGo(exec, ctx.Log, cfg.RepoFetcher),
 		Ec:               ec,
 	})
 
