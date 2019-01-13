@@ -233,7 +233,7 @@ func (s BasicService) checkSubscription(rc *request.AnonymousContext, repo *mode
 func (s BasicService) getNoSubWarnLogger(rc *request.AnonymousContext, repo *models.Repo) logutil.Func {
 	ignoredRepos := s.Cfg.GetStringList("KNOWN_PRIVATE_REPOS_WO_SUB")
 	for _, ignoredRepo := range ignoredRepos {
-		if ignoredRepo == repo.FullName {
+		if strings.EqualFold(ignoredRepo, repo.FullName) {
 			return rc.Log.Infof
 		}
 	}
