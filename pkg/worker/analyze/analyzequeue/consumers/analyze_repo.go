@@ -27,6 +27,7 @@ func NewAnalyzeRepo(rpf *processors.RepoProcessorFactory, log logutil.Log, cfg c
 	return &AnalyzeRepo{
 		baseConsumer: baseConsumer{
 			eventName: analytics.EventRepoAnalyzed,
+			cfg:       cfg,
 		},
 		rpf: rpf,
 		log: log,
@@ -49,7 +50,7 @@ func (c AnalyzeRepo) Consume(ctx context.Context, repoName, analysisGUID, branch
 		return errors.New("repo analysis is disabled")
 	}
 
-	return c.wrapConsuming(ctx, log, func() error {
+	return c.wrapConsuming(ctx, log, repoName, func() error {
 		var cancel context.CancelFunc
 		// If you change timeout value don't forget to change it
 		// in golangci-api stale analyzes checker

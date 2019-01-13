@@ -80,7 +80,7 @@ func (a App) buildMultiplexer() *consumers.Multiplexer {
 	repoAnalyzer := analyzesConsumers.NewAnalyzeRepo(rpf, a.trackedLog, a.cfg)
 	repoAnalyzesRunner := repoanalyzesqueue.NewConsumer(repoAnalyzer)
 
-	pullAnalyzer := analyzesConsumers.NewAnalyzePR(a.ppf, a.trackedLog)
+	pullAnalyzer := analyzesConsumers.NewAnalyzePR(a.ppf, a.trackedLog, a.cfg)
 	pullAnalyzesRunner := pullanalyzesqueue.NewConsumer(pullAnalyzer)
 
 	multiplexer := consumers.NewMultiplexer()

@@ -82,7 +82,7 @@ func (r Repo) Process(ctx *RepoContext) error {
 	publicErrorText := buildPublicError(err)
 	err = transformError(err)
 
-	r.submitResult(ctx, &res, status, publicErrorText, err)
+	r.submitResult(ctx, &res, status, publicErrorText)
 	return err
 }
 
@@ -172,14 +172,7 @@ func buildFetchersRepo(ctx *RepoContext) *fetchers.Repo {
 	}
 }
 
-func (r Repo) submitResult(ctx *RepoContext, res *analysisResult,
-	status, publicError string, err error) {
-	if err == nil {
-		ctx.Log.Infof("Succeeded repo analysis, timings: %v", res.timings)
-	} else {
-		ctx.Log.Errorf("Failed repo analysis: %s, timings: %v", err, res.timings)
-	}
-
+func (r Repo) submitResult(ctx *RepoContext, res *analysisResult, status, publicError string) {
 	if res.buildLog != nil {
 		escapeBuildLog(res.buildLog, ctx)
 	}

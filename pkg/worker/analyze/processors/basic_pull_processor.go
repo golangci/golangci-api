@@ -132,12 +132,6 @@ func (p *BasicPull) processWithGuaranteedGithubStatus(ctx *PullContext) error {
 	publicError := buildPublicError(err)
 	err = transformError(err)
 
-	if err == nil {
-		ctx.Log.Infof("Succeeded repo analysis, timings: %v", ctx.res.timings)
-	} else {
-		ctx.Log.Errorf("Failed repo analysis: %s, timings: %v", err, ctx.res.timings)
-	}
-
 	// update of state must be before commit status update: user can open details link before: race condition
 	p.updateAnalysisState(ctx, res, status, publicError)
 	p.setCommitStatus(ctx, status, statusDesc)

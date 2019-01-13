@@ -39,7 +39,7 @@ func TestAnalyzeRepo(t *testing.T) {
 	log := logutil.NewStderrLog("")
 	cfg := config.NewEnvConfig(log)
 
-	err := NewAnalyzePR(pf, log).Consume(context.Background(), repoOwner, repoName,
+	err := NewAnalyzePR(pf, log, cfg).Consume(context.Background(), repoOwner, repoName,
 		cfg.GetString("TEST_GITHUB_TOKEN"), prNumber, "", userID, "test-guid")
 	assert.NoError(t, err)
 }
