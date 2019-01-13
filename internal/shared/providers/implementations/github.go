@@ -83,6 +83,12 @@ func (p Github) unwrapError(err error) error {
 				return provider.ErrRepoWasArchived
 			}
 		}
+		if respCode == http.StatusUnprocessableEntity {
+			// full msg is "You must purchase at least one more seat to add this user as a collaborator."
+			if strings.Contains(er.Error(), "must purchase at least one more seat") {
+				return provider.ErrNeedMoreOrgSeats
+			}
+		}
 	}
 
 	return err
@@ -400,7 +406,8 @@ func (p Github) AddCollaborator(ctx context.Context, owner, repo, username strin
 	opts := github.RepositoryAddCollaboratorOptions{}
 	resp, err := p.client(ctx).Repositories.AddCollaborator(ctx, owner, repo, username, &opts)
 	if err != nil {
-		return nil, errors.Wrap(p.unwrapError(err), "failed to send invitation")
+		// err goes to user if err == ErrNeedMoreOrgSeats, don't write much here
+		return nil, p.unwrapError(err)
 	}
 
 	if resp.StatusCode == http.StatusNoContent {

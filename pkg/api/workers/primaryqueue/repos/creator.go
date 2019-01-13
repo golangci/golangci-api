@@ -104,7 +104,8 @@ func (cc CreatorConsumer) createHook(ctx context.Context, repo *models.Repo, p p
 		var hook *provider.Hook
 		hook, err = p.CreateRepoHook(ctx, repo.Owner(), repo.Repo(), &hookCfg)
 		if err != nil {
-			return errors.Wrapf(err, "can't post hook %#v to provider", hookCfg)
+			// this text goes to user when e.g. we get "repo is archived" error
+			return errors.Wrapf(err, "can't save webhook to %s", p.Name())
 		}
 		repo.ProviderHookID = hook.ID
 	}
@@ -142,7 +143,7 @@ func (cc CreatorConsumer) processStates(ctx context.Context, repo *models.Repo, 
 					return errors.Wrap(err, "failed to create repo")
 				}
 
-				cc.log.Warnf("Failed to create repo %s: permanent provider error %s: rollbacking it",
+				cc.log.Warnf("Failed to create repo %s: permanent provider error: %s: rollbacking it",
 					repo.FullName, err)
 				if uErr := cc.markRepoForRollback(repo, gormDB, err); uErr != nil {
 					return errors.Wrap(uErr, "failed to mark repo for rollback")
@@ -289,7 +290,7 @@ func (cc CreatorConsumer) markRepoForRollback(repo *models.Repo, gormDB *gorm.DB
 	err := models.NewRepoQuerySet(gormDB).IDEq(repo.ID).
 		CommitStateIn(models.RepoCommitStateCreateInit, models.RepoCommitStateCreateSentToQueue).
 		GetUpdater().
-		SetCreateFailReason(errors.Cause(sourceErr).Error()).
+		SetCreateFailReason(sourceErr.Error()).
 		SetCommitState(nextState).
 		UpdateRequired()
 	if err != nil {
@@ -341,7 +342,9 @@ func (cc CreatorConsumer) addCollaborator(ctx context.Context, repo *models.Repo
 	reviewerLogin := getReviewerLogin(p.Name(), cc.cfg)
 	invite, err := p.AddCollaborator(ctx, repo.Owner(), repo.Repo(), reviewerLogin)
 	if err != nil {
-		return errors.Wrap(err, "failed to add collaborator in VCS provider")
+		// this text goes to user when err == ErrNeedMoreOrgSeats
+		return errors.Wrapf(err, "can't add @%s as collaborator in %s",
+			reviewerLogin, p.Name())
 	}
 
 	if invite.IsAlreadyCollaborator {
