@@ -136,6 +136,21 @@ func RegisterHandlers(svc Service, r *mux.Router, regCtx *endpointutil.HandlerRe
 	)
 	r.Methods("GET").Path("/v1/auth/{provider}/callback/private").Handler(hLoginPrivateOAuthCallback)
 
+	hLoginAdmin := httptransport.NewServer(
+		makeLoginAdminEndpoint(svc, regCtx.Log),
+		decodeLoginAdminRequest,
+		encodeLoginAdminResponse,
+		httptransport.ServerBefore(transportutil.StoreHTTPRequestToContext),
+		httptransport.ServerAfter(transportutil.FinalizeSession),
+
+		httptransport.ServerBefore(transportutil.MakeStoreAuthorizedRequestContext(*regCtx)),
+
+		httptransport.ServerFinalizer(transportutil.FinalizeRequest),
+		httptransport.ServerErrorEncoder(transportutil.EncodeError),
+		httptransport.ServerErrorLogger(transportutil.AdaptErrorLogger(regCtx.Log)),
+	)
+	r.Methods("GET").Path("/v1/auth/{provider}/admin").Handler(hLoginAdmin)
+
 }
 
 func decodeCheckAuthRequest(_ context.Context, r *http.Request) (interface{}, error) {
@@ -459,6 +474,48 @@ func encodeLoginPrivateOAuthCallbackResponse(ctx context.Context, w http.Respons
 		LoginPrivateOAuthCallbackResponse
 	}{
 		LoginPrivateOAuthCallbackResponse: resp,
+	}
+
+	if resp.err != nil {
+		if apierrors.IsErrorLikeResult(resp.err) {
+			return transportutil.HandleErrorLikeResult(ctx, w, resp.err)
+		}
+
+		terr := transportutil.MakeError(resp.err)
+		wrappedResp.Error = terr
+		w.WriteHeader(terr.HTTPCode)
+	}
+
+	return json.NewEncoder(w).Encode(wrappedResp)
+}
+
+func decodeLoginAdminRequest(_ context.Context, r *http.Request) (interface{}, error) {
+	var request LoginAdminRequest
+	if err := transportutil.DecodeRequest(&request, r); err != nil {
+		return nil, errors.Wrap(err, "can't decode request")
+	}
+
+	return request, nil
+}
+
+func encodeLoginAdminResponse(ctx context.Context, w http.ResponseWriter, response interface{}) error {
+	w.Header().Add("Content-Type", "application/json; charset=UTF-8")
+	if err := transportutil.GetContextError(ctx); err != nil {
+		wrappedResp := struct {
+			Error *transportutil.Error
+		}{
+			Error: transportutil.MakeError(err),
+		}
+		w.WriteHeader(wrappedResp.Error.HTTPCode)
+		return json.NewEncoder(w).Encode(wrappedResp)
+	}
+
+	resp := response.(LoginAdminResponse)
+	wrappedResp := struct {
+		transportutil.ErrorResponse
+		LoginAdminResponse
+	}{
+		LoginAdminResponse: resp,
 	}
 
 	if resp.err != nil {

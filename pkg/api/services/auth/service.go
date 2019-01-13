@@ -36,6 +36,15 @@ type OAuthCallbackRequest struct {
 	State string `request:",urlParam,"`
 }
 
+type AdminRequest struct {
+	UserID int    `request:",urlParam,"`
+	Pass   string `request:",urlParam,"`
+}
+
+func (r AdminRequest) FillLogContext(lctx logutil.Context) {
+	lctx["as_user_id"] = r.UserID
+}
+
 type Service interface {
 	//url:/v1/auth/check
 	CheckAuth(rc *request.AuthorizedContext) (*returntypes.CheckAuthResponse, error)
@@ -60,6 +69,9 @@ type Service interface {
 
 	//url:/v1/auth/{provider}/callback/private
 	LoginPrivateOAuthCallback(rc *request.AuthorizedContext, req *OAuthCallbackRequest) error
+
+	//url:/v1/auth/{provider}/admin
+	LoginAdmin(rc *request.AuthorizedContext, req *AdminRequest) error
 }
 
 type BasicService struct {
@@ -168,7 +180,7 @@ func (s BasicService) LoginPublicOAuthCallback(rc *request.AnonymousContext, req
 	}
 
 	rc.Log.Infof("%s public oauth completed, provider user is %+v, creating local user", req.Provider, gu)
-	if err = s.LoginUser(rc, gu); err != nil {
+	if err = s.loginUser(rc, gu); err != nil {
 		return errors.Wrap(err, "failed to login local user for provider user")
 	}
 
@@ -195,7 +207,7 @@ func (s BasicService) LoginPrivateOAuthCallback(rc *request.AuthorizedContext, r
 	return apierrors.NewTemporaryRedirectError(s.afterPrivateLoginURL(req.Provider))
 }
 
-func (s BasicService) LoginUser(rc *request.AnonymousContext, gu *goth.User) (retErr error) {
+func (s BasicService) loginUser(rc *request.AnonymousContext, gu *goth.User) (retErr error) {
 	tx, finishTx, err := gormdb.StartTx(rc.DB)
 	if err != nil {
 		return err
@@ -321,4 +333,27 @@ func getOrStoreUserInDB(ctx context.Context, log logutil.Log, tx *gorm.DB, gu *g
 
 	// User already exists
 	return &u, ga.ID, nil
+}
+
+func (s BasicService) LoginAdmin(rc *request.AuthorizedContext, req *AdminRequest) error {
+	adminLogin := s.Cfg.GetString("ADMIN_GITHUB_LOGIN")
+	if rc.Auth.Login != adminLogin {
+		return errors.New("bad login")
+	}
+
+	neededPass := s.Cfg.GetString("ADMIN_AUTH_PASS")
+	if len(neededPass) < 6 {
+		return errors.New("no configured pass")
+	}
+
+	if req.Pass != neededPass {
+		return errors.New("invalid pass")
+	}
+
+	var user models.User
+	if err := models.NewUserQuerySet(rc.DB).IDEq(uint(req.UserID)).One(&user); err != nil {
+		return errors.Wrapf(err, "failed to fetch user id %d", req.UserID)
+	}
+
+	return s.Authorizer.CreateAuthorization(rc.SessCtx, &user)
 }

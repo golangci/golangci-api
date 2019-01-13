@@ -400,3 +400,54 @@ func makeLoginPrivateOAuthCallbackEndpoint(svc Service, log logutil.Log) endpoin
 
 	}
 }
+
+type LoginAdminRequest struct {
+	Req *AdminRequest
+}
+
+type LoginAdminResponse struct {
+	err error
+}
+
+func makeLoginAdminEndpoint(svc Service, log logutil.Log) endpoint.Endpoint {
+	return func(ctx context.Context, reqObj interface{}) (resp interface{}, err error) {
+
+		req := reqObj.(LoginAdminRequest)
+
+		reqLogger := log
+		defer func() {
+			if rerr := recover(); rerr != nil {
+				reqLogger.Errorf("Panic occured")
+				reqLogger.Infof("%s", debug.Stack())
+				resp = LoginAdminResponse{
+					err: errors.New("panic occured"),
+				}
+				err = nil
+			}
+		}()
+
+		if err := endpointutil.Error(ctx); err != nil {
+			log.Warnf("Error occurred during request context creation: %s", err)
+			resp = LoginAdminResponse{
+				err: err,
+			}
+			return resp, nil
+		}
+
+		rc := endpointutil.RequestContext(ctx).(*request.AuthorizedContext)
+		reqLogger = rc.Log
+
+		req.Req.FillLogContext(rc.Lctx)
+
+		err = svc.LoginAdmin(rc, req.Req)
+		if err != nil {
+			if !apierrors.IsErrorLikeResult(err) {
+				rc.Log.Errorf("auth.Service.LoginAdmin failed: %s", err)
+			}
+			return LoginAdminResponse{err}, nil
+		}
+
+		return LoginAdminResponse{nil}, nil
+
+	}
+}
