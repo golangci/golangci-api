@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/golangci/golangci-api/pkg/api/workers/primaryqueue/invitations"
+
 	"github.com/golangci/golangci-api/internal/shared/config"
 	"github.com/golangci/golangci-api/internal/shared/db/gormdb"
 	"github.com/golangci/golangci-api/internal/shared/logutil"
@@ -46,22 +48,24 @@ func (cp CreatorProducer) Put(repoID uint) error {
 }
 
 type CreatorConsumer struct {
-	log                   logutil.Log
-	db                    *sql.DB
-	cfg                   config.Config
-	providerFactory       providers.Factory
-	analysisLauncherQueue *repoanalyzes.LauncherProducer
+	log                      logutil.Log
+	db                       *sql.DB
+	cfg                      config.Config
+	providerFactory          providers.Factory
+	analysisLauncherQueue    *repoanalyzes.LauncherProducer
+	invitationsAcceptorQueue *invitations.AcceptorProducer
 }
 
 func NewCreatorConsumer(log logutil.Log, db *sql.DB, cfg config.Config, pf providers.Factory,
-	alq *repoanalyzes.LauncherProducer) *CreatorConsumer {
+	alq *repoanalyzes.LauncherProducer, invq *invitations.AcceptorProducer) *CreatorConsumer {
 
 	return &CreatorConsumer{
-		log:                   log,
-		db:                    db,
-		cfg:                   cfg,
-		providerFactory:       pf,
-		analysisLauncherQueue: alq,
+		log:                      log,
+		db:                       db,
+		cfg:                      cfg,
+		providerFactory:          pf,
+		analysisLauncherQueue:    alq,
+		invitationsAcceptorQueue: invq,
 	}
 }
 
@@ -245,6 +249,10 @@ func (cc CreatorConsumer) createRepo(ctx context.Context, repo *models.Repo,
 		return err
 	}
 
+	if err := cc.addCollaborator(ctx, repo, p); err != nil {
+		return err
+	}
+
 	nextState := models.RepoCommitStateCreateCreatedRepo
 	err := models.NewRepoQuerySet(gormDB).IDEq(repo.ID).
 		CommitStateIn(models.RepoCommitStateCreateInit, models.RepoCommitStateCreateSentToQueue).
@@ -317,6 +325,38 @@ func (cc CreatorConsumer) consumeMessage(ctx context.Context, m *createMessage) 
 
 	if err = cc.run(ctx, m, gormDB); err != nil {
 		return errors.Wrapf(err, "create of repo %d failed", m.RepoID)
+	}
+
+	return nil
+}
+
+func (cc CreatorConsumer) addCollaborator(ctx context.Context, repo *models.Repo, p provider.Provider) error {
+	if !repo.IsPrivate {
+		return nil // no need to add golangcibot as collaborator for a public repo
+	}
+
+	// p.AddCollaborator is idempotent: repetitive calls before invitation accept
+	// return the same 201 response. Calls after invitation accept return 204.
+	reviewerLogin := getReviewerLogin(p.Name(), cc.cfg)
+	invite, err := p.AddCollaborator(ctx, repo.Owner(), repo.Repo(), reviewerLogin)
+	if err != nil {
+		return errors.Wrap(err, "failed to add collaborator in VCS provider")
+	}
+
+	if invite.IsAlreadyCollaborator {
+		cc.log.Warnf("Race condition or bug: reviewer bot is already collaborator of %s, don't send to invite queue",
+			repo.FullNameWithProvider())
+		return nil
+	}
+
+	cc.log.Infof("Sent invitation to reviewer bot for being collaborator for repo %s",
+		repo.FullNameWithProvider())
+
+	// p.AddCollaborator just send invitation, which our reviewer user needs to accept
+	// to get access to the repo
+	if err = cc.invitationsAcceptorQueue.Put(p.Name(), repo, invite.ID); err != nil {
+		return errors.Wrapf(err, "failed to send task with invitation id %d for repo %s",
+			invite.ID, repo.FullNameWithProvider())
 	}
 
 	return nil

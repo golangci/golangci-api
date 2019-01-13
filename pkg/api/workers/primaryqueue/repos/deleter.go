@@ -109,6 +109,16 @@ func (dc DeleterConsumer) deleteRepo(ctx context.Context, repo *models.Repo,
 		}
 	}
 
+	reviewerLogin := getReviewerLogin(p.Name(), dc.cfg)
+	if err := p.RemoveCollaborator(ctx, repo.Owner(), repo.Repo(), reviewerLogin); err != nil {
+		if err == provider.ErrNotFound {
+			// repetitive calls to RemoveCollaborator return 204, but user can delete the repo
+			dc.log.Warnf("Repo %s doesn't exist", repo.FullNameWithProvider())
+		} else {
+			return errors.Wrapf(err, "failed to remove reviewer bot as collaborator from repo %s", repo.FullNameWithProvider())
+		}
+	}
+
 	now := time.Now()
 	n, err := models.NewRepoQuerySet(gormDB).IDEq(repo.ID).
 		CommitStateIn(models.RepoCommitStateDeleteInit, models.RepoCommitStateDeleteSentToQueue).
@@ -123,6 +133,7 @@ func (dc DeleterConsumer) deleteRepo(ctx context.Context, repo *models.Repo,
 		return fmt.Errorf("race condition during update repo with id %d, n=%d", repo.ID, n)
 	}
 
+	dc.log.Infof("Disconnected repo %s in repo deleter queue", repo.FullNameWithProvider())
 	return nil
 }
 

@@ -30,4 +30,8 @@ type Provider interface {
 	SetCommitStatus(ctx context.Context, owner, repo, ref string, status *CommitStatus) error
 
 	ParsePullRequestEvent(ctx context.Context, payload []byte) (*PullRequestEvent, error)
+
+	AddCollaborator(ctx context.Context, owner, repo, username string) (*RepoInvitation, error)
+	RemoveCollaborator(ctx context.Context, owner, repo, username string) error
+	AcceptRepoInvitation(ctx context.Context, invitationID int) error
 }

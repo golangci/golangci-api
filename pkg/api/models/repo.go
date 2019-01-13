@@ -94,6 +94,10 @@ func (r Repo) IsCreating() bool {
 	return r.CommitState.IsCreateState() && !r.CommitState.IsTerminalState()
 }
 
+func (r Repo) FullNameWithProvider() string {
+	return fmt.Sprintf("%s/%s", r.Provider, r.FullName)
+}
+
 func (u RepoUpdater) UpdateRequired() error {
 	n, err := u.UpdateNum()
 	if err != nil {

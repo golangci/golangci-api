@@ -101,3 +101,8 @@ type Commit struct {
 	Author    *CommitAuthor
 	Committer *CommitAuthor
 }
+
+type RepoInvitation struct {
+	ID                    int
+	IsAlreadyCollaborator bool
+}

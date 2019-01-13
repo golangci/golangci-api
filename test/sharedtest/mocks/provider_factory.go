@@ -14,6 +14,8 @@ type ProviderFactory struct {
 	transformer ProviderTransformer
 }
 
+var _ providers.Factory = &ProviderFactory{}
+
 func NewProviderFactory(transformer ProviderTransformer, orig providers.Factory) *ProviderFactory {
 	return &ProviderFactory{
 		orig:        orig,
@@ -31,6 +33,14 @@ func (f ProviderFactory) Build(auth *models.Auth) (provider.Provider, error) {
 
 func (f ProviderFactory) BuildForUser(db *gorm.DB, userID uint) (provider.Provider, error) {
 	p, err := f.orig.BuildForUser(db, userID)
+	if p != nil {
+		p = f.transformer(p)
+	}
+	return p, err
+}
+
+func (f ProviderFactory) BuildForToken(providerName, accessToken string) (provider.Provider, error) {
+	p, err := f.orig.BuildForToken(providerName, accessToken)
 	if p != nil {
 		p = f.transformer(p)
 	}

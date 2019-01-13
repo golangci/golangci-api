@@ -15,6 +15,7 @@ import (
 type Factory interface {
 	Build(auth *models.Auth) (provider.Provider, error)
 	BuildForUser(db *gorm.DB, userID uint) (provider.Provider, error)
+	BuildForToken(providerName, accessToken string) (provider.Provider, error)
 }
 
 type BasicFactory struct {
@@ -27,13 +28,22 @@ func NewBasicFactory(log logutil.Log) *BasicFactory {
 	}
 }
 
-func (f BasicFactory) buildImpl(auth *models.Auth) (provider.Provider, error) {
-	switch auth.Provider {
+func (f BasicFactory) BuildForToken(providerName, accessToken string) (provider.Provider, error) {
+	switch providerName {
 	case implementations.GithubProviderName:
-		return implementations.NewGithub(auth, f.log), nil
+		return implementations.NewGithub(f.log, accessToken), nil
 	}
 
-	return nil, fmt.Errorf("invalid provider name %q in auth %#v", auth.Provider, auth)
+	return nil, fmt.Errorf("invalid provider name %q", providerName)
+}
+
+func (f BasicFactory) buildImpl(auth *models.Auth) (provider.Provider, error) {
+	at := auth.AccessToken
+	if auth.PrivateAccessToken != "" {
+		at = auth.PrivateAccessToken
+	}
+
+	return f.BuildForToken(auth.Provider, at)
 }
 
 func (f BasicFactory) Build(auth *models.Auth) (provider.Provider, error) {

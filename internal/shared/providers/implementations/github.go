@@ -23,15 +23,15 @@ var _ provider.Provider = &Github{}
 const GithubProviderName = "github.com"
 
 type Github struct {
-	auth    *models.Auth
-	baseURL *url.URL
-	log     logutil.Log
+	accessToken string
+	baseURL     *url.URL
+	log         logutil.Log
 }
 
-func NewGithub(auth *models.Auth, log logutil.Log) *Github {
+func NewGithub(log logutil.Log, accessToken string) *Github {
 	return &Github{
-		auth: auth,
-		log:  log,
+		log:         log,
+		accessToken: accessToken,
 	}
 }
 
@@ -54,14 +54,9 @@ func (p *Github) SetBaseURL(s string) error {
 }
 
 func (p Github) client(ctx context.Context) *github.Client {
-	at := p.auth.AccessToken
-	if p.auth.PrivateAccessToken != "" {
-		at = p.auth.PrivateAccessToken
-	}
-
 	ts := oauth2.StaticTokenSource(
 		&oauth2.Token{
-			AccessToken: at,
+			AccessToken: p.accessToken,
 		},
 	)
 	tc := oauth2.NewClient(ctx, ts)
@@ -399,4 +394,50 @@ func (p Github) ParsePullRequestEvent(ctx context.Context, payload []byte) (*pro
 		PullRequestNumber: pr.GetNumber(),
 		Action:            provider.PullRequestAction(ghEvent.GetAction()),
 	}, nil
+}
+
+func (p Github) AddCollaborator(ctx context.Context, owner, repo, username string) (*provider.RepoInvitation, error) {
+	opts := github.RepositoryAddCollaboratorOptions{}
+	resp, err := p.client(ctx).Repositories.AddCollaborator(ctx, owner, repo, username, &opts)
+	if err != nil {
+		return nil, errors.Wrap(p.unwrapError(err), "failed to send invitation")
+	}
+
+	if resp.StatusCode == http.StatusNoContent {
+		return &provider.RepoInvitation{IsAlreadyCollaborator: true}, nil
+	}
+
+	// resp.Body is already closed, go-github needs changes in a upstream to properly support
+	// response for AddCollaborator
+
+	invitations, _, err := p.client(ctx).Repositories.ListInvitations(ctx, owner, repo, nil)
+	if err != nil {
+		return nil, errors.Wrap(p.unwrapError(err), "failed to list invitations")
+	}
+
+	for _, invitation := range invitations {
+		if invitation.Invitee.GetLogin() == username {
+			return &provider.RepoInvitation{ID: invitation.GetID()}, nil
+		}
+	}
+
+	return nil, fmt.Errorf("not found needed invitation within invitations %#v", invitations)
+}
+
+func (p Github) RemoveCollaborator(ctx context.Context, owner, repo, username string) error {
+	_, err := p.client(ctx).Repositories.RemoveCollaborator(ctx, owner, repo, username)
+	if err != nil {
+		return p.unwrapError(err)
+	}
+
+	return nil
+}
+
+func (p Github) AcceptRepoInvitation(ctx context.Context, invitationID int) error {
+	_, err := p.client(ctx).Users.AcceptInvitation(ctx, invitationID)
+	if err != nil {
+		return p.unwrapError(err)
+	}
+
+	return nil
 }
