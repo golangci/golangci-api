@@ -40,7 +40,6 @@ import (
 	apiauth "github.com/golangci/golangci-api/pkg/api/auth"
 	"github.com/golangci/golangci-api/pkg/api/auth/oauth"
 	"github.com/golangci/golangci-api/pkg/api/crons/pranalyzes"
-	repoanalyzeslib "github.com/golangci/golangci-api/pkg/api/crons/repoanalyzes"
 	"github.com/golangci/golangci-api/pkg/api/crons/repoinfo"
 	"github.com/golangci/golangci-api/pkg/api/services/auth"
 	"github.com/golangci/golangci-api/pkg/api/services/events"
@@ -116,9 +115,8 @@ type App struct {
 	policies               policies
 	cache                  cache.Cache
 
-	PRAnalyzesStaler      *pranalyzes.Staler // TODO: make private
-	repoInfoUpdater       *repoinfo.Updater
-	repoAnalyzesRestarter *repoanalyzeslib.Restarter
+	PRAnalyzesStaler *pranalyzes.Staler // TODO: make private
+	repoInfoUpdater  *repoinfo.Updater
 }
 
 func (a App) GetDB() *gorm.DB { // TODO: remove
@@ -360,13 +358,6 @@ func NewApp(modifiers ...Modifier) *App {
 		Log:             a.trackedLog,
 		ProviderFactory: a.providerFactory,
 	}
-	a.repoAnalyzesRestarter = &repoanalyzeslib.Restarter{
-		DB:       a.gormDB,
-		Log:      a.trackedLog,
-		Cfg:      a.cfg,
-		RunQueue: a.queues.producers.repoAnalyzesRunner,
-		Pf:       a.providerFactory,
-	}
 	a.repoInfoUpdater = &repoinfo.Updater{
 		DB:  a.gormDB,
 		Cfg: a.cfg,
@@ -469,7 +460,6 @@ func (a App) RunEnvironment() {
 	a.runConsumers()
 
 	go a.PRAnalyzesStaler.Run()
-	go a.repoAnalyzesRestarter.Run()
 	go a.repoInfoUpdater.Run()
 }
 

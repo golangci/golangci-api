@@ -23,9 +23,10 @@ func (c baseConsumer) prepareContext(ctx context.Context, trackingProps map[stri
 	return ctx
 }
 
-func (c baseConsumer) wrapConsuming(log logutil.Log, f func() error) (err error) {
+func (c baseConsumer) wrapConsuming(ctx context.Context, log logutil.Log, f func() error) (err error) {
 	defer func() {
 		if r := recover(); r != nil {
+			// no errors.Wrap: err may be nil
 			err = fmt.Errorf("%s: panic recovered: %v, %s", err, r, debug.Stack())
 			log.Errorf("Processing of %q task failed: %s", c.eventName, err)
 		}
@@ -38,9 +39,35 @@ func (c baseConsumer) wrapConsuming(log logutil.Log, f func() error) (err error)
 	duration := time.Since(startedAt)
 	log.Infof("Finished consuming of %s for %s", c.eventName, duration)
 
-	if err != nil {
-		log.Errorf("Processing of %q task failed: %s", c.eventName, err)
+	if c.eventName == analytics.EventPRChecked {
+		c.sendAnalytics(ctx, duration, err)
 	}
 
-	return err
+	if err != nil {
+		if isRecoverableError(err) {
+			log.Errorf("Processing of %q task failed, retry: %s", c.eventName, err)
+			return err
+		}
+
+		log.Errorf("Processing of %q task failed, error isn't recoverable, delete the task: %s", c.eventName, err)
+		return nil
+	}
+
+	return nil
+}
+
+func (c baseConsumer) sendAnalytics(ctx context.Context, duration time.Duration, err error) {
+	props := map[string]interface{}{
+		"durationSeconds": int(duration / time.Second),
+	}
+	if err == nil {
+		props["status"] = statusOk
+	} else {
+		props["status"] = statusFail
+		props["error"] = err.Error()
+	}
+	analytics.SaveEventProps(ctx, c.eventName, props)
+
+	tracker := analytics.GetTracker(ctx)
+	tracker.Track(ctx, c.eventName)
 }

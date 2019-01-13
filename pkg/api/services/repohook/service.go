@@ -142,12 +142,12 @@ func (s BasicService) handleGithubPullRequestWebhook(rc *request.AnonymousContex
 	if ev.Repo.IsPrivate {
 		if err = s.ActiveSubPolicy.CheckForProviderPullRequestEvent(rc.Ctx, p, ev); err != nil {
 			if errors.Cause(err) == policy.ErrNoActiveSubscription {
-				rc.Log.Warnf("Got PR to %s with no active subscription, skip it: %s", repo.FullName, err)
+				rc.Log.Warnf("Got PR to %s with no active subscription, skip it and set commit status: %s", repo.FullName, err)
 				return setCommitStatus(github.StatusError, "No active paid subscription for the private repo")
 			}
 
 			if errors.Cause(err) == policy.ErrNoSeatInSubscription {
-				rc.Log.Warnf("Got PR to %s without matched private seat, skip it: %s", repo.FullName, err)
+				rc.Log.Warnf("Got PR to %s without matched private seat, skip it and set commit status: %s", repo.FullName, err)
 				return setCommitStatus(github.StatusError, "Git author's email wasn't configured in GolangCI")
 			}
 

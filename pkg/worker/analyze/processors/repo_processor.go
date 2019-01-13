@@ -68,7 +68,7 @@ func NewRepo(cfg *RepoConfig) *Repo {
 	}
 }
 
-func (r Repo) Process(ctx *RepoContext) {
+func (r Repo) Process(ctx *RepoContext) error {
 	res := analysisResult{
 		buildLog: result.NewLog(nil),
 	}
@@ -78,7 +78,12 @@ func (r Repo) Process(ctx *RepoContext) {
 	err := r.processPanicSafe(ctx, &res)
 	ctx.Log = savedLogger
 
-	r.submitResult(ctx, &res, err)
+	status := errorToStatus(err)
+	publicErrorText := buildPublicError(err)
+	err = transformError(err)
+
+	r.submitResult(ctx, &res, status, publicErrorText, err)
+	return err
 }
 
 func (r Repo) processPanicSafe(ctx *RepoContext, res *analysisResult) (err error) {
@@ -167,11 +172,8 @@ func buildFetchersRepo(ctx *RepoContext) *fetchers.Repo {
 	}
 }
 
-func (r Repo) submitResult(ctx *RepoContext, res *analysisResult, err error) {
-	status := errorToStatus(err)
-	publicErrorText := buildPublicError(err)
-	err = transformError(err)
-
+func (r Repo) submitResult(ctx *RepoContext, res *analysisResult,
+	status, publicError string, err error) {
 	if err == nil {
 		ctx.Log.Infof("Succeeded repo analysis, timings: %v", res.timings)
 	} else {
@@ -187,7 +189,7 @@ func (r Repo) submitResult(ctx *RepoContext, res *analysisResult, err error) {
 		WorkerRes: workerRes{
 			Timings:  res.timings,
 			Warnings: res.warnings,
-			Error:    publicErrorText,
+			Error:    publicError,
 		},
 		BuildLog: res.buildLog,
 	}
@@ -206,7 +208,7 @@ func (r Repo) submitResult(ctx *RepoContext, res *analysisResult, err error) {
 	}
 
 	updateCtx := context.Background() // no timeout for state and status saving: it must be durable
-	if err = r.State.UpdateState(updateCtx, ctx.Repo.Owner, ctx.Repo.Name, ctx.AnalysisGUID, s); err != nil {
+	if err := r.State.UpdateState(updateCtx, ctx.Repo.Owner, ctx.Repo.Name, ctx.AnalysisGUID, s); err != nil {
 		ctx.Log.Warnf("Can't set analysis %s status to '%s': %s", ctx.AnalysisGUID, string(jsonBytes), err)
 		return
 	}
