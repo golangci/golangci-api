@@ -21,11 +21,13 @@ func main() {
 		log.Fatalf("Repo name must be set: use --repo")
 	}
 
-	loggger := logutil.NewStderrLog("")
+	logger := logutil.NewStderrLog("")
+	logger.SetLevel(logutil.LogLevelInfo)
 	resLog := result.NewLog(log.New(os.Stdout, "", 0))
+	resLog.AddStepGroup("group").AddStep("step")
 	runner := command.NewStreamingRunner(resLog)
 
-	r := ensuredeps.NewRunner(loggger, runner)
+	r := ensuredeps.NewRunner(logger, runner)
 	ret := r.Run(context.Background(), *repoName)
 	if err := json.NewEncoder(os.Stdout).Encode(ret); err != nil {
 		log.Fatalf("Failed to JSON output result: %s", err)
