@@ -150,7 +150,7 @@ func (p BasicPull) checkPull(ctx *PullContext) error {
 
 		// branch can be deleted: will be an error; no need to analyze
 		ctx.res.publicWarn("process", fmt.Sprintf("Pull Request is already %s, skip analysis", prState))
-		ctx.Log.Warnf("Pull Request is already %s, skip analysis", prState)
+		ctx.Log.Infof("Pull Request is already %s, skip analysis", prState)
 		return &IgnoredError{
 			Status:     github.StatusSuccess,
 			StatusDesc: fmt.Sprintf("Pull Request is already %s", strings.ToLower(prState)),
