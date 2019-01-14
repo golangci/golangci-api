@@ -51,7 +51,7 @@ func transformError(err error) error {
 		return errors.Wrap(ErrUnrecoverable, err.Error())
 	}
 
-	if _, ok := err.(*IgnoredError); ok {
+	if _, ok := causeErr.(*IgnoredError); ok {
 		return errors.Wrap(ErrUnrecoverable, err.Error())
 	}
 
