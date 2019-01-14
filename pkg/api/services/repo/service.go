@@ -266,6 +266,13 @@ func (s BasicService) storeRepo(rc *request.AuthorizedContext, providerRepo *pro
 		IsPrivate:       providerRepo.IsPrivate,
 	}
 	if err = repo.Create(rc.DB); err != nil {
+		var existingRepo models.Repo
+		exists := models.NewRepoQuerySet(rc.DB).ProviderIDEq(providerRepo.ID).One(&existingRepo) == nil
+		if exists {
+			rc.Log.Warnf("Race condition: failed to create repo, re-creating it: %s", err)
+			return s.createAlreadyExistingRepo(rc, &existingRepo)
+		}
+
 		return nil, errors.Wrap(err, "can't create repo")
 	}
 
