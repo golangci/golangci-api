@@ -126,6 +126,7 @@ func (r *Runner) syncDeps(ctx context.Context, repoName string) error {
 		r.log.Warnf("%s failed: %s", detectedTool.name, err)
 
 		if err = defaultTool.sync(ctx, r.cr); err != nil {
+			r.log.Infof("Fallback to the defaul tool %s failed: %s", defaultTool.name, err)
 			return errors.Wrapf(err, "fallback to '%s' failed", defaultTool.name)
 		}
 
