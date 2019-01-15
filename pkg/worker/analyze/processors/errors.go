@@ -14,7 +14,7 @@ import (
 )
 
 var (
-	errNothingToAnalyze = errors.New("nothing to analyze")
+	ErrNothingToAnalyze = errors.New("nothing to analyze")
 	errCantAnalyze      = errors.New("can't analyze")
 	ErrUnrecoverable    = errors.New("unrecoverable error")
 )
@@ -39,11 +39,11 @@ func transformError(err error) error {
 		return errors.Wrap(ErrUnrecoverable, err.Error())
 	}
 
-	if ierr, ok := causeErr.(*errorutils.InternalError); ok {
-		if strings.Contains(ierr.PrivateDesc, noGoFilesToAnalyzeErr) {
-			return errNothingToAnalyze
-		}
+	if isNothingToAnalyzeError(causeErr) {
+		return ErrNothingToAnalyze
+	}
 
+	if ierr, ok := causeErr.(*errorutils.InternalError); ok {
 		return ierr
 	}
 
@@ -61,12 +61,12 @@ func transformError(err error) error {
 func isNothingToAnalyzeError(err error) bool {
 	err = errors.Cause(err)
 
-	if err == errNothingToAnalyze {
+	if err == ErrNothingToAnalyze {
 		return true
 	}
 
 	if ierr, ok := err.(*errorutils.InternalError); ok {
-		if strings.Contains(ierr.PrivateDesc, noGoFilesToAnalyzeErr) {
+		if strings.Contains(ierr.StdErr, noGoFilesToAnalyzeErr) {
 			return true
 		}
 	}
@@ -149,7 +149,7 @@ func buildPublicError(err error) string {
 	}
 
 	if isNothingToAnalyzeError(err) {
-		return errNothingToAnalyze.Error()
+		return ErrNothingToAnalyze.Error()
 	}
 
 	if ierr, ok := err.(*errorutils.InternalError); ok {
