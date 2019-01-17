@@ -84,6 +84,7 @@ func (a App) buildMultiplexer() *consumers.Multiplexer {
 	pullAnalyzesRunner := pullanalyzesqueue.NewConsumer(pullAnalyzer)
 
 	multiplexer := consumers.NewMultiplexer()
+	multiplexer.SetResultLogger(func(error) {}) // already logged, no double logging
 
 	if err := repoAnalyzesRunner.Register(multiplexer, a.distLockFactory); err != nil {
 		a.log.Fatalf("Failed to register repo analyzer consumer: %s", err)

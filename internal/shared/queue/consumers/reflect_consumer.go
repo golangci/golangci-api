@@ -64,6 +64,10 @@ func NewReflectConsumer(handler interface{}, timeout time.Duration, df *redsync.
 	}, nil
 }
 
+func (c ReflectConsumer) ResultLogger() ResultLogger {
+	return nil
+}
+
 func (c ReflectConsumer) ConsumeMessage(ctx context.Context, message []byte) error {
 	handlerType := reflect.TypeOf(c.handler)
 	secondArgPointedType := handlerType.In(1).Elem()

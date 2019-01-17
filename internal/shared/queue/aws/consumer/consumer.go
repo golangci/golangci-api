@@ -105,7 +105,11 @@ func (c SQS) onReceiveMessage(ctx context.Context, message *awssqs.Message) erro
 
 	err := c.consumer.ConsumeMessage(ctx, []byte(*message.Body))
 	if err != nil {
-		c.log.Warnf("Consumer failed: %s", err)
+		if logger := c.consumer.ResultLogger(); logger != nil {
+			logger(err)
+		} else {
+			c.log.Warnf("Consumer failed: %s", err)
+		}
 	}
 	handledOk := err == nil || errors.Cause(err) == consumers.ErrPermanent
 
