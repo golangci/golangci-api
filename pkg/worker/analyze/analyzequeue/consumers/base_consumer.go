@@ -38,6 +38,17 @@ func (c baseConsumer) getUnrecoverableErrorLogger(log logutil.Log, repoFullName 
 	return log.Warnf
 }
 
+func (c baseConsumer) getRecoverableErrorLogger(log logutil.Log, repoFullName string) logutil.Func {
+	ignoredRepos := c.cfg.GetStringList("LOG_AS_INFO_RECOVERABLE_ERRORS_FOR_REPOS")
+	for _, ignoredRepo := range ignoredRepos {
+		if strings.EqualFold(ignoredRepo, repoFullName) {
+			return log.Infof
+		}
+	}
+
+	return log.Errorf
+}
+
 func (c baseConsumer) wrapConsuming(ctx context.Context, log logutil.Log, repoFullName string, f func() error) (err error) {
 	defer func() {
 		if r := recover(); r != nil {
@@ -60,7 +71,8 @@ func (c baseConsumer) wrapConsuming(ctx context.Context, log logutil.Log, repoFu
 
 	if err != nil {
 		if isRecoverableError(err) {
-			log.Errorf("Processing of %q task failed, retry: %s", c.eventName, err)
+			logger := c.getRecoverableErrorLogger(log, repoFullName)
+			logger("Processing of %q task failed, retry: %s", c.eventName, err)
 			return err
 		}
 
