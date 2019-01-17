@@ -45,7 +45,7 @@ func (gf Git) Fetch(ctx context.Context, sg *result.StepGroup, repo *Repo, exec 
 	submoduleInitStep.AddOutput(runRes.StdOut)
 	submoduleInitStep.AddOutput(runRes.StdErr)
 	if err != nil {
-		analytics.Log(ctx).Warnf("Failed to init git submodule: %s", err)
+		analytics.Log(ctx).Infof("Failed to init git submodule: %s", err)
 		return nil
 	}
 
@@ -54,7 +54,7 @@ func (gf Git) Fetch(ctx context.Context, sg *result.StepGroup, repo *Repo, exec 
 	submoduleUpdateStep.AddOutput(runRes.StdOut)
 	submoduleUpdateStep.AddOutput(runRes.StdErr)
 	if err != nil {
-		analytics.Log(ctx).Warnf("Failed to update git submodule: %s", err)
+		analytics.Log(ctx).Infof("Failed to update git submodule: %s", err)
 		return nil
 	}
 

@@ -84,7 +84,7 @@ func (q Queue) Ack(receiptHandle, messageID string, receiveCount int, ok bool) e
 	if !ok {
 		delaySec := int64((1 << uint(receiveCount)) * 60)
 		if delaySec >= 43200 {
-			delaySec = 43199 // max allowed by aws sqs (12 hours)
+			delaySec = 43200 // max allowed by aws sqs (12 hours)
 		}
 		_, err := q.sqsClient.ChangeMessageVisibility(&sqs.ChangeMessageVisibilityInput{
 			ReceiptHandle:     aws.String(receiptHandle),
