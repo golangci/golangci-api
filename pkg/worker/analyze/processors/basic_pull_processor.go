@@ -236,12 +236,12 @@ func (p *BasicPull) setupWorkspace(ctx *PullContext) error {
 }
 
 func (p *BasicPull) fetchProviderPullRequest(ctx *PullContext) error {
-	var err error
-	ctx.pull, err = p.ProviderClient.GetPullRequest(ctx.Ctx, ctx.ProviderCtx)
+	pull, err := p.ProviderClient.GetPullRequest(ctx.Ctx, ctx.ProviderCtx)
 	if err != nil {
 		return errors.Wrap(err, "can't get pull request")
 	}
 
+	ctx.pull = pull
 	return nil
 }
 
@@ -272,10 +272,22 @@ func (p BasicPull) Process(ctx *PullContext) error {
 		buildLog: envbuildresult.NewLog(nil),
 	}
 
+	savedLog := ctx.Log
 	ctx.savedLog = ctx.Log
 	ctx.Log = logger.NewBuildLogger(ctx.res.buildLog, ctx.Log)
 
-	return p.processPanicSafe(ctx)
+	if err := p.processPanicSafe(ctx); err != nil {
+		if ctx.pull != nil {
+			pullTitle := strings.ToLower(ctx.pull.GetTitle())
+			if strings.HasPrefix(pullTitle, "wip:") {
+				savedLog.Infof("Analyze of WIP PR failed, don't retry: %s", err)
+				return nil
+			}
+		}
+		return err
+	}
+
+	return nil
 }
 
 func (p BasicPull) processPanicSafe(ctx *PullContext) (retErr error) {
