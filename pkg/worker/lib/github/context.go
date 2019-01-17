@@ -3,6 +3,7 @@ package github
 import (
 	"context"
 	"fmt"
+	"net/http"
 
 	"github.com/google/go-github/github"
 	gh "github.com/google/go-github/github"
@@ -23,12 +24,15 @@ type Context struct {
 	PullRequestNumber int
 }
 
-func (c Context) GetClient(ctx context.Context) *github.Client {
+func (c Context) GetHTTPClient(ctx context.Context) *http.Client {
 	ts := oauth2.StaticTokenSource(
 		&oauth2.Token{AccessToken: c.GithubAccessToken},
 	)
-	tc := oauth2.NewClient(ctx, ts)
-	return github.NewClient(tc)
+	return oauth2.NewClient(ctx, ts)
+}
+
+func (c Context) GetClient(ctx context.Context) *github.Client {
+	return github.NewClient(c.GetHTTPClient(ctx))
 }
 
 func (c Context) GetCloneURL(repo *gh.Repository) string {

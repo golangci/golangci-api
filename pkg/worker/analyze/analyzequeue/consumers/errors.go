@@ -17,5 +17,9 @@ func isRecoverableError(err error) bool {
 		return false
 	}
 
+	if err == processors.ErrNothingToAnalyze {
+		return false
+	}
+
 	return github.IsRecoverableError(err)
 }

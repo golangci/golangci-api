@@ -74,6 +74,7 @@ func (g GolangciLint) Run(ctx context.Context, sg *logresult.StepGroup, exec exe
 		return nil, &errorutils.InternalError{
 			PublicDesc:  "can't run golangci-lint: internal error",
 			PrivateDesc: fmt.Sprintf("can't run golangci-lint: %s", runErr),
+			StdErr:      stdErr,
 		}
 	}
 
@@ -83,6 +84,7 @@ func (g GolangciLint) Run(ctx context.Context, sg *logresult.StepGroup, exec exe
 		return nil, &errorutils.InternalError{
 			PublicDesc:  "can't run golangci-lint: invalid output json",
 			PrivateDesc: fmt.Sprintf("can't run golangci-lint: can't parse json output: %s", jsonErr),
+			StdErr:      stdErr,
 		}
 	}
 

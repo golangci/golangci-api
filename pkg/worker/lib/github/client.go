@@ -1,8 +1,11 @@
 package github
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"net/http"
 	"os"
 	"time"
@@ -103,16 +106,57 @@ func (gc *MyClient) GetPullRequest(ctx context.Context, c *Context) (*gh.PullReq
 }
 
 func (gc *MyClient) CreateReview(ctx context.Context, c *Context, review *gh.PullRequestReviewRequest) error {
-	_, _, err := c.GetClient(ctx).PullRequests.CreateReview(ctx, c.Repo.Owner, c.Repo.Name, c.PullRequestNumber, review)
-	if err != nil {
-		if terr := transformGithubError(err); terr != nil {
-			return terr
-		}
+	// TODO: migrate to common provider client from api
 
-		return fmt.Errorf("can't create github review: %s", err)
+	// don't use c.GetClient(ctx).PullRequests.CreateReview
+	// because of https://github.com/google/go-github/issues/540
+
+	bodyReader := &bytes.Buffer{}
+	enc := json.NewEncoder(bodyReader)
+	enc.SetEscapeHTML(false)
+	err := enc.Encode(review)
+	if err != nil {
+		return errors.Wrap(err, "failed to json encode review")
 	}
 
-	return nil
+	u := fmt.Sprintf("https://api.github.com/repos/%v/%v/pulls/%d/reviews", c.Repo.Owner, c.Repo.Name, c.PullRequestNumber)
+	req, err := http.NewRequest(http.MethodPost, u, bodyReader)
+	if err != nil {
+		return errors.Wrap(err, "failed to make new http request")
+	}
+	req.Header.Set("Content-Type", "application/json")
+	const mediaTypeV3 = "application/vnd.github.v3+json"
+	req.Header.Set("Accept", mediaTypeV3)
+
+	resp, err := c.GetHTTPClient(ctx).Do(req)
+	if err != nil {
+		return errors.Wrap(err, "failed to perform http request")
+	}
+
+	if resp.Body == nil {
+		return errors.Wrap(err, "no response body")
+	}
+
+	defer resp.Body.Close()
+
+	respBody, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return errors.Wrap(err, "failed to read response body")
+	}
+
+	if resp.StatusCode >= 200 && resp.StatusCode < 300 {
+		return nil
+	}
+
+	ge := &gh.ErrorResponse{
+		Response: resp,
+		Message:  string(respBody),
+	}
+	if terr := transformGithubError(ge); terr != nil {
+		return terr
+	}
+
+	return errors.Wrap(ge, "can't create github review")
 }
 
 func (gc *MyClient) GetPullRequestPatch(ctx context.Context, c *Context) (string, error) {

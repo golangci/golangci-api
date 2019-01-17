@@ -3,6 +3,7 @@ package errorutils
 type InternalError struct {
 	PublicDesc  string
 	PrivateDesc string
+	StdErr      string
 }
 
 func (e InternalError) Error() string {
