@@ -9,13 +9,22 @@ import (
 )
 
 type Multiplexer struct {
-	consumers map[string]Consumer
+	consumers    map[string]Consumer
+	resultLogger ResultLogger
 }
 
 func NewMultiplexer() *Multiplexer {
 	return &Multiplexer{
 		consumers: map[string]Consumer{},
 	}
+}
+
+func (m *Multiplexer) SetResultLogger(logger ResultLogger) {
+	m.resultLogger = logger
+}
+
+func (m Multiplexer) ResultLogger() ResultLogger {
+	return m.resultLogger
 }
 
 type subconsumerMessage struct {
