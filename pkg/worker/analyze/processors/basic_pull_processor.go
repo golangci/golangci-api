@@ -178,6 +178,14 @@ func (p *BasicPull) analyze(ctx *PullContext) (*result.Result, error) {
 	ctx.LogCtx["reportedIssues"] = len(issues)
 
 	if err = p.Reporter.Report(ctx.Ctx, ctx.res.buildLog, ctx.pull.GetHead().GetSHA(), issues); err != nil {
+		if errors.Cause(err) == github.ErrUserIsBlocked {
+			return nil, &errorutils.InternalError{
+				PublicDesc:  fmt.Sprintf("@%s is blocked in the organization", p.Cfg.GetString("GITHUB_REVIEWER_LOGIN")),
+				PrivateDesc: fmt.Sprintf("can't send pull request comments to github: %s", err),
+				IsPermanent: true,
+			}
+		}
+
 		return nil, &errorutils.InternalError{
 			PublicDesc:  "can't send pull request comments to github",
 			PrivateDesc: fmt.Sprintf("can't send pull request comments to github: %s", err),

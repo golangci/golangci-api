@@ -8,6 +8,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/pkg/errors"
@@ -23,10 +24,11 @@ type Status string
 
 var ErrPRNotFound = errors.New("no such pull request")
 var ErrUnauthorized = errors.New("invalid authorization")
+var ErrUserIsBlocked = errors.New("user is blocked")
 
 func IsRecoverableError(err error) bool {
 	err = errors.Cause(err)
-	return err != ErrPRNotFound && err != ErrUnauthorized
+	return err != ErrPRNotFound && err != ErrUnauthorized && err != ErrUserIsBlocked
 }
 
 const (
@@ -61,6 +63,11 @@ func transformGithubError(err error) error {
 		if er.Response.StatusCode == http.StatusUnauthorized {
 			logrus.Warnf("Got 401 from github: %+v", er)
 			return ErrUnauthorized
+		}
+		if er.Response.StatusCode == http.StatusUnprocessableEntity {
+			if strings.Contains(er.Error(), "User is blocked") {
+				return ErrUserIsBlocked
+			}
 		}
 	}
 

@@ -41,8 +41,12 @@ func buildSecrets(vars ...string) map[string]string {
 		}
 
 		k := parts[0]
-		if k == "APP_NAME" || k == "ADMIN_GITHUB_LOGIN" ||
-			k == "WEB_ROOT" || k == "GOROOT" || k == "GOPATH" {
+		if k == "APP_NAME" ||
+			k == "ADMIN_GITHUB_LOGIN" ||
+			k == "GITHUB_REVIEWER_LOGIN" ||
+			k == "WEB_ROOT" ||
+			k == "GOROOT" ||
+			k == "GOPATH" {
 			// not secret
 			continue
 		}

@@ -44,6 +44,10 @@ func transformError(err error) error {
 	}
 
 	if ierr, ok := causeErr.(*errorutils.InternalError); ok {
+		if ierr.IsPermanent {
+			return errors.Wrap(ErrUnrecoverable, err.Error())
+		}
+
 		return ierr
 	}
 
