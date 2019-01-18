@@ -295,7 +295,7 @@ func (p BasicPull) Process(ctx *PullContext) error {
 	if err := p.processPanicSafe(ctx); err != nil {
 		if ctx.pull != nil {
 			pullTitle := strings.ToLower(ctx.pull.GetTitle())
-			if strings.HasPrefix(pullTitle, "wip:") {
+			if strings.HasPrefix(pullTitle, "wip ") || strings.HasPrefix(pullTitle, "wip:") {
 				savedLog.Infof("Analyze of WIP PR failed, don't retry: %s", err)
 				return nil
 			}
