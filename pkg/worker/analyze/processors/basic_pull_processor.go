@@ -186,6 +186,14 @@ func (p *BasicPull) analyze(ctx *PullContext) (*result.Result, error) {
 			}
 		}
 
+		if errors.Cause(err) == github.ErrCommitIsNotPartOfPull {
+			return nil, &errorutils.InternalError{
+				PublicDesc:  github.ErrCommitIsNotPartOfPull.Error(),
+				PrivateDesc: fmt.Sprintf("can't send pull request comments to github: %s", err),
+				IsPermanent: true,
+			}
+		}
+
 		return nil, &errorutils.InternalError{
 			PublicDesc:  "can't send pull request comments to github",
 			PrivateDesc: fmt.Sprintf("can't send pull request comments to github: %s", err),
