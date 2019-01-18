@@ -22,13 +22,17 @@ import (
 
 type Status string
 
-var ErrPRNotFound = errors.New("no such pull request")
-var ErrUnauthorized = errors.New("invalid authorization")
-var ErrUserIsBlocked = errors.New("user is blocked")
+var (
+	ErrPRNotFound            = errors.New("no such pull request")
+	ErrUnauthorized          = errors.New("invalid authorization")
+	ErrUserIsBlocked         = errors.New("user is blocked")
+	ErrCommitIsNotPartOfPull = errors.New("commit is not part of the pull request")
+)
 
 func IsRecoverableError(err error) bool {
 	err = errors.Cause(err)
-	return err != ErrPRNotFound && err != ErrUnauthorized && err != ErrUserIsBlocked
+	return err != ErrPRNotFound && err != ErrUnauthorized &&
+		err != ErrUserIsBlocked && err != ErrCommitIsNotPartOfPull
 }
 
 const (
@@ -67,6 +71,9 @@ func transformGithubError(err error) error {
 		if er.Response.StatusCode == http.StatusUnprocessableEntity {
 			if strings.Contains(er.Error(), "User is blocked") {
 				return ErrUserIsBlocked
+			}
+			if strings.Contains(er.Error(), "Commit is not part of the pull request") {
+				return ErrCommitIsNotPartOfPull
 			}
 		}
 	}
