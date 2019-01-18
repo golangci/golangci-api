@@ -264,6 +264,8 @@ func (a *App) buildServices() {
 	}
 	a.services.pranalysis = pranalysis.BasicService{
 		RepoPolicy: a.policies.repo,
+		Pf:         a.providerFactory,
+		Cfg:        a.cfg,
 	}
 	a.services.events = events.BasicService{}
 

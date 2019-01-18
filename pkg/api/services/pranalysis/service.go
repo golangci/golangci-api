@@ -2,11 +2,16 @@ package pranalysis
 
 import (
 	"encoding/json"
+	"fmt"
+	"strings"
+
+	"github.com/golangci/golangci-api/internal/shared/config"
 
 	"github.com/golangci/golangci-api/pkg/api/policy"
 
 	"github.com/golangci/golangci-api/internal/api/apierrors"
 	"github.com/golangci/golangci-api/internal/shared/logutil"
+	"github.com/golangci/golangci-api/internal/shared/providers"
 	"github.com/golangci/golangci-api/pkg/api/models"
 	"github.com/golangci/golangci-api/pkg/api/request"
 	"github.com/jinzhu/gorm"
@@ -52,6 +57,8 @@ type Service interface {
 
 type BasicService struct {
 	RepoPolicy *policy.Repo
+	Pf         providers.Factory
+	Cfg        config.Config
 }
 
 func (s BasicService) GetAnalysisStateByAnalysisGUID(rc *request.InternalContext, req *AnalyzedRepo) (*State, error) {
@@ -78,6 +85,36 @@ func (s BasicService) GetAnalysisStateByAnalysisGUID(rc *request.InternalContext
 	}, nil
 }
 
+func (s BasicService) tryGetRenamedRepo(rc *request.AnonymousContext, req *RepoPullRequest, repos *[]models.Repo) error {
+	configKey := strings.ToUpper(fmt.Sprintf("%s_SERVICE_ACCESS_TOKEN", strings.Replace(req.Provider, ".", "_", -1)))
+	token := s.Cfg.GetString(configKey)
+	if token == "" {
+		return fmt.Errorf("no %s config param", configKey)
+	}
+
+	p, err := s.Pf.BuildForToken(req.Provider, token)
+	if err != nil {
+		return errors.Wrap(err, "failed to build provider for service user")
+	}
+
+	providerRepo, err := p.GetRepoByName(rc.Ctx, req.Owner, req.Name)
+	if err != nil {
+		return errors.Wrapf(err, "failed to fetch repo %s from provider", req.FullNameWithProvider())
+	}
+
+	if err = models.NewRepoQuerySet(rc.DB).ProviderEq(req.Provider).ProviderIDEq(providerRepo.ID).All(repos); err != nil {
+		return errors.Wrapf(err, "failed to fetch repo with provider id %d (%s)",
+			providerRepo.ID, req.FullNameWithProvider())
+	}
+
+	if len(*repos) == 0 {
+		return fmt.Errorf("repos with provider id %d weren't found", providerRepo.ID)
+	}
+
+	rc.Log.Infof("Fetched and used renamed provider repo %#v by name %s", providerRepo, req.FullNameWithProvider())
+	return nil
+}
+
 func (s BasicService) GetAnalysisStateByPRNumber(rc *request.AnonymousContext, req *RepoPullRequest) (*State, error) {
 	var repos []models.Repo // use could have reconnected repo so we would have two repos
 	err := models.NewRepoQuerySet(rc.DB.Unscoped()).
@@ -89,7 +126,12 @@ func (s BasicService) GetAnalysisStateByPRNumber(rc *request.AnonymousContext, r
 	}
 
 	if len(repos) == 0 {
-		return nil, errors.Wrapf(apierrors.ErrNotFound, "failed to find repos with name %s", req.FullName())
+		if tryErr := s.tryGetRenamedRepo(rc, req, &repos); tryErr != nil {
+			rc.Log.Warnf("Failed to check renamed repo: %s", tryErr)
+			return nil, errors.Wrapf(apierrors.ErrNotFound, "failed to find repos with name %s", req.FullName())
+		}
+
+		// continue, found renamed repo
 	}
 
 	if repos[0].IsPrivate {

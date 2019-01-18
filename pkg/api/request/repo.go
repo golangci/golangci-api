@@ -18,6 +18,10 @@ func (r Repo) FullName() string {
 	return strings.ToLower(fmt.Sprintf("%s/%s", r.Owner, r.Name))
 }
 
+func (r Repo) FullNameWithProvider() string {
+	return strings.ToLower(fmt.Sprintf("%s/%s/%s", r.Provider, r.Owner, r.Name))
+}
+
 func (r Repo) String() string {
 	return fmt.Sprintf("%s/%s", r.Provider, r.FullName())
 }
