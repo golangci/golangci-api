@@ -7,6 +7,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/golangci/golangci-api/internal/shared/apperrors"
+
 	"github.com/golangci/golangci-api/internal/shared/config"
 
 	"github.com/golangci/golangci-api/internal/shared/logutil"
@@ -38,8 +40,9 @@ func TestAnalyzeRepo(t *testing.T) {
 	pf := processors.NewBasicPullProcessorFactory(&processors.BasicPullConfig{})
 	log := logutil.NewStderrLog("")
 	cfg := config.NewEnvConfig(log)
+	errTracker := apperrors.NewNopTracker()
 
-	err := NewAnalyzePR(pf, log, cfg).Consume(context.Background(), repoOwner, repoName,
+	err := NewAnalyzePR(pf, log, errTracker, cfg).Consume(context.Background(), repoOwner, repoName,
 		cfg.GetString("TEST_GITHUB_TOKEN"), prNumber, "", userID, "test-guid")
 	assert.NoError(t, err)
 }

@@ -77,10 +77,13 @@ func (a *App) buildDeps() {
 
 func (a App) buildMultiplexer() *consumers.Multiplexer {
 	rpf := processors.NewRepoProcessorFactory(&processors.StaticRepoConfig{})
-	repoAnalyzer := analyzesConsumers.NewAnalyzeRepo(rpf, a.trackedLog, a.cfg)
+
+	// it's important to use a.log, not a.trackedLog
+	repoAnalyzer := analyzesConsumers.NewAnalyzeRepo(rpf, a.log, a.errTracker, a.cfg)
 	repoAnalyzesRunner := repoanalyzesqueue.NewConsumer(repoAnalyzer)
 
-	pullAnalyzer := analyzesConsumers.NewAnalyzePR(a.ppf, a.trackedLog, a.cfg)
+	// it's important to use a.log, not a.trackedLog
+	pullAnalyzer := analyzesConsumers.NewAnalyzePR(a.ppf, a.log, a.errTracker, a.cfg)
 	pullAnalyzesRunner := pullanalyzesqueue.NewConsumer(pullAnalyzer)
 
 	multiplexer := consumers.NewMultiplexer()

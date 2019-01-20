@@ -6,6 +6,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/golangci/golangci-api/internal/shared/apperrors"
+
 	"github.com/golangci/golangci-api/internal/shared/config"
 	"github.com/golangci/golangci-api/internal/shared/logutil"
 
@@ -18,20 +20,22 @@ import (
 type AnalyzeRepo struct {
 	baseConsumer
 
-	rpf *processors.RepoProcessorFactory
-	log logutil.Log
-	cfg config.Config
+	rpf        *processors.RepoProcessorFactory
+	log        logutil.Log
+	errTracker apperrors.Tracker
+	cfg        config.Config
 }
 
-func NewAnalyzeRepo(rpf *processors.RepoProcessorFactory, log logutil.Log, cfg config.Config) *AnalyzeRepo {
+func NewAnalyzeRepo(rpf *processors.RepoProcessorFactory, log logutil.Log, errTracker apperrors.Tracker, cfg config.Config) *AnalyzeRepo {
 	return &AnalyzeRepo{
 		baseConsumer: baseConsumer{
 			eventName: analytics.EventRepoAnalyzed,
 			cfg:       cfg,
 		},
-		rpf: rpf,
-		log: log,
-		cfg: cfg,
+		rpf:        rpf,
+		log:        log,
+		errTracker: errTracker,
+		cfg:        cfg,
 	}
 }
 
@@ -42,8 +46,10 @@ func (c AnalyzeRepo) Consume(ctx context.Context, repoName, analysisGUID, branch
 		"provider":     "github",
 		"repoName":     repoName,
 		"analysisType": "repo",
+		"reportURL":    fmt.Sprintf("https://golangci.com/r/github.com/%s", repoName),
 	}
 	log := logutil.WrapLogWithContext(c.log, lctx)
+	log = apperrors.WrapLogWithTracker(log, lctx, c.errTracker)
 
 	if c.cfg.GetBool("DISABLE_REPO_ANALYSIS", false) {
 		log.Warnf("Repo analysis is disabled, return error to try it later")

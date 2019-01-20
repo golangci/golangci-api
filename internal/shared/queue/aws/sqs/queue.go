@@ -82,22 +82,22 @@ func (q Queue) TryReceive() (*sqs.Message, error) {
 
 func (q Queue) Ack(receiptHandle, messageID string, receiveCount int, ok bool) error {
 	if !ok {
-		delaySec := int64((1 << uint(receiveCount)) * 60)
-		if delaySec >= 43200 {
-			delaySec = 43200 // max allowed by aws sqs (12 hours)
-		}
+		delaySec := int64((1 << uint(receiveCount)) * 20)
+		delayDuration := time.Second * time.Duration(delaySec)
+		// sum([(2**i)*20 for i in range(1, 11)]) = 40920
+		// this total sum must be <= 43200 (12 hours)
 		_, err := q.sqsClient.ChangeMessageVisibility(&sqs.ChangeMessageVisibilityInput{
 			ReceiptHandle:     aws.String(receiptHandle),
 			QueueUrl:          &q.url,
 			VisibilityTimeout: &delaySec,
 		})
 		if err != nil {
-			return errors.Wrapf(err, "can't change message id=%s visibility for %d-th attempt to %ds",
-				messageID, receiveCount, delaySec)
+			return errors.Wrapf(err, "can't change message id=%s visibility for %d-th attempt to %s",
+				messageID, receiveCount, delayDuration)
 		}
 
-		q.log.Infof("Changed message id=%s visibility for %d-th attempt to %ds",
-			messageID, receiveCount, delaySec)
+		q.log.Infof("Changed message id=%s visibility for %d-th attempt to %s",
+			messageID, receiveCount, delayDuration)
 		return nil
 	}
 

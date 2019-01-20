@@ -2,8 +2,11 @@ package consumers
 
 import (
 	"context"
+	"fmt"
 	"strconv"
 	"time"
+
+	"github.com/golangci/golangci-api/internal/shared/apperrors"
 
 	"github.com/golangci/golangci-api/internal/shared/config"
 
@@ -18,18 +21,20 @@ import (
 type AnalyzePR struct {
 	baseConsumer
 
-	pf  processors.PullProcessorFactory
-	log logutil.Log
+	pf         processors.PullProcessorFactory
+	errTracker apperrors.Tracker
+	log        logutil.Log
 }
 
-func NewAnalyzePR(pf processors.PullProcessorFactory, log logutil.Log, cfg config.Config) *AnalyzePR {
+func NewAnalyzePR(pf processors.PullProcessorFactory, log logutil.Log, errTracker apperrors.Tracker, cfg config.Config) *AnalyzePR {
 	return &AnalyzePR{
 		baseConsumer: baseConsumer{
 			eventName: analytics.EventPRChecked,
 			cfg:       cfg,
 		},
-		pf:  pf,
-		log: log,
+		pf:         pf,
+		errTracker: errTracker,
+		log:        log,
 	}
 }
 
@@ -47,9 +52,12 @@ func (c AnalyzePR) Consume(ctx context.Context, repoOwner, repoName, githubAcces
 		"analysisType": "pull",
 		"prNumber":     pullRequestNumber,
 		"userIDString": strconv.Itoa(int(userID)),
+		"providerURL":  fmt.Sprintf("https://github.com/%s/pull/%d", repo.FullName(), pullRequestNumber),
+		"reportURL":    fmt.Sprintf("https://golangci.com/r/github.com/%s/pulls/%d", repo.FullName(), pullRequestNumber),
 	}
 	ctx = c.prepareContext(ctx, lctx)
 	log := logutil.WrapLogWithContext(c.log, lctx)
+	log = apperrors.WrapLogWithTracker(log, lctx, c.errTracker)
 
 	return c.wrapConsuming(ctx, log, repo.FullName(), func() error {
 		var cancel context.CancelFunc
