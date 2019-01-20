@@ -30,7 +30,8 @@ type OrgInfo struct {
 	Provider              string `json:"provider"`
 	Name                  string `json:"name"`
 	HasActiveSubscription bool   `json:"hasActiveSubscription"`
-	IsAdmin               bool   `json:"isAdmin"`
+	CanModify             bool   `json:"canModify"`
+	CantModifyReason      string `json:"cantModifyReason"`
 }
 
 type RepoListResponse struct {

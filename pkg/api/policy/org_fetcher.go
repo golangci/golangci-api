@@ -11,30 +11,39 @@ import (
 	"github.com/pkg/errors"
 )
 
-type orgFetcher struct {
+type orgMembershipFetcher struct {
 	cache cache.Cache
 	cfg   config.Config
 }
 
-func (of orgFetcher) fetch(rc *request.AuthorizedContext, p provider.Provider, orgName string) (*provider.OrgMembership, error) {
-	providerOrg, fromCache, err := of.fetchCached(rc, true, p, orgName)
+type cachedMembershipChecker func(om *provider.OrgMembership) error
+
+func (of orgMembershipFetcher) fetch(rc *request.AuthorizedContext, p provider.Provider, orgName string, checker cachedMembershipChecker) (*provider.OrgMembership, error) {
+	orgMembership, fromCache, err := of.fetchCached(rc, true, p, orgName)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to fetch org from cached provider")
 	}
 
-	if !providerOrg.IsAdmin && fromCache { // user may have become an admin recently, refetch
-		rc.Log.Infof("User isn't an admin in the org %s from cache, refetch it from the provider without cache", orgName)
+	if !fromCache || checker == nil {
+		return orgMembership, nil
+	}
 
-		providerOrg, _, err = of.fetchCached(rc, false, p, orgName)
+	cachedOrgMembership := orgMembership
+
+	if err = checker(orgMembership); err != nil {
+		rc.Log.Infof("Refetching org membership it from the provider without cache: %s", err)
+
+		orgMembership, _, err = of.fetchCached(rc, false, p, orgName)
 		if err != nil {
-			return nil, errors.Wrap(err, "failed to fetch org from not cached provider")
+			rc.Log.Warnf("Failed to fetch org from not cached provider, fallback to the cached data")
+			return cachedOrgMembership, nil
 		}
 	}
 
-	return providerOrg, nil
+	return orgMembership, nil
 }
 
-func (of orgFetcher) fetchCached(rc *request.AuthorizedContext, useCache bool,
+func (of orgMembershipFetcher) fetchCached(rc *request.AuthorizedContext, useCache bool,
 	p provider.Provider, orgName string) (*provider.OrgMembership, bool, error) {
 
 	key := fmt.Sprintf("orgs/%s/fetch?user_id=%d&org_name=%s&v=1", p.Name(), rc.Auth.UserID, orgName)
@@ -71,7 +80,7 @@ func (of orgFetcher) fetchCached(rc *request.AuthorizedContext, useCache bool,
 	return org, false, nil
 }
 
-func (of orgFetcher) fetchFromProvider(rc *request.AuthorizedContext, p provider.Provider, orgName string) (*provider.OrgMembership, error) {
+func (of orgMembershipFetcher) fetchFromProvider(rc *request.AuthorizedContext, p provider.Provider, orgName string) (*provider.OrgMembership, error) {
 	org, err := p.GetOrgMembershipByName(rc.Ctx, orgName)
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to fetch org from provider by name %s", orgName)

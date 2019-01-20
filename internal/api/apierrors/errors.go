@@ -123,10 +123,10 @@ func (e NotAcceptableError) GetCode() string {
 	return e.code
 }
 
-func (e NotAcceptableError) WithMessage(m string) *NotAcceptableError {
+func (e NotAcceptableError) WithMessage(format string, args ...interface{}) *NotAcceptableError {
 	return &NotAcceptableError{
 		code:    e.code,
-		message: m,
+		message: fmt.Sprintf(format, args...),
 	}
 }
 

@@ -47,9 +47,12 @@ func (s BasicService) Update(rc *request.AuthorizedContext, reqOrg *request.Org,
 		return nil, apierrors.NewRaceConditionError("organization settings were changed in parallel")
 	}
 
-	if err := s.orgPolicy.CheckAdminAccess(rc, &org); err != nil {
+	if err := s.orgPolicy.CheckCanModify(rc, &org); err != nil {
 		if err == policy.ErrNotOrgAdmin {
 			err = policy.ErrNotOrgAdmin.WithMessage("Only organization admins can update organization settings")
+		}
+		if err == policy.ErrNotOrgMember {
+			err = policy.ErrNotOrgMember.WithMessage("Only organization members can update organization settings")
 		}
 		return nil, errors.Wrap(err, "check access to org")
 	}
@@ -73,7 +76,13 @@ func (s *BasicService) Get(rc *request.AuthorizedContext, reqOrg *request.Org) (
 		return nil, errors.Wrap(err, "failed to to get org from db")
 	}
 
-	if err := s.orgPolicy.CheckAdminAccess(rc, &org); err != nil {
+	if err := s.orgPolicy.CheckCanModify(rc, &org); err != nil {
+		if err == policy.ErrNotOrgAdmin {
+			err = policy.ErrNotOrgAdmin.WithMessage("Only organization admins can view organization settings")
+		}
+		if err == policy.ErrNotOrgMember {
+			err = policy.ErrNotOrgMember.WithMessage("Only organization members can view organization settings")
+		}
 		return nil, errors.Wrap(err, "check access to org")
 	}
 

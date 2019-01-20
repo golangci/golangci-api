@@ -159,10 +159,18 @@ func (s BasicService) createOrganization(rc *request.AuthorizedContext, p provid
 	org.Name = strings.ToLower(orgDisplayName)
 	org.DisplayName = orgDisplayName
 
-	if err := s.OrgPolicy.CheckAdminAccess(rc, &org); err != nil {
+	if err := s.OrgPolicy.CheckCanModify(rc, &org); err != nil {
 		if err == policy.ErrNotOrgAdmin {
 			err = policy.ErrNotOrgAdmin.
-				WithMessage("The repo is private and there is no paid subscription: subscription can be made only by the organization admin")
+				WithMessage("The repo is private and there is no paid subscription: "+
+					"subscription can be made only by the organization %s/%s admin",
+					org.Provider, org.DisplayName)
+		}
+		if err == policy.ErrNotOrgMember {
+			err = policy.ErrNotOrgAdmin.
+				WithMessage("The repo is private and there is no paid subscription: "+
+					"subscription can be made only by the organization %s/%s member",
+					org.Provider, org.DisplayName)
 		}
 
 		return nil, err
@@ -552,21 +560,25 @@ func (s BasicService) getOrganizationsInfo(rc *request.AuthorizedContext, repos 
 
 	ret := map[string]returntypes.OrgInfo{}
 	for _, org := range allSubscribedOrgs {
-		isAdmin, ok := userAccessibleOrgNames[org.Name] // must be already lower-cased
+		_, ok := userAccessibleOrgNames[org.Name] // must be already lower-cased
 		if !ok {
 			continue
 		}
 
-		if err := s.OrgPolicy.CheckAdminAccess(rc, &org); err != nil {
-			if err == policy.ErrNotOrgAdmin {
+		if err := s.OrgPolicy.CheckCanModify(rc, &org); err != nil {
+			if err == policy.ErrNotOrgAdmin || err == policy.ErrNotOrgMember {
+				var reason string
+				if err == policy.ErrNotOrgAdmin {
+					reason = "Only organization admins can manage it's subscription"
+				} else {
+					reason = "Only organization members can manage it's subscription"
+				}
 				ret[org.Name] = returntypes.OrgInfo{
 					HasActiveSubscription: true,
-					IsAdmin:               false,
+					CanModify:             false,
+					CantModifyReason:      reason,
 					Provider:              rc.Auth.Provider,
 					Name:                  org.Name,
-				}
-				if isAdmin {
-					rc.Log.Warnf("Found org %s where user isn't an admin but has repo with admin access", org.Name)
 				}
 				continue
 			}
@@ -577,7 +589,7 @@ func (s BasicService) getOrganizationsInfo(rc *request.AuthorizedContext, repos 
 
 		ret[org.Name] = returntypes.OrgInfo{
 			HasActiveSubscription: true,
-			IsAdmin:               true,
+			CanModify:             true,
 			Provider:              rc.Auth.Provider,
 			Name:                  org.Name,
 		}
@@ -592,7 +604,8 @@ func (s BasicService) getOrganizationsInfo(rc *request.AuthorizedContext, repos 
 
 		ret[orgName] = returntypes.OrgInfo{
 			HasActiveSubscription: false,
-			IsAdmin:               isAdmin, // it's not accurate
+			CanModify:             isAdmin, // it's not accurate
+			CantModifyReason:      "",
 			Provider:              rc.Auth.Provider,
 			Name:                  orgName,
 		}

@@ -126,10 +126,13 @@ func (s BasicService) Get(rc *request.AuthorizedContext, reqOrg *request.Org) (*
 	if err := models.NewOrgQuerySet(rc.DB).NameEq(reqOrg.Name).ProviderEq(reqOrg.Provider).One(&org); err != nil {
 		return nil, errors.Wrap(err, "failed to get org from db")
 	}
-	if err := s.orgPolicy.CheckAdminAccess(rc, &org); err != nil {
+	if err := s.orgPolicy.CheckCanModify(rc, &org); err != nil {
 		// TODO: allow to view org settings and subscription but not to update
 		if err == policy.ErrNotOrgAdmin {
 			err = policy.ErrNotOrgAdmin.WithMessage("Only organization admins can view organization settings and subscription")
+		}
+		if err == policy.ErrNotOrgMember {
+			err = policy.ErrNotOrgMember.WithMessage("Only organization members can view organization settings and subscription")
 		}
 		return nil, errors.Wrap(err, "failed to check for admin")
 	}
@@ -198,9 +201,12 @@ func (s BasicService) getSubForUpdate(rc *request.AuthorizedContext,
 		return nil, apierrors.NewRaceConditionError("organization settings were changed in parallel")
 	}
 
-	if err := s.orgPolicy.CheckAdminAccess(rc, &org); err != nil {
+	if err := s.orgPolicy.CheckCanModify(rc, &org); err != nil {
 		if err == policy.ErrNotOrgAdmin {
 			err = policy.ErrNotOrgAdmin.WithMessage("Only organization admins can update subscription")
+		}
+		if err == policy.ErrNotOrgMember {
+			err = policy.ErrNotOrgMember.WithMessage("Only organization members can update subscription")
 		}
 		return nil, errors.Wrap(err, "failed to check for admin")
 	}
