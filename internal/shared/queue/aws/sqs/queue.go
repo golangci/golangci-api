@@ -114,3 +114,10 @@ func (q Queue) Ack(receiptHandle, messageID string, receiveCount int, ok bool) e
 		messageID, receiveCount)
 	return nil
 }
+
+func (q Queue) Purge() error {
+	_, err := q.sqsClient.PurgeQueue(&sqs.PurgeQueueInput{
+		QueueUrl: &q.url,
+	})
+	return err
+}

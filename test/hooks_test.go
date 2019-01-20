@@ -60,6 +60,7 @@ func TestStaleAnalyzes(t *testing.T) {
 	r, _ := sharedtest.GetActivatedRepo(t)
 	deps := sharedtest.GetDefaultTestApp().BuildCommonDeps()
 
+	sharedtest.GetDefaultTestApp().PurgeAnalyzesQueue(t)
 	err := models.NewPullRequestAnalysisQuerySet(deps.DB).Delete()
 	assert.NoError(t, err)
 

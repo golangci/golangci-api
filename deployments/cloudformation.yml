@@ -25,7 +25,7 @@ Resources:
           PolicyDocument:
             Statement:
                 - Effect: Allow
-                  Action: ["sqs:SendMessage", "sqs:ReceiveMessage", "sqs:ChangeMessageVisibility", "sqs:DeleteMessage"]
+                  Action: ["sqs:SendMessage", "sqs:ReceiveMessage", "sqs:ChangeMessageVisibility", "sqs:DeleteMessage", "sqs:PurgeQueue"]
                   Resource:
                     - !GetAtt testPrimaryQueue.Arn
                     - !GetAtt testAnalyzesQueueV2.Arn
@@ -38,7 +38,7 @@ Resources:
           PolicyDocument:
             Statement:
                 - Effect: Allow
-                  Action: ["sqs:SendMessage", "sqs:ReceiveMessage", "sqs:ChangeMessageVisibility", "sqs:DeleteMessage"]
+                  Action: ["sqs:SendMessage", "sqs:ReceiveMessage", "sqs:ChangeMessageVisibility", "sqs:DeleteMessage", "sqs:PurgeQueue"]
                   Resource: !GetAtt devPrimaryQueue.Arn
       UserName: golangciDevUser
   golangciDevIsaevUser:
@@ -49,7 +49,7 @@ Resources:
           PolicyDocument:
             Statement:
                 - Effect: Allow
-                  Action: ["sqs:SendMessage", "sqs:ReceiveMessage", "sqs:ChangeMessageVisibility", "sqs:DeleteMessage"]
+                  Action: ["sqs:SendMessage", "sqs:ReceiveMessage", "sqs:ChangeMessageVisibility", "sqs:DeleteMessage", "sqs:PurgeQueue"]
                   Resource:
                     - !GetAtt devIsaevPrimaryQueue.Arn
                     - !GetAtt devIsaevAnalyzesQueue.Arn

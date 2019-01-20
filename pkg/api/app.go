@@ -463,6 +463,10 @@ func (a App) RecoverAnalyzes() error {
 	return r.RunOnce()
 }
 
+func (a App) PurgeAnalyzesQueue() error {
+	return a.queues.analyzesSQS.Purge()
+}
+
 func (a App) RunEnvironment() {
 	a.runMigrations()
 	a.runConsumers()

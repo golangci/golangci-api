@@ -5,6 +5,9 @@ import (
 	"net/http/httptest"
 	"os"
 	"path"
+	"testing"
+
+	"github.com/stretchr/testify/assert"
 
 	"github.com/golangci/golangci-api/internal/shared/fsutil"
 	app "github.com/golangci/golangci-api/pkg/api"
@@ -15,6 +18,10 @@ type App struct {
 	app              *app.App
 	testserver       *httptest.Server
 	fakeGithubServer *httptest.Server
+}
+
+func (a App) PurgeAnalyzesQueue(t *testing.T) {
+	assert.NoError(t, a.app.PurgeAnalyzesQueue())
 }
 
 func RunApp() *App {
