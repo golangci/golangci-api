@@ -160,8 +160,17 @@ func (s BasicService) Relogin(rc *request.AuthorizedContext) error {
 		Provider: provider,
 	}
 	if rc.Auth.PrivateAccessToken != "" {
-		rc.Log.Infof("User has private access token: do private oauth relogin")
-		return s.LoginPrivate(rc, req)
+		// Clear private access token and don't call LoginPrivate because
+		// user can have both public and private tokens expired and
+		// if we update only the private one, services working with public token
+		// won't work properly. So we force user to refresh both tokens.
+
+		rc.Auth.PrivateAccessToken = ""
+		if err := rc.Auth.Update(rc.DB, models.AuthDBSchema.PrivateAccessToken); err != nil {
+			rc.Log.Warnf("Failed to clear private access token during relogin: %s", err)
+		} else {
+			rc.Log.Infof("Relogin: cleared private access token")
+		}
 	}
 
 	rc.Log.Infof("User has only public access token: do public oauth relogin")

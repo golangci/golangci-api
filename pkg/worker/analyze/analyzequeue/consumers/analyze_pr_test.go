@@ -43,6 +43,6 @@ func TestAnalyzeRepo(t *testing.T) {
 	errTracker := apperrors.NewNopTracker()
 
 	err := NewAnalyzePR(pf, log, errTracker, cfg).Consume(context.Background(), repoOwner, repoName,
-		cfg.GetString("TEST_GITHUB_TOKEN"), prNumber, "", userID, "test-guid")
+		false, cfg.GetString("TEST_GITHUB_TOKEN"), prNumber, "", userID, "test-guid")
 	assert.NoError(t, err)
 }

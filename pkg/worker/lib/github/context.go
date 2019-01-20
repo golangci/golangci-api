@@ -12,6 +12,7 @@ import (
 
 type Repo struct {
 	Owner, Name string
+	IsPrivate   bool
 }
 
 func (r Repo) FullName() string {

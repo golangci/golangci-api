@@ -193,7 +193,7 @@ func (c LauncherConsumer) createNewAnalysis(tx *gorm.DB, as *models.RepoAnalysis
 		return errors.Wrap(err, "can't create repo analysis")
 	}
 
-	pat, err := c.getPrivateAccessToken(tx, repo)
+	pat, err := c.getAccessToken(tx, repo)
 	if err != nil {
 		return errors.Wrap(err, "failed to get private access token")
 	}
@@ -205,7 +205,7 @@ func (c LauncherConsumer) createNewAnalysis(tx *gorm.DB, as *models.RepoAnalysis
 	return nil
 }
 
-func (c LauncherConsumer) getPrivateAccessToken(db *gorm.DB, repo *models.Repo) (string, error) {
+func (c LauncherConsumer) getAccessToken(db *gorm.DB, repo *models.Repo) (string, error) {
 	if !repo.IsPrivate {
 		return "", nil
 	}

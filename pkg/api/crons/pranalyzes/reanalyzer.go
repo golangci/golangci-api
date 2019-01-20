@@ -266,12 +266,17 @@ func (r Reanalyzer) restartAnalysis(a *models.PullRequestAnalysis, repo *models.
 		return errors.Wrapf(err, "failed to get auth for repo %d", repo.ID)
 	}
 
+	accessToken := auth.AccessToken
+	if repo.IsPrivate {
+		accessToken = auth.PrivateAccessToken // TODO: check it's not empty
+	}
+
 	githubCtx := github.Context{
 		Repo: github.Repo{
 			Owner: repo.Owner(),
 			Name:  repo.Repo(),
 		},
-		GithubAccessToken: auth.StrongestAccessToken(), // TODO: get strongest only if paid
+		GithubAccessToken: accessToken,
 		PullRequestNumber: a.PullRequestNumber,
 	}
 

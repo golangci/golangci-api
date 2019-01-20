@@ -140,6 +140,7 @@ func (s BasicService) handleGithubPullRequestWebhook(rc *request.AnonymousContex
 		return nil
 	}
 
+	accessToken := auth.AccessToken
 	if ev.Repo.IsPrivate {
 		if err = s.ActiveSubPolicy.CheckForProviderPullRequestEvent(rc.Ctx, p, ev); err != nil {
 			logger := s.getNoSubWarnLogger(rc, repo)
@@ -155,6 +156,12 @@ func (s BasicService) handleGithubPullRequestWebhook(rc *request.AnonymousContex
 
 			return err
 		}
+
+		if auth.PrivateAccessToken == "" {
+			rc.Log.Errorf("Got PR to %s with no user private access token", repo.FullName)
+			return setCommitStatus(github.StatusError, "No private repos access token")
+		}
+		accessToken = auth.PrivateAccessToken
 
 		rc.Log.Infof("Got PR webhook to the private repo %s", repo.String())
 	}
@@ -172,10 +179,11 @@ func (s BasicService) handleGithubPullRequestWebhook(rc *request.AnonymousContex
 
 	githubCtx := github.Context{
 		Repo: github.Repo{
-			Owner: repo.Owner(),
-			Name:  repo.Repo(),
+			Owner:     repo.Owner(),
+			Name:      repo.Repo(),
+			IsPrivate: ev.Repo.IsPrivate, // TODO: sync ev.Repo with models.Repo
 		},
-		GithubAccessToken: auth.StrongestAccessToken(),
+		GithubAccessToken: accessToken,
 		PullRequestNumber: analysis.PullRequestNumber,
 	}
 

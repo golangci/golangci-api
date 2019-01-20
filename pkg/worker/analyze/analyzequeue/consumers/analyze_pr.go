@@ -38,22 +38,25 @@ func NewAnalyzePR(pf processors.PullProcessorFactory, log logutil.Log, errTracke
 	}
 }
 
-func (c AnalyzePR) Consume(ctx context.Context, repoOwner, repoName, githubAccessToken string,
+func (c AnalyzePR) Consume(ctx context.Context, repoOwner, repoName string,
+	isPrivateRepo bool, githubAccessToken string,
 	pullRequestNumber int, APIRequestID string, userID uint, analysisGUID string) error {
 
 	repo := github.Repo{
-		Owner: repoOwner,
-		Name:  repoName,
+		Owner:     repoOwner,
+		Name:      repoName,
+		IsPrivate: isPrivateRepo,
 	}
 	lctx := logutil.Context{
-		"analysisGUID": analysisGUID,
-		"provider":     "github",
-		"repoName":     repo.FullName(),
-		"analysisType": "pull",
-		"prNumber":     pullRequestNumber,
-		"userIDString": strconv.Itoa(int(userID)),
-		"providerURL":  fmt.Sprintf("https://github.com/%s/pull/%d", repo.FullName(), pullRequestNumber),
-		"reportURL":    fmt.Sprintf("https://golangci.com/r/github.com/%s/pulls/%d", repo.FullName(), pullRequestNumber),
+		"analysisGUID":  analysisGUID,
+		"provider":      "github",
+		"repoName":      repo.FullName(),
+		"analysisType":  "pull",
+		"prNumber":      pullRequestNumber,
+		"userIDString":  strconv.Itoa(int(userID)),
+		"providerURL":   fmt.Sprintf("https://github.com/%s/pull/%d", repo.FullName(), pullRequestNumber),
+		"reportURL":     fmt.Sprintf("%s/r/github.com/%s/pulls/%d", c.cfg.GetString("WEB_ROOT"), repo.FullName(), pullRequestNumber),
+		"isPrivateRepo": isPrivateRepo,
 	}
 	ctx = c.prepareContext(ctx, lctx)
 	log := logutil.WrapLogWithContext(c.log, lctx)

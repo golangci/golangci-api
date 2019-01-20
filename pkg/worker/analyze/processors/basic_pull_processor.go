@@ -238,7 +238,11 @@ func (p BasicPull) preparePatch(ctx *PullContext) error {
 }
 
 func (p *BasicPull) setupWorkspace(ctx *PullContext) error {
-	exec, err := p.Wi.Setup(ctx.Ctx, ctx.res.buildLog, ctx.ProviderCtx.GithubAccessToken,
+	privateAccessToken := ""
+	if ctx.ProviderCtx.Repo.IsPrivate {
+		privateAccessToken = ctx.ProviderCtx.GithubAccessToken
+	}
+	exec, err := p.Wi.Setup(ctx.Ctx, ctx.res.buildLog, privateAccessToken,
 		p.getRepo(ctx), "github.com", ctx.repo().Owner, ctx.repo().Name) //nolint:govet
 	if err != nil {
 		publicError := fmt.Sprintf("failed to setup workspace: %s", err)
