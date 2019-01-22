@@ -99,6 +99,14 @@ func (s BasicService) HandleGithubWebhook(rc *request.AnonymousContext, req *Git
 func (s BasicService) handleGithubPullRequestWebhook(rc *request.AnonymousContext, repo *models.Repo,
 	req *GithubWebhook, body request.Body) error {
 
+	skipRepos := s.Cfg.GetStringList("PULL_REQUEST_WEBHOOK_SKIP_REPOS")
+	for _, sr := range skipRepos {
+		if strings.EqualFold(sr, repo.FullName) {
+			rc.Log.Infof("Skip webhook for repo %s because it's in ignore list", repo.FullName)
+			return errSkipWehbook
+		}
+	}
+
 	var auth models.Auth
 	if err := models.NewAuthQuerySet(rc.DB).UserIDEq(repo.UserID).One(&auth); err != nil {
 		return errors.Wrapf(err, "failed to get auth for repo %d", repo.ID)
