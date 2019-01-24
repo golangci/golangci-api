@@ -21,11 +21,11 @@ ENV GODEP_VERSION=v80
 RUN wget https://github.com/tools/godep/releases/download/${GODEP_VERSION}/godep_linux_amd64 -O $GOBINPATH/godep && \
     chmod a+x $GOBINPATH/godep
 
-RUN curl -sfL https://install.goreleaser.com/github.com/golangci/golangci-lint.sh | bash -s -- -b $GOPATH/bin v1.13
+RUN curl -sfL https://install.goreleaser.com/github.com/golangci/golangci-lint.sh | bash -s -- -b $GOPATH/bin v1.13.1
 
 WORKDIR ${GOPATH}/src/github.com/golangci/golangci-api
 RUN git clone https://github.com/golangci/golangci-api.git . && \
-    git checkout 4c1f2888d70100a60ea997eac8488e38f12096cd && \
+    git checkout 1f861e2181794e3c0055c0c0b0179d91d5c13d01 && \
     GO111MODULE=on go mod vendor && \
     go install ./cmd/buildrunner && \
     go install ./cmd/goenvbuild
