@@ -19,12 +19,13 @@ type EventProcessor struct {
 }
 
 const (
-	eventSubCreated          = "subscription_created"
-	eventSubPaymentSucceeded = "subscription_payment_succeeded"
-	eventSubPaymentFailed    = "subscription_payment_failed"
-	eventSubCancelled        = "subscription_cancelled"
-	eventSubUpdated          = "subscription_updated"
-	eventNewAudienceMember   = "new_audience_member"
+	eventSubCreated                 = "subscription_created"
+	eventSubPaymentSucceeded        = "subscription_payment_succeeded"
+	eventSubPaymentFailed           = "subscription_payment_failed"
+	eventSubCancelled               = "subscription_cancelled"
+	eventSubUpdated                 = "subscription_updated"
+	eventNewAudienceMember          = "new_audience_member"
+	eventHighRiskTransactionCreated = "high_risk_transaction_created"
 )
 
 //nolint:gocyclo
@@ -53,6 +54,8 @@ func (ep EventProcessor) parseEvent(payload string) (eventWithID, error) {
 		evWithID = &subUpdatedEvent{}
 	case eventNewAudienceMember:
 		evWithID = &newAudienceEvent{}
+	case eventHighRiskTransactionCreated:
+		evWithID = &highRiskTransactionCreatedEvent{}
 	default:
 		return nil, fmt.Errorf("got unknown event type %s", eventType)
 	}

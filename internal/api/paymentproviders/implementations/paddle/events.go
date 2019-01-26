@@ -184,3 +184,18 @@ type subUpdatedEvent struct {
 	NewPrice     string `schema:"new_price"`
 	OldPrice     string `schema:"old_price"`
 }
+
+//nolint:megacheck
+type highRiskTransactionCreatedEvent struct {
+	commonEvent
+	eventWithoutUser
+
+	CreatedAt            string `schema:"created_at"`
+	CaseID               string `schema:"case_id"`
+	CheckoutID           string `schema:"checkout_id"`
+	CustomerEmailAddress string `schema:"customer_email_address"`
+	CustomerUserID       string `schema:"customer_user_id"`
+	ProductID            string `schema:"product_id"`
+	RiskScore            string `schema:"risk_score"`
+	Status               string
+}
