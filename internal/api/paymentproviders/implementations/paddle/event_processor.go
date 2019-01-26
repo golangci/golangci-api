@@ -58,6 +58,7 @@ func (ep EventProcessor) parseEvent(payload string) (eventWithID, error) {
 	}
 
 	formDecoder := schema.NewDecoder()
+	formDecoder.IgnoreUnknownKeys(true) // Paddle changes API format too often
 	if err = formDecoder.Decode(evWithID, vs); err != nil {
 		return nil, errors.Wrapf(err, "failed to decode %s event", eventType)
 	}

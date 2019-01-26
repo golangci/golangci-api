@@ -164,6 +164,7 @@ type subCancelledEvent struct {
 	subscriptionOperation
 	eventWithPassthrough
 
+	Currency                  string
 	CancellationEffectiveDate string `schema:"cancellation_effective_date"`
 	UserID                    string `schema:"user_id"`
 }
