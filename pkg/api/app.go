@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/golangci/golangci-api/internal/shared/fsutil"
@@ -221,12 +222,26 @@ func (a *App) buildAwsSess() {
 	a.awsSess = awsSess
 }
 
+func (a App) getQueueURL(name string, required bool) string {
+	key := fmt.Sprintf("SQS_%s_QUEUE_URL", strings.ToUpper(name))
+	url := a.cfg.GetString(key)
+	if url == "" {
+		logger := a.log.Infof
+		if required {
+			logger = a.log.Fatalf
+		}
+		logger("Failed to get sqs %s queue url: no config key %s", name, key)
+	}
+
+	return url
+}
+
 func (a *App) buildQueues() {
-	a.queues.primarySQS = sqs.NewQueue(a.cfg.GetString("SQS_PRIMARY_QUEUE_URL"),
+	a.queues.primarySQS = sqs.NewQueue(a.getQueueURL("primary", true),
 		a.awsSess, a.trackedLog, primaryqueue.VisibilityTimeoutSec)
-	a.queues.analyzesSQS = sqs.NewQueue(a.cfg.GetString("SQS_ANALYZES_QUEUE_URL"),
+	a.queues.analyzesSQS = sqs.NewQueue(a.getQueueURL("analyzes", true),
 		a.awsSess, a.trackedLog, analyzesqueue.VisibilityTimeoutSec)
-	a.queues.primaryDLQSQS = sqs.NewQueue(a.cfg.GetString("SQS_PRIMARYDEADLETTER_QUEUE_URL"),
+	a.queues.primaryDLQSQS = sqs.NewQueue(a.getQueueURL("primarydeadletter", false),
 		a.awsSess, a.trackedLog, primaryqueue.VisibilityTimeoutSec)
 
 	a.queues.producers.primaryMultiplexer = producers.NewMultiplexer(a.queues.primarySQS)
