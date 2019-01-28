@@ -26,6 +26,7 @@ const (
 	eventSubUpdated                 = "subscription_updated"
 	eventNewAudienceMember          = "new_audience_member"
 	eventHighRiskTransactionCreated = "high_risk_transaction_created"
+	eventHighRiskTransactionUpdated = "high_risk_transaction_updated"
 )
 
 //nolint:gocyclo
@@ -56,6 +57,8 @@ func (ep EventProcessor) parseEvent(payload string) (eventWithID, error) {
 		evWithID = &newAudienceEvent{}
 	case eventHighRiskTransactionCreated:
 		evWithID = &highRiskTransactionCreatedEvent{}
+	case eventHighRiskTransactionUpdated:
+		evWithID = &highRiskTransactionUpdatedEvent{}
 	default:
 		return nil, fmt.Errorf("got unknown event type %s", eventType)
 	}
