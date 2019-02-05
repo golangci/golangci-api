@@ -67,7 +67,7 @@ func (r Staler) setGithubStatus(ctx context.Context, analysis models.PullRequest
 	pr, err := p.GetPullRequest(ctx, repo.Owner(), repo.Repo(), analysis.PullRequestNumber)
 	if err != nil {
 		if err == provider.ErrUnauthorized || err == provider.ErrNotFound {
-			r.Log.Warnf("Unrecoverable error getting pull request %s#%d: %s", repo.String(), analysis.PullRequestNumber, err)
+			r.Log.Infof("Staler: unrecoverable error getting pull request %s#%d: %s", repo.String(), analysis.PullRequestNumber, err)
 			return nil
 		}
 
