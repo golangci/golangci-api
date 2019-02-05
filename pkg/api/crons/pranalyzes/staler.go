@@ -2,6 +2,7 @@ package pranalyzes
 
 import (
 	"context"
+	"strings"
 	"time"
 
 	"github.com/golangci/golangci-api/internal/shared/config"
@@ -80,7 +81,7 @@ func (r Staler) setGithubStatus(ctx context.Context, analysis models.PullRequest
 	})
 	if err != nil {
 		if err == provider.ErrUnauthorized || err == provider.ErrNotFound {
-			r.Log.Warnf("Unrecoverable error setting github status to processing timeout for %s#%d: %s", repo.String(), analysis.PullRequestNumber, err)
+			r.Log.Warnf("Staler: unrecoverable error setting github status to processing timeout for %s#%d: %s", repo.String(), analysis.PullRequestNumber, err)
 			return nil
 		}
 
@@ -94,6 +95,14 @@ func (r Staler) updateStaleAnalysis(analysis models.PullRequestAnalysis) error {
 	var repo models.Repo
 	if err := models.NewRepoQuerySet(r.DB.Unscoped()).IDEq(analysis.RepoID).One(&repo); err != nil {
 		return errors.Wrap(err, "failed to fetch repo")
+	}
+
+	excludeRepos := r.Cfg.GetStringList("STALER_EXCLUDE_REPOS")
+	for _, er := range excludeRepos {
+		if strings.EqualFold(er, repo.FullName) {
+			r.Log.Infof("Staler: exclude repo %s from staling", repo.FullNameWithProvider())
+			return nil
+		}
 	}
 
 	ctx := context.Background()
