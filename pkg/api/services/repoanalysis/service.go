@@ -34,13 +34,21 @@ func (c Context) FillLogContext(lctx logutil.Context) {
 	c.Repo.FillLogContext(lctx)
 }
 
+type statusRequest struct {
+	AnalysisGUID string `request:",urlParam,optional"`
+}
+
+func (r statusRequest) FillLogContext(lctx logutil.Context) {
+	lctx["analysis_guid"] = r.AnalysisGUID
+}
+
 type updateRepoPayload models.RepoAnalysis
 
 func (p updateRepoPayload) FillLogContext(lctx logutil.Context) {}
 
 type Service interface {
 	//url:/v1/repos/{provider}/{owner}/{name}/repoanalyzes
-	GetStatus(rc *request.AnonymousContext, repo *request.Repo) (*Status, error)
+	GetStatus(rc *request.AnonymousContext, repo *request.Repo, sr *statusRequest) (*Status, error)
 
 	//url:/v1/repos/{provider}/{owner}/{name}/repoanalyzes/{analysisguid}
 	GetByAnalysisGUID(rc *request.InternalContext, rac *Context) (*models.RepoAnalysis, error)
@@ -58,7 +66,7 @@ func (s BasicService) isCompleteAnalysisStatus(status string) bool {
 }
 
 //nolint:gocyclo
-func (s BasicService) GetStatus(rc *request.AnonymousContext, reqRepo *request.Repo) (*Status, error) {
+func (s BasicService) GetStatus(rc *request.AnonymousContext, reqRepo *request.Repo, sr *statusRequest) (*Status, error) {
 	var repo models.Repo
 	err := models.NewRepoQuerySet(rc.DB).FullNameEq(strings.ToLower(reqRepo.FullName())).One(&repo)
 	if err != nil {
@@ -101,8 +109,12 @@ func (s BasicService) GetStatus(rc *request.AnonymousContext, reqRepo *request.R
 	}
 
 	var analyzes []models.RepoAnalysis
-	err = models.NewRepoAnalysisQuerySet(rc.DB).
-		RepoAnalysisStatusIDEq(as.ID).
+	qs := models.NewRepoAnalysisQuerySet(rc.DB).RepoAnalysisStatusIDEq(as.ID)
+	if sr.AnalysisGUID != "" {
+		qs = qs.AnalysisGUIDEq(sr.AnalysisGUID)
+	}
+
+	err = qs.
 		OrderDescByID(). // get last
 		Limit(2).
 		All(&analyzes)

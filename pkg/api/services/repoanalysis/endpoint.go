@@ -16,6 +16,7 @@ import (
 
 type GetStatusRequest struct {
 	Repo *request.Repo
+	Sr   *statusRequest
 }
 
 type GetStatusResponse struct {
@@ -52,8 +53,9 @@ func makeGetStatusEndpoint(svc Service, log logutil.Log) endpoint.Endpoint {
 		reqLogger = rc.Log
 
 		req.Repo.FillLogContext(rc.Lctx)
+		req.Sr.FillLogContext(rc.Lctx)
 
-		v, err := svc.GetStatus(rc, req.Repo)
+		v, err := svc.GetStatus(rc, req.Repo, req.Sr)
 		if err != nil {
 			rc.Log.Errorf("repoanalysis.Service.GetStatus failed: %s", err)
 			return GetStatusResponse{err, v}, nil
