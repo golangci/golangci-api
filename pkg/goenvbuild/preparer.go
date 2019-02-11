@@ -27,10 +27,11 @@ import (
 
 var availableGolangciLintVersions = map[int]map[int][]int{
 	1: {
-		10: {0, 1, 2},
-		11: {0, 1, 2, 3},
-		12: {0, 1, 2, 3, 4, 5},
-		13: {0, 1},
+		10: {-1, 1, 2},
+		11: {-1, 1, 2, 3},
+		12: {-1, 1, 2, 3, 4, 5},
+		13: {-1, 1, 2},
+		14: {0},
 	},
 }
 
@@ -216,7 +217,7 @@ func (p Preparer) run(needStreamToOutput bool) *result.Result {
 type version struct {
 	major int
 	minor int
-	patch *int // nil - any, 0 - major.minor
+	patch *int // nil - any, -1 - major.minor, 0/1/2/... - major.minor.patch
 }
 
 func (v version) String() string {
@@ -224,7 +225,7 @@ func (v version) String() string {
 	if v.patch == nil {
 		return s + ".x"
 	}
-	if *v.patch == 0 {
+	if *v.patch == -1 {
 		return s
 	}
 
@@ -261,7 +262,7 @@ func parseVersion(v string) (*version, error) {
 		}
 	} else {
 		patch = new(int)
-		*patch = 0
+		*patch = -1
 	}
 
 	return &version{
