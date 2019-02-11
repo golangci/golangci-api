@@ -35,6 +35,8 @@ var availableGolangciLintVersions = map[int]map[int][]int{
 	},
 }
 
+const defaultGolangciLintVersion = "1.14.x"
+
 type Preparer struct {
 	cfg config.Config
 }
@@ -176,14 +178,6 @@ func (p Preparer) run(needStreamToOutput bool) *result.Result {
 		return saveErr(err)
 	}
 
-	// prepare repo
-	err = runStepGroup(res.Log, "prepare repo", func(sg *result.StepGroup, log logutil.Log) error {
-		return p.runPreparation(ctx, sg, log, &res.ServiceConfig, projectPath, runner)
-	})
-	if err != nil {
-		return saveErr(err)
-	}
-
 	// setup golangci-lint - do it after preparation to disallow overwriting golangci-lint version by user-defined commands
 	err = runStepGroup(res.Log, "setup golangci-lint", func(sg *result.StepGroup, log logutil.Log) error {
 		version, setupErr := p.setupGolangciLint(ctx, sg, log, &res.ServiceConfig, runner)
@@ -193,6 +187,14 @@ func (p Preparer) run(needStreamToOutput bool) *result.Result {
 
 		res.GolangciLintVersion = version
 		return nil
+	})
+	if err != nil {
+		return saveErr(err)
+	}
+
+	// prepare repo
+	err = runStepGroup(res.Log, "prepare repo", func(sg *result.StepGroup, log logutil.Log) error {
+		return p.runPreparation(ctx, sg, log, &res.ServiceConfig, projectPath, runner)
 	})
 	if err != nil {
 		return saveErr(err)
@@ -408,13 +410,12 @@ func (p Preparer) parseGolangciLintVersion(sg *result.StepGroup, log logutil.Log
 		return v, nil
 	}
 
-	const defaultVersion = "1.13.x"
-	v, err := parseVersion(defaultVersion)
+	v, err := parseVersion(defaultGolangciLintVersion)
 	if err != nil {
 		panic(err)
 	}
 
-	log.Infof("No golangci-lint version in config, use default: %q", defaultVersion)
+	log.Infof("No golangci-lint version in config, use default: %q", defaultGolangciLintVersion)
 	return v, nil
 }
 
