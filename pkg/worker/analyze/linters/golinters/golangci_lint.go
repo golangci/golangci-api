@@ -98,11 +98,13 @@ func (g GolangciLint) Run(ctx context.Context, sg *logresult.StepGroup, exec exe
 	var retIssues []result.Issue
 	for _, i := range res.Issues {
 		retIssues = append(retIssues, result.Issue{
-			File:       i.FilePath(),
-			LineNumber: i.Line(),
-			Text:       i.Text,
-			FromLinter: i.FromLinter,
-			HunkPos:    i.HunkPos,
+			File:        i.FilePath(),
+			LineNumber:  i.Line(),
+			Text:        i.Text,
+			FromLinter:  i.FromLinter,
+			HunkPos:     i.HunkPos,
+			LineRange:   i.LineRange,
+			Replacement: i.Replacement,
 		})
 		step.AddOutputLine("%s:%d: %s (%s)", i.FilePath(), i.Line(), i.Text, i.FromLinter)
 	}

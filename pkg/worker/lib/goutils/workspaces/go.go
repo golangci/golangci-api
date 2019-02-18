@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"path"
 
+	"github.com/golangci/golangci-api/pkg/goenvbuild/config"
+
 	"github.com/golangci/golangci-api/internal/shared/logutil"
 	"github.com/golangci/golangci-api/pkg/goenvbuild/result"
 	"github.com/golangci/golangci-api/pkg/worker/lib/executors"
@@ -29,12 +31,14 @@ func NewGo(exec executors.Executor, log logutil.Log, repoFetcher fetchers.Fetche
 	}
 }
 
-func (w *Go) Setup(ctx context.Context, buildLog *result.Log, privateAccessToken string, repo *fetchers.Repo, projectPathParts ...string) (executors.Executor, error) {
+func (w *Go) Setup(ctx context.Context, buildLog *result.Log,
+	privateAccessToken string, repo *fetchers.Repo, projectPathParts ...string) (executors.Executor, *config.Service, error) {
+
 	groupErr := buildLog.RunNewGroup("clone repo", func(sg *result.StepGroup) error {
 		return w.repoFetcher.Fetch(ctx, sg, repo, w.exec)
 	})
 	if groupErr != nil {
-		return nil, groupErr
+		return nil, nil, groupErr
 	}
 
 	exec := w.exec.
@@ -60,7 +64,7 @@ func (w *Go) Setup(ctx context.Context, buildLog *result.Log, privateAccessToken
 		return nil
 	})
 	if groupErr != nil {
-		return nil, groupErr
+		return nil, nil, groupErr
 	}
 
 	// remove last group: it was needed only if error occurred
@@ -71,7 +75,7 @@ func (w *Go) Setup(ctx context.Context, buildLog *result.Log, privateAccessToken
 	}
 
 	if envbuildResult.Error != "" {
-		return nil, fmt.Errorf("goenvbuild internal error: %s", envbuildResult.Error)
+		return nil, nil, fmt.Errorf("goenvbuild internal error: %s", envbuildResult.Error)
 	}
 
 	retExec := w.exec.WithWorkDir(envbuildResult.WorkDir)
@@ -79,5 +83,5 @@ func (w *Go) Setup(ctx context.Context, buildLog *result.Log, privateAccessToken
 		retExec = retExec.WithEnv(k, v)
 	}
 
-	return retExec, nil
+	return retExec, &envbuildResult.ServiceConfig, nil
 }

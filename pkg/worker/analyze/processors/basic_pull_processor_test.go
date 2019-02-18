@@ -127,13 +127,13 @@ func getNopFetcher(ctrl *gomock.Controller) fetchers.Fetcher {
 
 func getNopReporter(ctrl *gomock.Controller) reporters.Reporter {
 	r := reporters.NewMockReporter(ctrl)
-	r.EXPECT().Report(testCtxMatcher, any, any, any).AnyTimes().Return(nil)
+	r.EXPECT().Report(testCtxMatcher, any, any, any, any).AnyTimes().Return(nil)
 	return r
 }
 
 func getErroredReporter(ctrl *gomock.Controller) reporters.Reporter {
 	r := reporters.NewMockReporter(ctrl)
-	r.EXPECT().Report(testCtxMatcher, any, any, any).Return(fmt.Errorf("can't report"))
+	r.EXPECT().Report(testCtxMatcher, any, any, any, any).Return(fmt.Errorf("can't report"))
 	return r
 }
 

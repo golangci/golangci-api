@@ -17,16 +17,17 @@ echo "create database api_prod;" | docker-compose exec -T pg psql -Upostgres
 ```
 It runs postgres and redis needed for both api and worker.
 
-### How to run worker
+### How to run
 ```bash
-make run_dev
+make run_api
+make run_worker
 ```
 
 ### Configuration
 Configurate via `.env` file. Dev `.env` may be like this:
 ```
 WEB_ROOT="https://dev.golangci.com"
-API_URL="https://api.golangci.com"
+API_URL="https://api.dev.golangci.com"
 GITHUB_CALLBACK_HOST=https://api.dev.golangci.com
 DATABASE_URL="postgresql://postgres:test@localhost:5432/api_prod?sslmode=disable"
 REDIS_URL="redis://127.0.0.1:6379"

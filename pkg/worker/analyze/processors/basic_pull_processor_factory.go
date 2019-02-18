@@ -73,7 +73,7 @@ func (pf BasicPullProcessorFactory) BuildProcessor(ctx *PullContext) (PullProces
 	}
 
 	if cfg.Reporter == nil {
-		cfg.Reporter = reporters.NewGithubReviewer(ctx.ProviderCtx, cfg.ProviderClient)
+		cfg.Reporter = reporters.NewGithubReviewer(ctx.ProviderCtx, cfg.ProviderClient, cfg.Ec)
 	}
 
 	if cfg.Runner == nil {
