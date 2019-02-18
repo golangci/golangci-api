@@ -5,6 +5,11 @@ type Service struct {
 
 	GolangciLintVersion string `mapstructure:"golangci-lint-version"`
 	Prepare             []string
+	SuggestedChanges    SuggestedChangesConfig `mapstructure:"suggested-changes"`
+}
+
+type SuggestedChangesConfig struct {
+	Disabled bool
 }
 
 type FullConfig struct {
