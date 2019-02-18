@@ -3,9 +3,9 @@ package logutil
 type Func func(format string, args ...interface{})
 
 type Log interface {
-	Fatalf(format string, args ...interface{})
-	Errorf(format string, args ...interface{})
-	Warnf(format string, args ...interface{})
+Fatalf(format string, args ...interface{})
+Errorf(format string, args ...interface{})
+Warnf(format string, args ...interface{})
 	Infof(format string, args ...interface{})
 	Debugf(key string, format string, args ...interface{})
 
@@ -15,6 +15,7 @@ type Log interface {
 
 type LogLevel int
 
+// setup levellign
 const (
 	// debug message, write to debug logs only by logutils.Debug
 	LogLevelDebug LogLevel = 0
@@ -29,5 +30,6 @@ const (
 
 	// only not hidden from user errors: whole program failing, usually
 	// error logging happens in 1-2 places: in the "main" function.
-	LogLevelError LogLevel = 3
+    	LogLevelError LogLevel = 3
 )
+
