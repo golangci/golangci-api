@@ -25,7 +25,7 @@ type Staler struct {
 
 func (r Staler) Run() {
 	// If you change it don't forget to change it golangci-worker
-	const taskProcessingTimeout = time.Minute * 10 * 12 // 12x as in golangci-worker: need time for queue processing
+	const taskProcessingTimeout = time.Minute * 10 * 120 // 120x as in golangci-worker: need time for queue processing
 
 	for range time.Tick(taskProcessingTimeout / 2) {
 		if _, err := r.RunIteration(taskProcessingTimeout); err != nil {
