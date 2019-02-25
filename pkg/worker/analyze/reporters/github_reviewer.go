@@ -4,6 +4,11 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"strings"
+
+	"github.com/golangci/golangci-api/pkg/worker/lib/experiments"
+
+	"github.com/golangci/golangci-api/pkg/goenvbuild/config"
 
 	envbuildresult "github.com/golangci/golangci-api/pkg/goenvbuild/result"
 	"github.com/golangci/golangci-api/pkg/worker/analyze/linters/result"
@@ -15,9 +20,10 @@ import (
 type GithubReviewer struct {
 	*github.Context
 	client github.Client
+	ec     *experiments.Checker
 }
 
-func NewGithubReviewer(c *github.Context, client github.Client) *GithubReviewer {
+func NewGithubReviewer(c *github.Context, client github.Client, ec *experiments.Checker) *GithubReviewer {
 	accessToken := os.Getenv("GITHUB_REVIEWER_ACCESS_TOKEN")
 	if accessToken != "" { // review as special user
 		cCopy := *c
@@ -27,6 +33,7 @@ func NewGithubReviewer(c *github.Context, client github.Client) *GithubReviewer 
 	ret := &GithubReviewer{
 		Context: c,
 		client:  client,
+		ec:      ec,
 	}
 	return ret
 }
@@ -68,22 +75,52 @@ func (gr GithubReviewer) fetchExistingComments(ctx context.Context) (existingCom
 	return ret, nil
 }
 
-func (gr GithubReviewer) makeComments(issues []result.Issue, ec existingComments) []*gh.DraftReviewComment {
+func (gr GithubReviewer) makeSimpleIssueCommentBody(i *result.Issue) string {
+	text := i.Text
+	if i.FromLinter != "" {
+		text += fmt.Sprintf(" (from `%s`)", i.FromLinter)
+	}
+	return text
+}
+
+func (gr GithubReviewer) makeIssueCommentBody(i *result.Issue, buildConfig *config.Service) string {
+	if buildConfig.SuggestedChanges.Disabled {
+		return gr.makeSimpleIssueCommentBody(i)
+	}
+
+	if i.Replacement == nil {
+		return gr.makeSimpleIssueCommentBody(i)
+	}
+
+	if i.LineRange != nil && i.LineRange.From != i.LineRange.To {
+		// github api doesn't support multi-line suggestion
+		return gr.makeSimpleIssueCommentBody(i)
+	}
+
+	if !gr.ec.IsActiveForRepo("SUGGESTED_CHANGES", gr.Repo.Owner, gr.Repo.Name) {
+		return gr.makeSimpleIssueCommentBody(i)
+	}
+
+	var suggestionBody string
+	if !i.Replacement.NeedOnlyDelete {
+		suggestionBody = strings.Join(i.Replacement.NewLines, "\n")
+	}
+	return fmt.Sprintf("%s\n```suggestion\n%s\n```", gr.makeSimpleIssueCommentBody(i), suggestionBody)
+}
+
+func (gr GithubReviewer) makeComments(issues []result.Issue, ec existingComments,
+	buildConfig *config.Service) []*gh.DraftReviewComment {
+
 	comments := []*gh.DraftReviewComment{}
 	for _, i := range issues {
 		if ec.contains(&i) {
 			continue // don't be annoying: don't comment on the same line twice
 		}
 
-		text := i.Text
-		if i.FromLinter != "" {
-			text += fmt.Sprintf(" (from `%s`)", i.FromLinter)
-		}
-
 		comment := &gh.DraftReviewComment{
 			Path:     gh.String(i.File),
 			Position: gh.Int(i.HunkPos),
-			Body:     gh.String(text),
+			Body:     gh.String(gr.makeIssueCommentBody(&i, buildConfig)),
 		}
 		comments = append(comments, comment)
 	}
@@ -91,7 +128,9 @@ func (gr GithubReviewer) makeComments(issues []result.Issue, ec existingComments
 	return comments
 }
 
-func (gr GithubReviewer) Report(ctx context.Context, buildLog *envbuildresult.Log, ref string, issues []result.Issue) error {
+func (gr GithubReviewer) Report(ctx context.Context, buildConfig *config.Service, buildLog *envbuildresult.Log,
+	ref string, issues []result.Issue) error {
+
 	return buildLog.RunNewGroup("post review", func(sg *envbuildresult.StepGroup) error {
 		step := sg.AddStep("check issues")
 		if len(issues) == 0 {
@@ -107,7 +146,7 @@ func (gr GithubReviewer) Report(ctx context.Context, buildLog *envbuildresult.Lo
 		}
 
 		step = sg.AddStep("build new review comments")
-		comments := gr.makeComments(issues, existingComments)
+		comments := gr.makeComments(issues, existingComments, buildConfig)
 		if len(comments) == 0 {
 			step.AddOutputLine("No new comments were built")
 			return nil // all comments are already exist

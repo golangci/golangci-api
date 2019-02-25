@@ -3,6 +3,8 @@ package processors
 import (
 	"context"
 
+	"github.com/golangci/golangci-api/pkg/goenvbuild/config"
+
 	"github.com/golangci/golangci-api/internal/shared/logutil"
 	"github.com/golangci/golangci-api/pkg/worker/lib/github"
 	gh "github.com/google/go-github/github"
@@ -22,8 +24,9 @@ type PullContext struct {
 
 	pull *gh.PullRequest
 
-	res      *analysisResult
-	savedLog logutil.Log
+	res         *analysisResult
+	savedLog    logutil.Log
+	buildConfig *config.Service
 }
 
 func (ctx *PullContext) repo() *github.Repo {

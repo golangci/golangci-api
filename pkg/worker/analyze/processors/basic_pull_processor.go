@@ -177,7 +177,7 @@ func (p *BasicPull) analyze(ctx *PullContext) (*result.Result, error) {
 	issues := res.Issues
 	ctx.LogCtx["reportedIssues"] = len(issues)
 
-	if err = p.Reporter.Report(ctx.Ctx, ctx.res.buildLog, ctx.pull.GetHead().GetSHA(), issues); err != nil {
+	if err = p.Reporter.Report(ctx.Ctx, ctx.buildConfig, ctx.res.buildLog, ctx.pull.GetHead().GetSHA(), issues); err != nil {
 		if errors.Cause(err) == github.ErrUserIsBlocked {
 			return nil, &errorutils.InternalError{
 				PublicDesc:  fmt.Sprintf("@%s is blocked in the organization", p.Cfg.GetString("GITHUB_REVIEWER_LOGIN")),
@@ -242,7 +242,7 @@ func (p *BasicPull) setupWorkspace(ctx *PullContext) error {
 	if ctx.ProviderCtx.Repo.IsPrivate {
 		privateAccessToken = ctx.ProviderCtx.GithubAccessToken
 	}
-	exec, err := p.Wi.Setup(ctx.Ctx, ctx.res.buildLog, privateAccessToken,
+	exec, buildConfig, err := p.Wi.Setup(ctx.Ctx, ctx.res.buildLog, privateAccessToken,
 		p.getRepo(ctx), "github.com", ctx.repo().Owner, ctx.repo().Name) //nolint:govet
 	if err != nil {
 		publicError := fmt.Sprintf("failed to setup workspace: %s", err)
@@ -252,6 +252,7 @@ func (p *BasicPull) setupWorkspace(ctx *PullContext) error {
 	}
 
 	p.Exec = exec
+	ctx.buildConfig = buildConfig
 	return nil
 }
 
