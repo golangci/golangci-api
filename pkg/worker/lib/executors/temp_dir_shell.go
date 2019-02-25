@@ -5,11 +5,11 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
-	"log"
 	"os"
 	"path/filepath"
 
 	"github.com/golangci/golangci-api/pkg/worker/analytics"
+	"github.com/pkg/errors"
 )
 
 type TempDirShell struct {
@@ -18,20 +18,15 @@ type TempDirShell struct {
 
 var _ Executor = &TempDirShell{}
 
-var tmpRoot string
-
-func init() {
-	var err error
-	tmpRoot, err = filepath.EvalSymlinks("/tmp")
-	if err != nil {
-		log.Fatalf("can't eval symlinks on /tmp: %s", err)
-	}
-}
-
 func NewTempDirShell(tag string) (*TempDirShell, error) {
+	tmpRoot, err := filepath.EvalSymlinks("/tmp")
+	if err != nil {
+		return nil, errors.Wrap(err, "can't eval symlinks on /tmp")
+	}
+
 	wd, err := ioutil.TempDir(tmpRoot, fmt.Sprintf("golangci.%s", tag))
 	if err != nil {
-		return nil, fmt.Errorf("can't make temp dir: %s", err)
+		return nil, errors.Wrap(err, "can't make temp dir")
 	}
 
 	return &TempDirShell{
