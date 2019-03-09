@@ -20,6 +20,7 @@ import (
 	"github.com/golangci/golangci-api/pkg/worker/lib/github"
 	"github.com/golangci/golangci-api/pkg/worker/lib/goutils/workspaces"
 	"github.com/pkg/errors"
+	redsync "gopkg.in/redsync.v1"
 
 	"github.com/golangci/golangci-api/internal/shared/config"
 	envbuildresult "github.com/golangci/golangci-api/pkg/goenvbuild/result"
@@ -31,12 +32,13 @@ const (
 )
 
 type StaticBasicPullConfig struct {
-	RepoFetcher    fetchers.Fetcher
-	Linters        []linters.Linter
-	Runner         linters.Runner
-	ProviderClient github.Client
-	State          prstate.Storage
-	Cfg            config.Config
+	RepoFetcher     fetchers.Fetcher
+	Linters         []linters.Linter
+	Runner          linters.Runner
+	ProviderClient  github.Client
+	State           prstate.Storage
+	Cfg             config.Config
+	DistLockFactory *redsync.Redsync
 }
 
 type BasicPullConfig struct {
@@ -176,6 +178,12 @@ func (p *BasicPull) analyze(ctx *PullContext) (*result.Result, error) {
 
 	issues := res.Issues
 	ctx.LogCtx["reportedIssues"] = len(issues)
+
+	lock := p.DistLockFactory.NewMutex(ctx.ProviderCtx.Repo.FullName())
+	if err = lock.Lock(); err != nil {
+		return nil, errors.Wrapf(err, "failed to acquire lock %s", ctx.ProviderCtx.Repo.FullName())
+	}
+	defer lock.Unlock()
 
 	if err = p.Reporter.Report(ctx.Ctx, ctx.buildConfig, ctx.res.buildLog, ctx.pull.GetHead().GetSHA(), issues); err != nil {
 		if errors.Cause(err) == github.ErrUserIsBlocked {

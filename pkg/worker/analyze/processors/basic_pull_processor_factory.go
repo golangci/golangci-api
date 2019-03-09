@@ -2,6 +2,8 @@ package processors
 
 import (
 	"github.com/golangci/golangci-api/internal/shared/config"
+	"github.com/golangci/golangci-api/internal/shared/db/redis"
+	redsync "gopkg.in/redsync.v1"
 
 	"github.com/pkg/errors"
 
@@ -84,6 +86,14 @@ func (pf BasicPullProcessorFactory) BuildProcessor(ctx *PullContext) (PullProces
 		cfg.State = prstate.NewAPIStorage(httputils.NewGrequestsClient(map[string]string{
 			"X-Internal-Access-Token": cfg.Cfg.GetString("INTERNAL_ACCESS_TOKEN"),
 		}))
+	}
+
+	if cfg.DistLockFactory == nil {
+		redisPool, err := redis.GetPool(cfg.Cfg)
+		if err != nil {
+			ctx.Log.Fatalf("Can't get redis pool: %s", err)
+		}
+		cfg.DistLockFactory = redsync.New([]redsync.Pool{redisPool})
 	}
 
 	return NewBasicPull(&cfg), cleanup, nil
