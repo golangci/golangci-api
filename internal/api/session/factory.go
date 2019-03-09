@@ -1,7 +1,6 @@
 package session
 
 import (
-	"strings"
 	"time"
 
 	"github.com/garyburd/redigo/redis"
@@ -16,7 +15,12 @@ type Factory struct {
 }
 
 func NewFactory(redisPool *redis.Pool, cfg config.Config, maxAge time.Duration) (*Factory, error) {
-	store, err := redistore.NewRediStoreWithPool(redisPool, []byte(cfg.GetString("SESSION_SECRET")))
+	sessSecret := cfg.GetString("SESSION_SECRET")
+	if sessSecret == "" {
+		return nil, errors.New("SESSION_SECRET isn't set")
+	}
+
+	store, err := redistore.NewRediStoreWithPool(redisPool, []byte(sessSecret))
 	if err != nil {
 		return nil, errors.Wrap(err, "can't create redis session store")
 	}
@@ -34,13 +38,7 @@ func NewFactory(redisPool *redis.Pool, cfg config.Config, maxAge time.Duration) 
 }
 
 func (f *Factory) updateOptions() {
-	// https for dev/prod, http for testing
-	d := strings.TrimPrefix(f.cfg.GetString("WEB_ROOT"), "https://")
-	d = strings.TrimPrefix(d, "http://")
-	if strings.HasPrefix(d, "127.0.0.1") { // test mocking
-		d = "" // prevent warnings
-	}
-	f.store.Options.Domain = d
+	f.store.Options.Domain = f.cfg.GetString("COOKIE_DOMAIN")
 	// TODO: set httponly and secure for non-testing
 }
 

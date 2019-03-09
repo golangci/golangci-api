@@ -1,6 +1,7 @@
 package redis
 
 import (
+	"errors"
 	"fmt"
 	"time"
 
@@ -9,9 +10,9 @@ import (
 )
 
 func GetPool(cfg config.Config) (*redis.Pool, error) {
-	redisURL := cfg.GetString("REDIS_URL")
-	if redisURL == "" {
-		return nil, fmt.Errorf("config REDIS_URL isn't set")
+	redisURL, err := GetURL(cfg)
+	if err != nil {
+		return nil, err
 	}
 
 	return &redis.Pool{
@@ -25,4 +26,18 @@ func GetPool(cfg config.Config) (*redis.Pool, error) {
 			return redis.DialURL(redisURL)
 		},
 	}, nil
+}
+
+func GetURL(cfg config.Config) (string, error) {
+	if redisURL := cfg.GetString("REDIS_URL"); redisURL != "" {
+		return redisURL, nil
+	}
+
+	host := cfg.GetString("REDIS_HOST")
+	password := cfg.GetString("REDIS_PASSWORD")
+	if host == "" || password == "" {
+		return "", errors.New("no REDIS_URL or REDIS_{HOST,PASSWORD} in config")
+	}
+
+	return fmt.Sprintf("redis://h:%s@%s", password, host), nil
 }

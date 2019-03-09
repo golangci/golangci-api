@@ -11,18 +11,18 @@ import (
 )
 
 type Runner struct {
-	distLock     *redsync.Mutex
-	log          logutil.Log
-	dbConnString string
-	projectRoot  string
+	distLock       *redsync.Mutex
+	log            logutil.Log
+	dbConnString   string
+	migrationsPath string
 }
 
-func NewRunner(distLock *redsync.Mutex, log logutil.Log, dbConnString, projectRoot string) *Runner {
+func NewRunner(distLock *redsync.Mutex, log logutil.Log, dbConnString, migrationsPath string) *Runner {
 	return &Runner{
-		distLock:     distLock,
-		log:          log,
-		dbConnString: dbConnString,
-		projectRoot:  projectRoot,
+		distLock:       distLock,
+		log:            log,
+		dbConnString:   dbConnString,
+		migrationsPath: migrationsPath,
 	}
 }
 
@@ -33,7 +33,7 @@ func (r Runner) Run() error {
 	}
 	defer r.distLock.Unlock()
 
-	migrationsDir := fmt.Sprintf("file://%s/migrations", r.projectRoot)
+	migrationsDir := fmt.Sprintf("file://%s", r.migrationsPath)
 	m, err := migrate.New(migrationsDir, r.dbConnString)
 	if err != nil {
 		return errors.Wrap(err, "can't initialize migrations")

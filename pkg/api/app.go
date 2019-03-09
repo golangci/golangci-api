@@ -8,7 +8,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/golangci/golangci-api/internal/shared/fsutil"
 	"github.com/golangci/golangci-api/pkg/api/policy"
 	"github.com/golangci/golangci-api/pkg/worker/analyze/analyzesqueue"
 	"github.com/golangci/golangci-api/pkg/worker/analyze/analyzesqueue/pullanalyzesqueue"
@@ -183,7 +182,11 @@ func (a *App) buildDeps() {
 	}
 
 	if a.cache == nil {
-		a.cache = cache.NewRedis(a.cfg.GetString("REDIS_URL") + "/1")
+		redisURL, err := redis.GetURL(a.cfg)
+		if err != nil {
+			a.log.Fatalf("Can't get redis URL: %s", err)
+		}
+		a.cache = cache.NewRedis(redisURL + "/1")
 	}
 
 	if a.authorizer == nil {
@@ -351,7 +354,7 @@ func (a *App) buildMigrationsRunner() {
 		a.log.Fatalf("Can't get DB conn string: %s", err)
 	}
 	a.migrationsRunner = migrations.NewRunner(a.distLockFactory.NewMutex("migrations"), a.trackedLog,
-		dbConnString, fsutil.GetProjectRoot())
+		dbConnString, a.cfg.GetString("MIGRATIONS_PATH"))
 }
 
 func NewApp(modifiers ...Modifier) *App {
