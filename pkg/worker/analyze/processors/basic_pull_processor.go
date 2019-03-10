@@ -61,12 +61,12 @@ func NewBasicPull(cfg *BasicPullConfig) *BasicPull {
 }
 
 func storePatch(ctx context.Context, patch string, exec executors.Executor) error {
-	f, err := ioutil.TempFile("/tmp", "golangci.diff")
-	defer os.Remove(f.Name())
-
+	f, err := ioutil.TempFile("/app", "golangci.diff")
 	if err != nil {
 		return fmt.Errorf("can't create temp file for patch: %s", err)
 	}
+	defer os.Remove(f.Name())
+
 	if err = ioutil.WriteFile(f.Name(), []byte(patch), os.ModePerm); err != nil {
 		return fmt.Errorf("can't write patch to temp file %s: %s", f.Name(), err)
 	}
