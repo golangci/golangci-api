@@ -30,7 +30,7 @@ require (
 	github.com/go-sql-driver/mysql v1.4.1 // indirect
 	github.com/go-stack/stack v1.8.0 // indirect
 	github.com/golang/mock v1.2.0
-	github.com/golangci/golangci-lint v1.15.0
+	github.com/golangci/golangci-lint v1.16.0
 	github.com/gomodule/redigo v2.0.0+incompatible // indirect
 	github.com/google/go-github v0.0.0-20180123235826-b1f138353a62
 	github.com/google/go-querystring v1.0.0 // indirect
@@ -79,7 +79,7 @@ require (
 	github.com/yudai/pp v2.0.1+incompatible // indirect
 	golang.org/x/oauth2 v0.0.0-20180118004544-b28fcf2b08a1
 	golang.org/x/sync v0.0.0-20181108010431-42b317875d0f // indirect
-	golang.org/x/tools v0.0.0-20190125232054-379209517ffe
+	golang.org/x/tools v0.0.0-20190314010720-f0bfdbff1f9c
 	google.golang.org/appengine v1.3.0 // indirect
 	gopkg.in/boj/redistore.v1 v1.0.0-20160128113310-fc113767cd6b
 	gopkg.in/ini.v1 v1.39.0 // indirect
