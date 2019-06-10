@@ -30,7 +30,7 @@ require (
 	github.com/go-sql-driver/mysql v1.4.1 // indirect
 	github.com/go-stack/stack v1.8.0 // indirect
 	github.com/golang/mock v1.2.0
-	github.com/golangci/golangci-lint v1.16.0
+	github.com/golangci/golangci-lint v1.17.0
 	github.com/gomodule/redigo v2.0.0+incompatible // indirect
 	github.com/google/go-github v0.0.0-20180123235826-b1f138353a62
 	github.com/google/go-querystring v1.0.0 // indirect
@@ -69,7 +69,6 @@ require (
 	github.com/stvp/rollbar v0.5.1
 	github.com/stvp/tempredis v0.0.0-20181119212430-b82af8480203 // indirect
 	github.com/urfave/negroni v0.0.0-20180105164225-ff85fb036d90
-	github.com/valyala/fasthttp v1.0.0 // indirect
 	github.com/xeipuuv/gojsonpointer v0.0.0-20180127040702-4e3ac2762d5f // indirect
 	github.com/xeipuuv/gojsonreference v0.0.0-20180127040603-bd5ef7bd5415 // indirect
 	github.com/xeipuuv/gojsonschema v0.0.0-20181112162635-ac52e6811b56 // indirect
@@ -79,7 +78,7 @@ require (
 	github.com/yudai/pp v2.0.1+incompatible // indirect
 	golang.org/x/oauth2 v0.0.0-20180118004544-b28fcf2b08a1
 	golang.org/x/sync v0.0.0-20181108010431-42b317875d0f // indirect
-	golang.org/x/tools v0.0.0-20190314010720-f0bfdbff1f9c
+	golang.org/x/tools v0.0.0-20190420000508-685fecacd0a0
 	google.golang.org/appengine v1.3.0 // indirect
 	gopkg.in/boj/redistore.v1 v1.0.0-20160128113310-fc113767cd6b
 	gopkg.in/ini.v1 v1.39.0 // indirect
