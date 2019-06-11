@@ -34,7 +34,7 @@ var availableGolangciLintVersions = map[int]map[int][]int{
 		14: {0},
 		15: {0},
 		16: {0},
-		17: {0},
+		17: {0, 1},
 	},
 }
 
