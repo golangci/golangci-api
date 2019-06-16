@@ -324,7 +324,7 @@ func (p BasicPull) processPanicSafe(ctx *PullContext) (retErr error) {
 		if rerr := recover(); rerr != nil {
 			retErr = &errorutils.InternalError{
 				PublicDesc:  "internal error",
-				PrivateDesc: fmt.Sprintf("panic occured: %s, %s", rerr, debug.Stack()),
+				PrivateDesc: fmt.Sprintf("panic occurred: %s, %s", rerr, debug.Stack()),
 			}
 			// TODO: set github commit status to internal error
 		}

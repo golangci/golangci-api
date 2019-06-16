@@ -167,6 +167,7 @@ func (o Orchestrator) setupContainer(req *SetupContainerRequest) (*SetupContaine
 		portsMapping := fmt.Sprintf("127.0.0.1:%d:%d", port, runnerPort)
 		dockerArgs := []string{"run", "-d", "--rm",
 			"-e", fmt.Sprintf("TOKEN=%s", buildToken),
+			"--runtime", "gvisor",
 			"-p", portsMapping, buildRunnerImage}
 		o.log.Infof("Docker setup args: %v", dockerArgs)
 		cmd = exec.CommandContext(ctx, "docker", dockerArgs...)

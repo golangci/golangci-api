@@ -147,6 +147,10 @@ func sendWebhookPayload(repoName, event, hookID string, isProd bool, payload int
 		return fmt.Errorf("can't send http request: %s", err)
 	}
 
+	if resp.Body != nil {
+		defer resp.Body.Close()
+	}
+
 	if resp.StatusCode != 200 {
 		return fmt.Errorf("%q response status code %d", webhookURL, resp.StatusCode)
 	}

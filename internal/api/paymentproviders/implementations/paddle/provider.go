@@ -123,7 +123,7 @@ func (p Provider) UpdateSubscription(ctx context.Context, cust string, sub strin
 	}
 
 	if err = resp.JSON(&respData); err != nil {
-		return nil, errors.Wrap(err, "failed to decode reponse json")
+		return nil, errors.Wrap(err, "failed to decode response json")
 	}
 	if !respData.Success {
 		return nil, fmt.Errorf("error from paddle: %s", respData.Error.Message)
