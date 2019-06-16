@@ -151,6 +151,13 @@ func (o Orchestrator) setupContainer(req *SetupContainerRequest) (*SetupContaine
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 
+	const buildRunnerImage = "golangci/build-runner"
+
+	cmd := exec.CommandContext(ctx, "docker", "pull", buildRunnerImage)
+	if out, err := cmd.CombinedOutput(); err != nil {
+		o.log.Warnf("failed to pull docker image: %s, %s", err, out)
+	}
+
 	buildToken := uuid.NewV4().String()
 
 	attemptsN := 3
@@ -160,9 +167,9 @@ func (o Orchestrator) setupContainer(req *SetupContainerRequest) (*SetupContaine
 		portsMapping := fmt.Sprintf("127.0.0.1:%d:%d", port, runnerPort)
 		dockerArgs := []string{"run", "-d", "--rm",
 			"-e", fmt.Sprintf("TOKEN=%s", buildToken),
-			"-p", portsMapping, "golangci/build-runner"}
+			"-p", portsMapping, buildRunnerImage}
 		o.log.Infof("Docker setup args: %v", dockerArgs)
-		cmd := exec.CommandContext(ctx, "docker", dockerArgs...)
+		cmd = exec.CommandContext(ctx, "docker", dockerArgs...)
 		var stderrBuf bytes.Buffer
 		cmd.Stderr = &stderrBuf
 
