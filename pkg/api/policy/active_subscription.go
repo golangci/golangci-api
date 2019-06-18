@@ -82,6 +82,16 @@ func (s ActiveSubscription) doesCommitAuthorHaveActiveSub(ca *provider.CommitAut
 		return false
 	}
 
+	// emails of bots and similar service users, not real users
+	serviceEmails := map[string]bool{
+		"bot@renovateapp.com": true,
+		"noreply@github.com":  true,
+	}
+	if serviceEmails[ca.Email] {
+		s.log.Infof("Accepting commit from service email %s", ca.Email)
+		return true
+	}
+
 	for _, paidSeat := range paidSeats {
 		if strings.EqualFold(paidSeat.Email, ca.Email) {
 			s.log.Infof("Matched commit %v by seat %v", ca, paidSeat)
