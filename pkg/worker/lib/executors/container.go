@@ -51,6 +51,10 @@ func NewContainer(log logutil.Log) (*Container, error) {
 	}, nil
 }
 
+func (c *Container) wrapExecutorError(err error) error {
+	return errors.Wrap(ErrExecutorFail, err.Error())
+}
+
 func (c *Container) Setup(ctx context.Context) error {
 	resp, err := grequests.Post(fmt.Sprintf("%s/setup", c.orchestratorAddr), &grequests.RequestOptions{
 		Context: ctx,
@@ -62,16 +66,16 @@ func (c *Container) Setup(ctx context.Context) error {
 		},
 	})
 	if err != nil {
-		return errors.Wrap(err, "failed to make request to orchestrator")
+		return errors.Wrap(c.wrapExecutorError(err), "failed to make request to orchestrator")
 	}
 
 	var setupResp containers.SetupContainerResponse
 	if err = resp.JSON(&setupResp); err != nil {
-		return errors.Wrap(err, "failed to parse json of setup response")
+		return errors.Wrap(c.wrapExecutorError(err), "failed to parse json of setup response")
 	}
 
 	if setupResp.Error != "" {
-		return fmt.Errorf("failed to setup container: %s", setupResp.Error)
+		return c.wrapExecutorError(fmt.Errorf("failed to setup container: %s", setupResp.Error))
 	}
 
 	c.log.Infof("Setup of container: id is %#v", setupResp.ContainerID)
@@ -117,22 +121,22 @@ func (c Container) runBuildCommand(ctx context.Context, req *containers.BuildCom
 		},
 	})
 	if err != nil {
-		return nil, errors.Wrapf(err, "failed to make request to orchestrator with req %#v", req)
+		return nil, errors.Wrapf(c.wrapExecutorError(err), "failed to make request to orchestrator with req %#v", req)
 	}
 
 	var containerResp containers.BuildCommandResponse
 	if err = resp.JSON(&containerResp); err != nil {
-		return nil, errors.Wrap(err, "failed to parse json of container response")
+		return nil, errors.Wrap(c.wrapExecutorError(err), "failed to parse json of container response")
 	}
 
 	if containerResp.Error != "" {
-		return nil, fmt.Errorf("failed to run container build command with req %#v: %s",
-			req, containerResp.Error)
+		return nil, c.wrapExecutorError(
+			fmt.Errorf("failed to run container build command with req %#v: %s", req, containerResp.Error))
 	}
 
 	buildResp := containerResp.BuildResponse
 	if buildResp.Error != "" {
-		return nil, fmt.Errorf("failed to run build command with req %#v: %s", req, buildResp.Error)
+		return nil, c.wrapExecutorError(fmt.Errorf("failed to run build command with req %#v: %s", req, buildResp.Error))
 	}
 
 	res := RunResult(buildResp.RequestResult)

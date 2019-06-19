@@ -63,16 +63,16 @@ func NewBasicPull(cfg *BasicPullConfig) *BasicPull {
 func storePatch(ctx context.Context, patch string, exec executors.Executor) error {
 	f, err := ioutil.TempFile("/app", "golangci.diff")
 	if err != nil {
-		return fmt.Errorf("can't create temp file for patch: %s", err)
+		return errors.Wrap(err, "can't create temp file for patch")
 	}
 	defer os.Remove(f.Name())
 
 	if err = ioutil.WriteFile(f.Name(), []byte(patch), os.ModePerm); err != nil {
-		return fmt.Errorf("can't write patch to temp file %s: %s", f.Name(), err)
+		return errors.Wrapf(err, "can't write patch to temp file %s", f.Name())
 	}
 
 	if err = exec.CopyFile(ctx, patchPath, f.Name()); err != nil {
-		return fmt.Errorf("can't copy patch file: %s", err)
+		return errors.Wrap(err, "can't copy patch file")
 	}
 
 	return nil
@@ -127,6 +127,11 @@ func (p *BasicPull) processWithGuaranteedGithubStatus(ctx *PullContext) error {
 	ctx.Log = ctx.savedLog
 	ctx.savedLog = nil
 	ctx.Log.Infof("timings: %s", ctx.res.timings)
+
+	if errors.Cause(err) == executors.ErrExecutorFail {
+		// temporary error, don't show it to user
+		return err
+	}
 
 	ctx.Ctx = context.Background() // no timeout for state and status saving: it must be durable
 
@@ -253,6 +258,11 @@ func (p *BasicPull) setupWorkspace(ctx *PullContext) error {
 	exec, buildConfig, err := p.Wi.Setup(ctx.Ctx, ctx.res.buildLog, privateAccessToken,
 		p.getRepo(ctx), "github.com", ctx.repo().Owner, ctx.repo().Name) //nolint:govet
 	if err != nil {
+		if errors.Cause(err) == executors.ErrExecutorFail {
+			// temporary error, don't show it to user
+			return err
+		}
+
 		publicError := fmt.Sprintf("failed to setup workspace: %s", err)
 		p.updateAnalysisState(ctx, nil, github.StatusError, publicError)
 		p.setCommitStatus(ctx, github.StatusError, "failed to setup")

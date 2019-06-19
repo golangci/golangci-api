@@ -78,6 +78,11 @@ func (r Repo) Process(ctx *RepoContext) error {
 	err := r.processPanicSafe(ctx, &res)
 	ctx.Log = savedLogger
 
+	if errors.Cause(err) == executors.ErrExecutorFail {
+		// temporary error, don't show it to user
+		return err
+	}
+
 	status := errorToStatus(err)
 	publicErrorText := buildPublicError(err)
 	err = transformError(err)

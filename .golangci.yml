@@ -1,3 +1,6 @@
+run:
+  deadline: 1m
+
 linters-settings:
   govet:
     check-shadowing: true
