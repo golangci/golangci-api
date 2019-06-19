@@ -40,7 +40,7 @@ func NewAnalyzePR(pf processors.PullProcessorFactory, log logutil.Log, errTracke
 
 func (c AnalyzePR) Consume(ctx context.Context, repoOwner, repoName string,
 	isPrivateRepo bool, githubAccessToken string,
-	pullRequestNumber int, APIRequestID string, userID uint, analysisGUID string) error {
+	pullRequestNumber int, apiRequestID string, userID uint, analysisGUID string) error {
 
 	repo := github.Repo{
 		Owner:     repoOwner,

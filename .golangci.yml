@@ -1,5 +1,5 @@
 run:
-  deadline: 1m
+  deadline: 2m
 
 linters-settings:
   govet:
@@ -17,6 +17,10 @@ linters-settings:
     min-occurrences: 2
   lll:
     line-length: 140
+  gocritic:
+    disabled-checks:
+      - ifElseChain
+      - singleCaseSwitch
 
 linters:
   enable-all: true
@@ -25,7 +29,6 @@ linters:
     - lll
     - prealloc
     - gosec
-    - gocritic
     - gochecknoglobals
     - gochecknoinits
     - scopelint
