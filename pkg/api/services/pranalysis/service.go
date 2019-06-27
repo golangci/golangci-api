@@ -29,7 +29,7 @@ type State struct {
 	GithubPullRequestNumber int
 	GithubRepoName          string
 
-	PreviousAnalyzes []SamePullStateLink
+	PreviousAnalyzes []SamePullStateLink `json:",omitempty"`
 }
 
 type SamePullStateLink struct {
