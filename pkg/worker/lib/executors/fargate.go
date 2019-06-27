@@ -55,8 +55,7 @@ func (f *Fargate) wrapExecutorError(err error) error {
 	return errors.Wrap(ErrExecutorFail, err.Error())
 }
 
-func (f Fargate) runTask(ctx context.Context) (*ecs.Task, error) {
-	//--cluster fargate-cluster --count 1 --launch-type FARGATE --network-configuration 'awsvpcConfiguration={assignPublicIp=ENABLED,subnets=["subnet-42cbfd36"],securityGroups=["sg-0878aa5f3b61341dc"]}' --task-definition sample-fargate:12
+func (f Fargate) runTask(ctx context.Context, req *Requirements) (*ecs.Task, error) {
 	input := &ecs.RunTaskInput{
 		Count: aws.Int64(1),
 		NetworkConfiguration: &ecs.NetworkConfiguration{
@@ -79,6 +78,8 @@ func (f Fargate) runTask(ctx context.Context) (*ecs.Task, error) {
 							Value: aws.String(f.token),
 						},
 					},
+					Cpu:    aws.Int64(int64(req.CPUCount * 1024)), // default is 4 vCPU
+					Memory: aws.Int64(int64(req.MemoryGB * 1024)), // default is 16 GB
 				},
 			},
 		},
@@ -206,8 +207,8 @@ func cleanEnvKey(s string) string {
 	return s
 }
 
-func (f *Fargate) Setup(ctx context.Context) error {
-	task, err := f.runTask(ctx)
+func (f *Fargate) Setup(ctx context.Context, req *Requirements) error {
+	task, err := f.runTask(ctx, req)
 	if err != nil {
 		return err
 	}
@@ -230,7 +231,8 @@ func (f *Fargate) Setup(ctx context.Context) error {
 	}
 	os.Setenv("FARGATE_CONTAINER_IP"+cleanEnvKey(ip), ip) // hide it in logs
 	f.containerAddr = fmt.Sprintf("http://%s:7000", ip)
-	f.log.Infof("Fargate container %s started on addr %s", f.taskID, f.containerAddr)
+	f.log.Infof("Fargate container started on addr %s", f.taskID, f.containerAddr)
+	f.log.Infof("Started container with resource requirements: %#v", req)
 
 	return nil
 }

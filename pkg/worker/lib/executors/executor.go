@@ -15,8 +15,13 @@ type RunResult struct {
 
 var ErrExecutorFail = errors.New("executor failed")
 
+type Requirements struct {
+	CPUCount int
+	MemoryGB int
+}
+
 type Executor interface {
-	Setup(ctx context.Context) error
+	Setup(ctx context.Context, req *Requirements) error
 	Run(ctx context.Context, name string, args ...string) (*RunResult, error)
 
 	WithEnv(k, v string) Executor

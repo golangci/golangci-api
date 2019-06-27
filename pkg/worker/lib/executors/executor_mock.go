@@ -33,15 +33,15 @@ func (_m *MockExecutor) EXPECT() *MockExecutorMockRecorder {
 }
 
 // Setup mocks base method
-func (_m *MockExecutor) Setup(ctx context.Context) error {
-	ret := _m.ctrl.Call(_m, "Setup", ctx)
+func (_m *MockExecutor) Setup(ctx context.Context, req *Requirements) error {
+	ret := _m.ctrl.Call(_m, "Setup", ctx, req)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // Setup indicates an expected call of Setup
-func (_mr *MockExecutorMockRecorder) Setup(arg0 interface{}) *gomock.Call {
-	return _mr.mock.ctrl.RecordCallWithMethodType(_mr.mock, "Setup", reflect.TypeOf((*MockExecutor)(nil).Setup), arg0)
+func (_mr *MockExecutorMockRecorder) Setup(arg0, arg1 interface{}) *gomock.Call {
+	return _mr.mock.ctrl.RecordCallWithMethodType(_mr.mock, "Setup", reflect.TypeOf((*MockExecutor)(nil).Setup), arg0, arg1)
 }
 
 // Run mocks base method

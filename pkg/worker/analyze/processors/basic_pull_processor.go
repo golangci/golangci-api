@@ -9,6 +9,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/golangci/golangci-api/pkg/worker/analyze/resources"
+
 	"github.com/aws/aws-sdk-go/aws/session"
 
 	"github.com/golangci/golangci-api/pkg/worker/analyze/linters"
@@ -365,7 +367,8 @@ func (p BasicPull) processPanicSafe(ctx *PullContext) (retErr error) {
 		sg.AddStep("start container golangci/build-runner (https://hub.docker.com/r/golangci/build-runner)")
 		defer ctx.res.addTimingFrom("Start Container", time.Now())
 
-		if err := p.Exec.Setup(ctx.Ctx); err != nil {
+		requirements := resources.BuildExecutorRequirementsForRepo(p.Ec, ctx.repo())
+		if err := p.Exec.Setup(ctx.Ctx, requirements); err != nil {
 			return errors.Wrap(err, "failed to setup executor")
 		}
 		return nil

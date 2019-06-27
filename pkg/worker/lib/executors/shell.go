@@ -26,7 +26,7 @@ func newShell(workDir string) *shell {
 	}
 }
 
-func (s shell) Setup(_ context.Context) error {
+func (s shell) Setup(_ context.Context, _ *Requirements) error {
 	return nil
 }
 

@@ -7,6 +7,8 @@ import (
 	"runtime/debug"
 	"time"
 
+	"github.com/golangci/golangci-api/pkg/worker/analyze/resources"
+
 	"github.com/aws/aws-sdk-go/aws/session"
 
 	"github.com/golangci/golangci-api/pkg/worker/analyze/logger"
@@ -113,7 +115,8 @@ func (r Repo) processPanicSafe(ctx *RepoContext, res *analysisResult) (err error
 		sg.AddStep("start container")
 		defer res.addTimingFrom("Start Container", time.Now())
 
-		if err := r.Exec.Setup(ctx.Ctx); err != nil {
+		requirements := resources.BuildExecutorRequirementsForRepo(r.Ec, ctx.Repo)
+		if err := r.Exec.Setup(ctx.Ctx, requirements); err != nil {
 			return errors.Wrap(err, "failed to setup executor")
 		}
 		return nil

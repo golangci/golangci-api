@@ -55,7 +55,7 @@ func (c *Container) wrapExecutorError(err error) error {
 	return errors.Wrap(ErrExecutorFail, err.Error())
 }
 
-func (c *Container) Setup(ctx context.Context) error {
+func (c *Container) Setup(ctx context.Context, _ *Requirements) error {
 	resp, err := grequests.Post(fmt.Sprintf("%s/setup", c.orchestratorAddr), &grequests.RequestOptions{
 		Context: ctx,
 		JSON: containers.SetupContainerRequest{
