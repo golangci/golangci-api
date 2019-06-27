@@ -31,7 +31,7 @@ type launchMessage struct {
 }
 
 func (m launchMessage) LockID() string {
-	return fmt.Sprintf("%s/%d", launchQueueID, m.RepoID)
+	return fmt.Sprintf("%s/%d/%s", launchQueueID, m.RepoID, m.CommitSHA)
 }
 
 type LauncherProducer struct {

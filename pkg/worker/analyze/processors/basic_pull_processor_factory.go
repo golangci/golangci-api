@@ -1,6 +1,8 @@
 package processors
 
 import (
+	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/golangci/golangci-api/internal/shared/config"
 	"github.com/golangci/golangci-api/internal/shared/db/redis"
 	redsync "gopkg.in/redsync.v1"
@@ -40,10 +42,26 @@ func (pf BasicPullProcessorFactory) BuildProcessor(ctx *PullContext) (PullProces
 		cfg.ProviderClient = github.NewMyClient()
 	}
 
+	if cfg.AwsSess == nil {
+		awsCfg := aws.NewConfig().WithRegion("us-east-1")
+		if cfg.Cfg.GetBool("AWS_DEBUG", false) {
+			awsCfg = awsCfg.WithLogLevel(aws.LogDebugWithHTTPBody)
+		}
+		awsSess, err := session.NewSession(awsCfg)
+		if err != nil {
+			return nil, nil, errors.Wrap(err, "failed to make aws session")
+		}
+		cfg.AwsSess = awsSess
+	}
+
+	if cfg.Ec == nil {
+		cfg.Ec = experiments.NewChecker(cfg.Cfg, ctx.Log)
+	}
+
 	var cleanup func()
 
 	if cfg.Exec == nil {
-		exec, err := makeExecutor(ctx.Ctx, nil)
+		exec, err := makeExecutor(ctx.Log, cfg.Ec, &ctx.ProviderCtx.Repo, cfg.Cfg, cfg.AwsSess, true)
 		if err != nil {
 			return nil, nil, errors.Wrap(err, "can't make executor")
 		}
@@ -52,10 +70,6 @@ func (pf BasicPullProcessorFactory) BuildProcessor(ctx *PullContext) (PullProces
 		cleanup = func() {
 			exec.Clean()
 		}
-	}
-
-	if cfg.Ec == nil {
-		cfg.Ec = experiments.NewChecker(cfg.Cfg, ctx.Log)
 	}
 
 	if cfg.RepoFetcher == nil {

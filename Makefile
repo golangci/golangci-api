@@ -30,6 +30,9 @@ run_worker:
 migrate_force_version:
 	godotenv -f .env sh -c 'migrate -database $${DATABASE_URL} -path ./migrations force $${V}'
 
+prepare_test_env:
+	./test/prepare_env.sh
+
 test_api:
 	go test -v -parallel 1 -p 1 ./test/
 
@@ -62,9 +65,6 @@ build_lambda:
 
 deploy_lambda: build_lambda
 	aws s3 cp ./sqsLambdaConsumer.zip s3://golangci-lambda-functions/
-
-deploy_cloudformation:
-	aws cloudformation deploy --template ./deployments/aws/cloudformation.yml --region us-east-1 --capabilities CAPABILITY_IAM CAPABILITY_NAMED_IAM --stack-name golangci
 
 worker_test_repo:
 	# set env vars PR, REPO

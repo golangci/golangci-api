@@ -60,7 +60,8 @@ func (c AnalyzeRepo) Consume(ctx context.Context, repoName, analysisGUID, branch
 		var cancel context.CancelFunc
 		// If you change timeout value don't forget to change it
 		// in golangci-api stale analyzes checker
-		ctx, cancel = context.WithTimeout(ctx, 10*time.Minute)
+		const containerStartupTime = time.Minute
+		ctx, cancel = context.WithTimeout(ctx, 10*time.Minute+containerStartupTime)
 		defer cancel()
 
 		return c.analyzeRepo(ctx, log, repoName, analysisGUID, branch, privateAccessToken)

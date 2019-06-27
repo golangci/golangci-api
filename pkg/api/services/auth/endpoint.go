@@ -28,10 +28,10 @@ func makeCheckAuthEndpoint(svc Service, log logutil.Log) endpoint.Endpoint {
 		reqLogger := log
 		defer func() {
 			if rerr := recover(); rerr != nil {
-				reqLogger.Errorf("Panic occured")
+				reqLogger.Errorf("Panic occurred")
 				reqLogger.Infof("%s", debug.Stack())
 				resp = CheckAuthResponse{
-					err: errors.New("panic occured"),
+					err: errors.New("panic occurred"),
 				}
 				err = nil
 			}
@@ -72,10 +72,10 @@ func makeLogoutEndpoint(svc Service, log logutil.Log) endpoint.Endpoint {
 		reqLogger := log
 		defer func() {
 			if rerr := recover(); rerr != nil {
-				reqLogger.Errorf("Panic occured")
+				reqLogger.Errorf("Panic occurred")
 				reqLogger.Infof("%s", debug.Stack())
 				resp = LogoutResponse{
-					err: errors.New("panic occured"),
+					err: errors.New("panic occurred"),
 				}
 				err = nil
 			}
@@ -118,10 +118,10 @@ func makeUnlinkProviderEndpoint(svc Service, log logutil.Log) endpoint.Endpoint 
 		reqLogger := log
 		defer func() {
 			if rerr := recover(); rerr != nil {
-				reqLogger.Errorf("Panic occured")
+				reqLogger.Errorf("Panic occurred")
 				reqLogger.Infof("%s", debug.Stack())
 				resp = UnlinkProviderResponse{
-					err: errors.New("panic occured"),
+					err: errors.New("panic occurred"),
 				}
 				err = nil
 			}
@@ -164,10 +164,10 @@ func makeReloginEndpoint(svc Service, log logutil.Log) endpoint.Endpoint {
 		reqLogger := log
 		defer func() {
 			if rerr := recover(); rerr != nil {
-				reqLogger.Errorf("Panic occured")
+				reqLogger.Errorf("Panic occurred")
 				reqLogger.Infof("%s", debug.Stack())
 				resp = ReloginResponse{
-					err: errors.New("panic occured"),
+					err: errors.New("panic occurred"),
 				}
 				err = nil
 			}
@@ -213,10 +213,10 @@ func makeLoginPublicEndpoint(svc Service, log logutil.Log) endpoint.Endpoint {
 		reqLogger := log
 		defer func() {
 			if rerr := recover(); rerr != nil {
-				reqLogger.Errorf("Panic occured")
+				reqLogger.Errorf("Panic occurred")
 				reqLogger.Infof("%s", debug.Stack())
 				resp = LoginPublicResponse{
-					err: errors.New("panic occured"),
+					err: errors.New("panic occurred"),
 				}
 				err = nil
 			}
@@ -264,10 +264,10 @@ func makeLoginPrivateEndpoint(svc Service, log logutil.Log) endpoint.Endpoint {
 		reqLogger := log
 		defer func() {
 			if rerr := recover(); rerr != nil {
-				reqLogger.Errorf("Panic occured")
+				reqLogger.Errorf("Panic occurred")
 				reqLogger.Infof("%s", debug.Stack())
 				resp = LoginPrivateResponse{
-					err: errors.New("panic occured"),
+					err: errors.New("panic occurred"),
 				}
 				err = nil
 			}
@@ -315,10 +315,10 @@ func makeLoginPublicOAuthCallbackEndpoint(svc Service, log logutil.Log) endpoint
 		reqLogger := log
 		defer func() {
 			if rerr := recover(); rerr != nil {
-				reqLogger.Errorf("Panic occured")
+				reqLogger.Errorf("Panic occurred")
 				reqLogger.Infof("%s", debug.Stack())
 				resp = LoginPublicOAuthCallbackResponse{
-					err: errors.New("panic occured"),
+					err: errors.New("panic occurred"),
 				}
 				err = nil
 			}
@@ -366,10 +366,10 @@ func makeLoginPrivateOAuthCallbackEndpoint(svc Service, log logutil.Log) endpoin
 		reqLogger := log
 		defer func() {
 			if rerr := recover(); rerr != nil {
-				reqLogger.Errorf("Panic occured")
+				reqLogger.Errorf("Panic occurred")
 				reqLogger.Infof("%s", debug.Stack())
 				resp = LoginPrivateOAuthCallbackResponse{
-					err: errors.New("panic occured"),
+					err: errors.New("panic occurred"),
 				}
 				err = nil
 			}
@@ -417,10 +417,10 @@ func makeLoginAdminEndpoint(svc Service, log logutil.Log) endpoint.Endpoint {
 		reqLogger := log
 		defer func() {
 			if rerr := recover(); rerr != nil {
-				reqLogger.Errorf("Panic occured")
+				reqLogger.Errorf("Panic occurred")
 				reqLogger.Infof("%s", debug.Stack())
 				resp = LoginAdminResponse{
-					err: errors.New("panic occured"),
+					err: errors.New("panic occurred"),
 				}
 				err = nil
 			}

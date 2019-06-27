@@ -40,7 +40,7 @@ func NewAnalyzePR(pf processors.PullProcessorFactory, log logutil.Log, errTracke
 
 func (c AnalyzePR) Consume(ctx context.Context, repoOwner, repoName string,
 	isPrivateRepo bool, githubAccessToken string,
-	pullRequestNumber int, APIRequestID string, userID uint, analysisGUID string) error {
+	pullRequestNumber int, apiRequestID string, userID uint, analysisGUID string) error {
 
 	repo := github.Repo{
 		Owner:     repoOwner,
@@ -66,7 +66,8 @@ func (c AnalyzePR) Consume(ctx context.Context, repoOwner, repoName string,
 		var cancel context.CancelFunc
 		// If you change timeout value don't forget to change it
 		// in golangci-api stale analyzes checker
-		ctx, cancel = context.WithTimeout(ctx, 10*time.Minute)
+		const containerStartupTime = time.Minute
+		ctx, cancel = context.WithTimeout(ctx, 10*time.Minute+containerStartupTime)
 		defer cancel()
 
 		pullCtx := &processors.PullContext{

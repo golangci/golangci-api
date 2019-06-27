@@ -3,6 +3,8 @@ package processors
 import (
 	"os"
 
+	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/golangci/golangci-api/internal/shared/apperrors"
 	"github.com/golangci/golangci-api/internal/shared/config"
 	"github.com/golangci/golangci-api/pkg/worker/analyze/linters"
@@ -25,6 +27,7 @@ func NewRepoProcessorFactory(cfg *StaticRepoConfig) *RepoProcessorFactory {
 	}
 }
 
+//nolint:gocyclo
 func (f RepoProcessorFactory) BuildProcessor(ctx *RepoContext) (*Repo, func(), error) {
 	cfg := *f.cfg
 
@@ -57,9 +60,21 @@ func (f RepoProcessorFactory) BuildProcessor(ctx *RepoContext) (*Repo, func(), e
 		cfg.Et = apperrors.GetTracker(cfg.Cfg, ctx.Log, "worker")
 	}
 
+	if cfg.AwsSess == nil {
+		awsCfg := aws.NewConfig().WithRegion("us-east-1")
+		if cfg.Cfg.GetBool("AWS_DEBUG", false) {
+			awsCfg = awsCfg.WithLogLevel(aws.LogDebugWithHTTPBody)
+		}
+		awsSess, err := session.NewSession(awsCfg)
+		if err != nil {
+			return nil, nil, errors.Wrap(err, "failed to make aws session")
+		}
+		cfg.AwsSess = awsSess
+	}
+
 	ec := experiments.NewChecker(cfg.Cfg, ctx.Log)
 
-	exec, err := makeExecutor(ctx.Ctx, ctx.Log)
+	exec, err := makeExecutor(ctx.Log, ec, ctx.Repo, cfg.Cfg, cfg.AwsSess, false)
 	if err != nil {
 		return nil, nil, errors.Wrap(err, "can't make executor")
 	}

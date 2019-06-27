@@ -95,6 +95,21 @@ func emulatePullRequestWebhook(repoName, commitSHA, hookID string, prNumber int,
 }
 
 func emulatePushWebhook(repoName, commitSHA, branchName, hookID string, isProd, isPrivate bool) error {
+	if !isProd {
+		log := logutil.NewStderrLog("")
+		cfg := config.NewEnvConfig(log)
+		db, err := gormdb.GetDB(cfg, log, "")
+		if err != nil {
+			return errors.Wrap(err, "failed to get gorm db")
+		}
+
+		if err = models.NewRepoAnalysisQuerySet(db.Unscoped()).CommitSHAEq(commitSHA).Delete(); err != nil {
+			return errors.Wrapf(err, "failed to delete repo analyzes with commit SHA %s", commitSHA)
+		}
+		log.SetLevel(logutil.LogLevelInfo)
+		log.Infof("Deleted repo analyzes with commit SHA %s", commitSHA)
+	}
+
 	payload := gh.PushEvent{
 		Ref: gh.String(fmt.Sprintf("refs/heads/%s", branchName)),
 		Repo: &gh.PushEventRepository{

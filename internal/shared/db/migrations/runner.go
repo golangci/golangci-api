@@ -45,7 +45,7 @@ func (r Runner) Run() error {
 			return nil
 		}
 
-		return errors.Wrap(err, "can't execute migrations")
+		return errors.Wrapf(err, "can't execute migrations in dir %s", r.migrationsPath)
 	}
 
 	r.log.Infof("Successfully executed database migrations")

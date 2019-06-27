@@ -2,7 +2,7 @@ version: 2
 jobs:
   build:
     docker:
-      - image: circleci/golang:1.11
+      - image: circleci/golang:1.12
       - image: redis
       - image: circleci/postgres:9.4
         environment:
@@ -14,12 +14,7 @@ jobs:
       - checkout
       - run: GO111MODULE=on go mod vendor
       - run: go get github.com/golangci/golangci-lint/cmd/golangci-lint
-      - run: echo 'REDIS_URL="redis://localhost:6379"' >.env
-      - run: echo 'WEB_ROOT="https://golangci.com"' >>.env
-      - run: echo 'DATABASE_URL="postgresql://postgres:test@localhost:5432/api_test?sslmode=disable"' >.env.test
-      - run: echo GITHUB_KEY=GK >>.env.test
-      - run: echo GITHUB_SECRET=GS >>.env.test
-      - run: echo GITHUB_CALLBACK_HOST=GCH >>.env.test
+      - run: make prepare_test_env
       - run:
           name: install dockerize
           command: wget https://github.com/jwilder/dockerize/releases/download/$DOCKERIZE_VERSION/dockerize-linux-amd64-$DOCKERIZE_VERSION.tar.gz && sudo tar -C /usr/local/bin -xzvf dockerize-linux-amd64-$DOCKERIZE_VERSION.tar.gz && rm dockerize-linux-amd64-$DOCKERIZE_VERSION.tar.gz

@@ -18,7 +18,7 @@ func main() {
 	token := cfg.GetString("TOKEN")
 	r := build.NewRunner(log, token)
 
-	maxLifetime := cfg.GetDuration("MAX_LIFETIME", 30*time.Minute)
+	maxLifetime := cfg.GetDuration("MAX_LIFETIME", 15*time.Minute)
 	port := cfg.GetInt("PORT", 7000)
 	if err := r.Run(port, maxLifetime); err != nil {
 		log.Warnf("Runner error: %s", err)
