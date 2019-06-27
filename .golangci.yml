@@ -33,6 +33,7 @@ linters:
     - gochecknoinits
     - scopelint
     - dupl
+    - interfacer
 
 # golangci.com configuration
 # https://github.com/golangci/golangci/wiki/Configuration

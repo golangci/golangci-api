@@ -66,7 +66,8 @@ func (c AnalyzePR) Consume(ctx context.Context, repoOwner, repoName string,
 		var cancel context.CancelFunc
 		// If you change timeout value don't forget to change it
 		// in golangci-api stale analyzes checker
-		ctx, cancel = context.WithTimeout(ctx, 10*time.Minute)
+		const containerStartupTime = time.Minute
+		ctx, cancel = context.WithTimeout(ctx, 10*time.Minute+containerStartupTime)
 		defer cancel()
 
 		pullCtx := &processors.PullContext{

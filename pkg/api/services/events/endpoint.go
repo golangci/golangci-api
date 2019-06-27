@@ -29,10 +29,10 @@ func makeTrackEventEndpoint(svc Service, log logutil.Log) endpoint.Endpoint {
 		reqLogger := log
 		defer func() {
 			if rerr := recover(); rerr != nil {
-				reqLogger.Errorf("Panic occured")
+				reqLogger.Errorf("Panic occurred")
 				reqLogger.Infof("%s", debug.Stack())
 				resp = TrackEventResponse{
-					err: errors.New("panic occured"),
+					err: errors.New("panic occurred"),
 				}
 				err = nil
 			}

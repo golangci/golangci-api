@@ -25,11 +25,16 @@ func (gf Git) Fetch(ctx context.Context, sg *result.StepGroup, repo *Repo, exec 
 	gitStep := sg.AddStepCmd("git", args...)
 
 	runRes, err := exec.Run(ctx, "git", args...)
-	gitStep.AddOutput(runRes.StdOut)
-	gitStep.AddOutput(runRes.StdErr)
+	if runRes != nil {
+		gitStep.AddOutput(runRes.StdOut)
+		gitStep.AddOutput(runRes.StdErr)
+	}
 
 	if err != nil {
-		out := runRes.StdOut + runRes.StdErr
+		var out string
+		if runRes != nil {
+			out = runRes.StdOut + runRes.StdErr
+		}
 		noBranchOrRepo := strings.Contains(out, "could not read Username for") ||
 			strings.Contains(out, "Could not find remote branch")
 		if noBranchOrRepo {

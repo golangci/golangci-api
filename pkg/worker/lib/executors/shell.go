@@ -26,6 +26,10 @@ func newShell(workDir string) *shell {
 	}
 }
 
+func (s shell) Setup(_ context.Context) error {
+	return nil
+}
+
 func trackMemoryEveryNSeconds(ctx context.Context, name string, pid int) {
 	rssValues := []uint64{}
 	ticker := time.NewTicker(100 * time.Millisecond)

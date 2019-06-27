@@ -9,6 +9,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/aws/aws-sdk-go/aws/session"
+
 	"github.com/golangci/golangci-api/pkg/worker/analyze/linters"
 	"github.com/golangci/golangci-api/pkg/worker/analyze/linters/result"
 	"github.com/golangci/golangci-api/pkg/worker/analyze/logger"
@@ -39,6 +41,7 @@ type StaticBasicPullConfig struct {
 	State           prstate.Storage
 	Cfg             config.Config
 	DistLockFactory *redsync.Redsync
+	AwsSess         *session.Session
 }
 
 type BasicPullConfig struct {
@@ -60,10 +63,14 @@ func NewBasicPull(cfg *BasicPullConfig) *BasicPull {
 	}
 }
 
-func storePatch(ctx context.Context, patch string, exec executors.Executor) error {
-	f, err := ioutil.TempFile("/app", "golangci.diff")
+func storePatch(ctx context.Context, cfg config.Config, patch string, exec executors.Executor) error {
+	dir := cfg.GetString("PATCH_STORE_DIR")
+	if dir == "" {
+		dir = "/app"
+	}
+	f, err := ioutil.TempFile(dir, "golangci.diff")
 	if err != nil {
-		return errors.Wrap(err, "can't create temp file for patch")
+		return errors.Wrapf(err, "can't create temp file for patch in dir %s", dir)
 	}
 	defer os.Remove(f.Name())
 
@@ -242,7 +249,7 @@ func (p BasicPull) preparePatch(ctx *PullContext) error {
 		}
 
 		sg.AddStep("copy patch to /tmp/golangci.diff")
-		if err = storePatch(ctx.Ctx, patch, p.Exec); err != nil {
+		if err = storePatch(ctx.Ctx, p.Cfg, patch, p.Exec); err != nil {
 			return errors.Wrap(err, "can't store patch")
 		}
 
@@ -352,6 +359,19 @@ func (p BasicPull) processPanicSafe(ctx *PullContext) (retErr error) {
 	})
 	if groupErr != nil {
 		return groupErr
+	}
+
+	execSetupErr := ctx.res.buildLog.RunNewGroup("setup build environment", func(sg *envbuildresult.StepGroup) error {
+		sg.AddStep("start container")
+		defer ctx.res.addTimingFrom("Start Container", time.Now())
+
+		if err := p.Exec.Setup(ctx.Ctx); err != nil {
+			return errors.Wrap(err, "failed to setup executor")
+		}
+		return nil
+	})
+	if execSetupErr != nil {
+		return execSetupErr
 	}
 
 	startedAt := time.Now()
