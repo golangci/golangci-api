@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/golangci/golangci-api/internal/shared/config"
 
@@ -27,6 +28,25 @@ type State struct {
 	CommitSHA               string
 	GithubPullRequestNumber int
 	GithubRepoName          string
+
+	PreviousAnalyzes []SamePullStateLink
+}
+
+type SamePullStateLink struct {
+	CommitSHA string
+	CreatedAt time.Time
+}
+
+func stateFromAnalysis(analysis *models.PullRequestAnalysis, fullName string) *State {
+	return &State{
+		Model:                   analysis.Model,
+		Status:                  analysis.Status,
+		ReportedIssuesCount:     analysis.ReportedIssuesCount,
+		ResultJSON:              analysis.ResultJSON,
+		CommitSHA:               analysis.CommitSHA,
+		GithubPullRequestNumber: analysis.PullRequestNumber,
+		GithubRepoName:          fullName,
+	}
 }
 
 func (s State) FillLogContext(lctx logutil.Context) {
@@ -41,7 +61,8 @@ type AnalyzedRepo struct {
 
 type RepoPullRequest struct {
 	request.Repo
-	PullRequestNumber int `request:",urlPart,"`
+	PullRequestNumber int    `request:",urlPart,"`
+	CommitSHA         string `request:",urlParam,optional"`
 }
 
 type Service interface {
@@ -74,15 +95,7 @@ func (s BasicService) GetAnalysisStateByAnalysisGUID(rc *request.InternalContext
 		return nil, errors.Wrapf(err, "can't get repo id %d", analysis.RepoID)
 	}
 
-	return &State{
-		Model:                   analysis.Model,
-		Status:                  analysis.Status,
-		ReportedIssuesCount:     analysis.ReportedIssuesCount,
-		ResultJSON:              analysis.ResultJSON,
-		CommitSHA:               analysis.CommitSHA,
-		GithubPullRequestNumber: analysis.PullRequestNumber,
-		GithubRepoName:          repo.FullName,
-	}, nil
+	return stateFromAnalysis(&analysis, repo.FullName), nil
 }
 
 func (s BasicService) tryGetRenamedRepo(rc *request.AnonymousContext, req *RepoPullRequest, repos *[]models.Repo) error {
@@ -115,20 +128,20 @@ func (s BasicService) tryGetRenamedRepo(rc *request.AnonymousContext, req *RepoP
 	return nil
 }
 
-func (s BasicService) GetAnalysisStateByPRNumber(rc *request.AnonymousContext, req *RepoPullRequest) (*State, error) {
+func (s BasicService) getRepoIDsForPullRequest(rc *request.AnonymousContext, req *RepoPullRequest) ([]uint, string, error) {
 	var repos []models.Repo // use could have reconnected repo so we would have two repos
 	err := models.NewRepoQuerySet(rc.DB.Unscoped()).
 		FullNameEq(req.FullName()).ProviderEq(req.Provider).
 		OrderDescByCreatedAt().
 		All(&repos)
 	if err != nil {
-		return nil, errors.Wrapf(err, "can't get repo from db")
+		return nil, "", errors.Wrapf(err, "can't get repo from db")
 	}
 
 	if len(repos) == 0 {
 		if tryErr := s.tryGetRenamedRepo(rc, req, &repos); tryErr != nil {
 			rc.Log.Warnf("Failed to check renamed repo: %s", tryErr)
-			return nil, errors.Wrapf(apierrors.ErrNotFound, "failed to find repos with name %s", req.FullName())
+			return nil, "", errors.Wrapf(apierrors.ErrNotFound, "failed to find repos with name %s", req.FullName())
 		}
 
 		// continue, found renamed repo
@@ -136,7 +149,7 @@ func (s BasicService) GetAnalysisStateByPRNumber(rc *request.AnonymousContext, r
 
 	if repos[0].IsPrivate {
 		if err = s.RepoPolicy.CanReadPrivateRepo(rc, &repos[0]); err != nil {
-			return nil, err
+			return nil, "", err
 		}
 	}
 
@@ -145,27 +158,52 @@ func (s BasicService) GetAnalysisStateByPRNumber(rc *request.AnonymousContext, r
 		repoIDs = append(repoIDs, r.ID)
 	}
 
-	var analysis models.PullRequestAnalysis
-	err = models.NewPullRequestAnalysisQuerySet(rc.DB).
-		PullRequestNumberEq(req.PullRequestNumber).
-		RepoIDIn(repoIDs...).
-		OrderDescByID(). // get last
-		Limit(1).
-		One(&analysis)
+	return repoIDs, repos[0].FullName, nil
+}
+
+func (s BasicService) GetAnalysisStateByPRNumber(rc *request.AnonymousContext, req *RepoPullRequest) (*State, error) {
+	repoIDs, fullName, err := s.getRepoIDsForPullRequest(rc, req)
 	if err != nil {
-		return nil, errors.Wrapf(err, "can't get pull request analysis with number %d and repo ids %v",
-			req.PullRequestNumber, repoIDs)
+		return nil, err
 	}
 
-	return &State{
-		Model:                   analysis.Model,
-		Status:                  analysis.Status,
-		ReportedIssuesCount:     analysis.ReportedIssuesCount,
-		ResultJSON:              analysis.ResultJSON,
-		CommitSHA:               analysis.CommitSHA,
-		GithubPullRequestNumber: analysis.PullRequestNumber,
-		GithubRepoName:          repos[0].FullName,
-	}, nil
+	qs := models.NewPullRequestAnalysisQuerySet(rc.DB).
+		PullRequestNumberEq(req.PullRequestNumber).
+		RepoIDIn(repoIDs...).
+		OrderDescByID()
+	if req.CommitSHA != "" {
+		var analysis models.PullRequestAnalysis
+		if err = qs.CommitSHAEq(req.CommitSHA).One(&analysis); err != nil {
+			return nil, errors.Wrapf(err, "can't get pull request analysus with number %d and repo ids %v and commit sha %s",
+				req.PullRequestNumber, repoIDs, req.CommitSHA)
+		}
+		return stateFromAnalysis(&analysis, fullName), nil
+	}
+
+	const maxPreviousAnalyzesCount = 5
+
+	var analyzes []models.PullRequestAnalysis
+	err = qs.Limit(maxPreviousAnalyzesCount * 3 /* reserve for repeating commitSHA */).All(&analyzes)
+	if err != nil {
+		return nil, errors.Wrapf(err, "can't get pull request analyzes with number %d and repo ids %v",
+			req.PullRequestNumber, repoIDs)
+	}
+	if len(analyzes) == 0 {
+		return nil, fmt.Errorf("got 0 pull request analyzes for repo ids %v", repoIDs)
+	}
+
+	state := stateFromAnalysis(&analyzes[0], fullName)
+	for _, a := range analyzes[1:] {
+		if a.CommitSHA == state.CommitSHA {
+			continue
+		}
+
+		state.PreviousAnalyzes = append(state.PreviousAnalyzes, SamePullStateLink{CommitSHA: a.CommitSHA, CreatedAt: a.CreatedAt})
+		if len(state.PreviousAnalyzes) == maxPreviousAnalyzesCount {
+			break
+		}
+	}
+	return state, nil
 }
 
 func (s BasicService) UpdateAnalysisStateByAnalysisGUID(rc *request.InternalContext, req *AnalyzedRepo, state *State) error {

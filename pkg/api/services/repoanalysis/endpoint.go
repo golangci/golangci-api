@@ -32,10 +32,10 @@ func makeGetStatusEndpoint(svc Service, log logutil.Log) endpoint.Endpoint {
 		reqLogger := log
 		defer func() {
 			if rerr := recover(); rerr != nil {
-				reqLogger.Errorf("Panic occured")
+				reqLogger.Errorf("Panic occurred")
 				reqLogger.Infof("%s", debug.Stack())
 				resp = GetStatusResponse{
-					err: errors.New("panic occured"),
+					err: errors.New("panic occurred"),
 				}
 				err = nil
 			}
@@ -83,10 +83,10 @@ func makeGetByAnalysisGUIDEndpoint(svc Service, log logutil.Log) endpoint.Endpoi
 		reqLogger := log
 		defer func() {
 			if rerr := recover(); rerr != nil {
-				reqLogger.Errorf("Panic occured")
+				reqLogger.Errorf("Panic occurred")
 				reqLogger.Infof("%s", debug.Stack())
 				resp = GetByAnalysisGUIDResponse{
-					err: errors.New("panic occured"),
+					err: errors.New("panic occurred"),
 				}
 				err = nil
 			}
@@ -133,10 +133,10 @@ func makeUpdateByAnalysisGUIDEndpoint(svc Service, log logutil.Log) endpoint.End
 		reqLogger := log
 		defer func() {
 			if rerr := recover(); rerr != nil {
-				reqLogger.Errorf("Panic occured")
+				reqLogger.Errorf("Panic occurred")
 				reqLogger.Infof("%s", debug.Stack())
 				resp = UpdateByAnalysisGUIDResponse{
-					err: errors.New("panic occured"),
+					err: errors.New("panic occurred"),
 				}
 				err = nil
 			}
