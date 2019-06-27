@@ -24,3 +24,31 @@ jobs:
           name: Wait for db
           command: dockerize -wait tcp://localhost:5432 -timeout 1m
       - run: make test
+  build_docker_image:
+    machine: true
+    steps:
+      - checkout
+      - run: docker login -u $DOCKER_USER -p $DOCKER_PASS
+      - run: git clone $DEPLOYMENTS_REPO ~/deploy
+
+      - run: cp  ~/deploy/golangci-worker/Dockerfile worker.dockerfile
+      - run: docker build -t golangci/golangci-worker -f worker.dockerfile .
+
+      - run: cp  ~/deploy/golangci-api/Dockerfile api.dockerfile
+      - run: docker build -t golangci/golangci-api -f api.dockerfile .
+
+      - run: docker push golangci/golangci-worker
+      - run: docker push golangci/golangci-api
+
+workflows:
+  version: 2
+  build-master:
+    jobs:
+      - build
+      - build_docker_image:
+          requires:
+            - build
+          filters:
+            branches:
+              only: master
+
