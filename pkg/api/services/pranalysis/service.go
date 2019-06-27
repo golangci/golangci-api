@@ -193,11 +193,15 @@ func (s BasicService) GetAnalysisStateByPRNumber(rc *request.AnonymousContext, r
 	}
 
 	state := stateFromAnalysis(&analyzes[0], fullName)
+
+	seenCommitSHAs := map[string]bool{state.CommitSHA: true}
 	for _, a := range analyzes[1:] {
-		if a.CommitSHA == state.CommitSHA {
+		if seenCommitSHAs[a.CommitSHA] {
+			// TODO: make uniq index and remove it
 			continue
 		}
 
+		seenCommitSHAs[a.CommitSHA] = true
 		state.PreviousAnalyzes = append(state.PreviousAnalyzes, SamePullStateLink{CommitSHA: a.CommitSHA, CreatedAt: a.CreatedAt})
 		if len(state.PreviousAnalyzes) == maxPreviousAnalyzesCount {
 			break
