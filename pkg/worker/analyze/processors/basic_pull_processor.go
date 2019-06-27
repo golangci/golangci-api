@@ -362,7 +362,7 @@ func (p BasicPull) processPanicSafe(ctx *PullContext) (retErr error) {
 	}
 
 	execSetupErr := ctx.res.buildLog.RunNewGroup("setup build environment", func(sg *envbuildresult.StepGroup) error {
-		sg.AddStep("start container")
+		sg.AddStep("start container golangci/build-runner (https://hub.docker.com/r/golangci/build-runner)")
 		defer ctx.res.addTimingFrom("Start Container", time.Now())
 
 		if err := p.Exec.Setup(ctx.Ctx); err != nil {
