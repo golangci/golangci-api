@@ -37,7 +37,7 @@ test_api:
 	go test -v -parallel 1 -p 1 ./test/
 
 test_lint:
-	golangci-lint run -v
+	golangci-lint run -v -j4
 
 test_lint_dev:
 	go run ../golangci-lint/cmd/golangci-lint/main.go run -v
