@@ -21,7 +21,7 @@ require (
 	github.com/fatih/structs v1.1.0 // indirect
 	github.com/garyburd/redigo v1.5.0
 	github.com/gavv/httpexpect v0.0.0-20170820080527-c44a6d7bb636
-	github.com/gavv/monotime v0.0.0-20171021193802-6f8212e8d10d // indirect
+	github.com/gavv/monotime v0.0.0-20190629144257-30dba4353424 // indirect
 	github.com/getsentry/raven-go v0.0.0-20180801005657-7535a8fa2ace
 	github.com/go-ini/ini v1.39.0 // indirect
 	github.com/go-kit/kit v0.8.0
