@@ -56,6 +56,12 @@ func (f *Fargate) wrapExecutorError(err error) error {
 }
 
 func (f Fargate) runTask(ctx context.Context, req *Requirements) (*ecs.Task, error) {
+	const defaultMemGB = 16
+	taskDef := f.cfg.GetString("FARGATE_TASK_DEF")
+	if req.MemoryGB > defaultMemGB {
+		taskDef = f.cfg.GetString("FARGATE_MAX_MEM_TASK_DEF")
+	}
+
 	input := &ecs.RunTaskInput{
 		Count: aws.Int64(1),
 		NetworkConfiguration: &ecs.NetworkConfiguration{
@@ -67,7 +73,7 @@ func (f Fargate) runTask(ctx context.Context, req *Requirements) (*ecs.Task, err
 		},
 		LaunchType:     aws.String("FARGATE"),
 		Cluster:        aws.String(f.cfg.GetString("FARGATE_CLUSTER")),
-		TaskDefinition: aws.String(f.cfg.GetString("FARGATE_TASK_DEF")),
+		TaskDefinition: aws.String(taskDef),
 		Overrides: &ecs.TaskOverride{
 			ContainerOverrides: []*ecs.ContainerOverride{
 				{
@@ -78,8 +84,6 @@ func (f Fargate) runTask(ctx context.Context, req *Requirements) (*ecs.Task, err
 							Value: aws.String(f.token),
 						},
 					},
-					Cpu:    aws.Int64(int64(req.CPUCount * 1024)), // default is 4 vCPU
-					Memory: aws.Int64(int64(req.MemoryGB * 1024)), // default is 16 GB
 				},
 			},
 		},
@@ -313,6 +317,7 @@ func (f Fargate) Clean() {
 	})
 	if err != nil {
 		f.log.Warnf("Failed to stop fargate task: %s", err)
+		return
 	}
 	f.log.Infof("Stopped fargate task %s", f.taskID)
 }
