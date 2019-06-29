@@ -1,0 +1,1 @@
+DROP INDEX pull_request_analyzes_commit_sha_idx;

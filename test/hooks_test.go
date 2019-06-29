@@ -66,7 +66,7 @@ func TestStaleAnalyzes(t *testing.T) {
 
 	r.ExpectWebhook("pull_request", getTestPREvent(r)).Status(http.StatusOK)
 
-	timeout := 3 * time.Second
+	timeout := 10 * time.Second
 	staler := pranalyzes.Staler{
 		Cfg:             deps.Cfg,
 		DB:              deps.DB,

@@ -53,7 +53,7 @@ test_worker:
 
 test_worker_dev: test_worker
 
-test: test_api test_worker test_lint
+test: test_api test_worker
 test_dev: test_api_dev test_worker_dev test_lint_dev
 
 connect_to_local_db:

@@ -231,7 +231,7 @@ func (f *Fargate) Setup(ctx context.Context, req *Requirements) error {
 	}
 	os.Setenv("FARGATE_CONTAINER_IP"+cleanEnvKey(ip), ip) // hide it in logs
 	f.containerAddr = fmt.Sprintf("http://%s:7000", ip)
-	f.log.Infof("Fargate container started on addr %s", f.taskID, f.containerAddr)
+	f.log.Infof("Fargate container started on addr %s", f.taskID)
 	f.log.Infof("Started container with resource requirements: %#v", req)
 
 	return nil
