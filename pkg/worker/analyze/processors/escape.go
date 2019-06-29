@@ -61,6 +61,11 @@ func buildSecrets(vars ...string) map[string]string {
 		}
 
 		v := parts[1]
+
+		if strings.EqualFold(v, "golangci") || strings.EqualFold(v, "golangci-lint") {
+			continue // just extra check because these are critical words
+		}
+
 		if len(v) >= minSecretValueLen {
 			ret[v] = hidden
 		}
