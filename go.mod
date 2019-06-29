@@ -10,7 +10,7 @@ require (
 	github.com/aws/aws-lambda-go v1.6.0
 	github.com/aws/aws-sdk-go v0.0.0-20180126231901-00cca3f093a8
 	github.com/cenkalti/backoff v2.0.0+incompatible
-	github.com/certifi/gocertifi v0.0.0-20180905225744-ee1a9a0726d2 // indirect
+	github.com/certifi/gocertifi v0.0.0-20190629135335-d2eda7129713 // indirect
 	github.com/denisenkom/go-mssqldb v0.0.0-20181014144952-4e0d7dc8888f // indirect
 	github.com/docker/distribution v2.6.2+incompatible // indirect
 	github.com/docker/docker v1.13.1 // indirect
