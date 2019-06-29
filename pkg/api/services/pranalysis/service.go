@@ -62,7 +62,14 @@ type AnalyzedRepo struct {
 type RepoPullRequest struct {
 	request.Repo
 	PullRequestNumber int    `request:",urlPart,"`
-	CommitSHA         string `request:",urlParam,optional"`
+	CommitSHA         string `request:"commit_sha,urlParam,optional"`
+}
+
+func (r RepoPullRequest) FillLogContext(lctx logutil.Context) {
+	r.Repo.FillLogContext(lctx)
+	if r.CommitSHA != "" {
+		lctx["commit_sha"] = r.CommitSHA
+	}
 }
 
 type Service interface {
