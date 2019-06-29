@@ -112,7 +112,7 @@ func (r Repo) processPanicSafe(ctx *RepoContext, res *analysisResult) (err error
 	})
 
 	runErr := res.buildLog.RunNewGroup("setup build environment", func(sg *result.StepGroup) error {
-		sg.AddStep("start container")
+		sg.AddStep("start container golangci/build-runner (https://hub.docker.com/r/golangci/build-runner)")
 		defer res.addTimingFrom("Start Container", time.Now())
 
 		requirements := resources.BuildExecutorRequirementsForRepo(r.Ec, ctx.Repo)
