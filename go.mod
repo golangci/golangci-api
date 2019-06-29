@@ -15,7 +15,7 @@ require (
 	github.com/docker/docker v1.13.1 // indirect
 	github.com/docker/go-connections v0.4.0 // indirect
 	github.com/docker/go-units v0.3.3 // indirect
-	github.com/dukex/mixpanel v0.0.0-20170510165255-53bfdf679eec
+	github.com/dukex/mixpanel v0.0.0-20190629143319-f8d5594f958e
 	github.com/erikstmartin/go-testdb v0.0.0-20160219214506-8d10e4a1bae5 // indirect
 	github.com/fatih/color v1.7.0
 	github.com/fatih/structs v1.1.0 // indirect
