@@ -34,6 +34,17 @@ func buildSecrets(vars ...string) map[string]string {
 		}
 	}
 
+	exclude := map[string]bool{
+		"APP_NAME":              true,
+		"ADMIN_GITHUB_LOGIN":    true,
+		"GITHUB_REVIEWER_LOGIN": true,
+		"WEB_ROOT":              true,
+		"GOROOT":                true,
+		"GOPATH":                true,
+		"FARGATE_CONTAINER":     true,
+		"PATCH_STORE_DIR":       true,
+	}
+
 	for _, kv := range os.Environ() {
 		parts := strings.Split(kv, "=")
 		if len(parts) != 2 {
@@ -41,14 +52,12 @@ func buildSecrets(vars ...string) map[string]string {
 		}
 
 		k := parts[0]
-		if k == "APP_NAME" ||
-			k == "ADMIN_GITHUB_LOGIN" ||
-			k == "GITHUB_REVIEWER_LOGIN" ||
-			k == "WEB_ROOT" ||
-			k == "GOROOT" ||
-			k == "GOPATH" {
-			// not secret
+		if exclude[k] {
 			continue
+		}
+
+		if strings.HasSuffix(k, "_OWNERS") || strings.HasSuffix(k, "_PERCENT") || strings.HasSuffix(k, "_REPOS") {
+			continue // experiment vars
 		}
 
 		v := parts[1]
