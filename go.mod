@@ -24,7 +24,7 @@ require (
 	github.com/gavv/monotime v0.0.0-20190629144257-30dba4353424 // indirect
 	github.com/getsentry/raven-go v0.0.0-20180801005657-7535a8fa2ace
 	github.com/go-ini/ini v1.39.0 // indirect
-	github.com/go-kit/kit v0.8.0
+	github.com/go-kit/kit v0.9.0
 	github.com/go-logfmt/logfmt v0.4.0 // indirect
 	github.com/go-sql-driver/mysql v1.4.1 // indirect
 	github.com/golang/mock v1.2.0
