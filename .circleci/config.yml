@@ -23,7 +23,7 @@ jobs:
       - run:
           name: Wait for db
           command: dockerize -wait tcp://localhost:5432 -timeout 1m
-      - run: make test
+      - run: ./.circleci/lock.sh make test
   build_docker_image:
     machine: true
     steps:
@@ -31,14 +31,7 @@ jobs:
       - run: docker login -u $DOCKER_USER -p $DOCKER_PASS
       - run: git clone $DEPLOYMENTS_REPO ~/deploy
 
-      - run: cp  ~/deploy/golangci-worker/Dockerfile worker.dockerfile
-      - run: docker build -t golangci/golangci-worker -f worker.dockerfile .
-
-      - run: cp  ~/deploy/golangci-api/Dockerfile api.dockerfile
-      - run: docker build -t golangci/golangci-api -f api.dockerfile .
-
-      - run: docker push golangci/golangci-worker
-      - run: docker push golangci/golangci-api
+      - run: ./.circleci/lock.sh --branch master make build_docker_images
 
 workflows:
   version: 2

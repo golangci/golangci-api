@@ -81,3 +81,10 @@ mod_update:
 
 psql:
 	docker-compose exec pg psql -U postgres -dapi_prod
+
+build_docker_images:
+	cp  ~/deploy/golangci-worker/Dockerfile worker.dockerfile
+    docker build -t golangci/golangci-worker -f worker.dockerfile . && docker push golangci/golangci-worker
+
+    cp  ~/deploy/golangci-api/Dockerfile api.dockerfile
+    docker build -t golangci/golangci-api -f api.dockerfile . && docker push golangci/golangci-api
