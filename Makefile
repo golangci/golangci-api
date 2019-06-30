@@ -87,6 +87,6 @@ build_docker_images:
 	docker build -t golangci/golangci-worker -f worker.dockerfile .
 	docker push golangci/golangci-worker
 
-    cp  ~/deploy/golangci-api/Dockerfile api.dockerfile
-    docker build -t golangci/golangci-api -f api.dockerfile .
+	cp  ~/deploy/golangci-api/Dockerfile api.dockerfile
+	docker build -t golangci/golangci-api -f api.dockerfile .
 	docker push golangci/golangci-api
