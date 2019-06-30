@@ -45,7 +45,7 @@ require (
 	github.com/joho/godotenv v0.0.0-20180115024921-6bb08516677f
 	github.com/jtolds/gls v4.2.1+incompatible // indirect
 	github.com/k0kubun/colorstring v0.0.0-20150214042306-9440f1994b88 // indirect
-	github.com/levigross/grequests v0.0.0-20180717012718-3f841d606c5a
+	github.com/levigross/grequests v0.0.0-20190630082331-37c80f76a0da
 	github.com/lib/pq v0.0.0-20180201184707-88edab080323
 	github.com/markbates/goth v0.0.0-20180113214406-24f8ac10e57e
 	github.com/mattes/migrate v0.0.0-20171208214826-d23f71b03c4a
