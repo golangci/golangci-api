@@ -22,7 +22,7 @@ require (
 	github.com/gavv/httpexpect v0.0.0-20170820080527-c44a6d7bb636
 	github.com/gavv/monotime v0.0.0-20190629144257-30dba4353424 // indirect
 	github.com/getsentry/raven-go v0.0.0-20180801005657-7535a8fa2ace
-	github.com/go-ini/ini v1.39.0 // indirect
+	github.com/go-ini/ini v1.42.0 // indirect
 	github.com/go-kit/kit v0.9.0
 	github.com/go-logfmt/logfmt v0.4.0 // indirect
 	github.com/golang/mock v1.2.0
