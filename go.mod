@@ -74,7 +74,7 @@ require (
 	golang.org/x/oauth2 v0.0.0-20190226205417-e64efc72b421
 	golang.org/x/tools v0.0.0-20190420000508-685fecacd0a0
 	gopkg.in/boj/redistore.v1 v1.0.0-20160128113310-fc113767cd6b
-	gopkg.in/ini.v1 v1.39.0 // indirect
+	gopkg.in/ini.v1 v1.42.0 // indirect
 	gopkg.in/redsync.v1 v1.0.1
 	gopkg.in/yaml.v2 v2.2.2
 )
