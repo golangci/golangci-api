@@ -24,7 +24,6 @@ require (
 	github.com/getsentry/raven-go v0.2.0
 	github.com/go-ini/ini v1.42.0 // indirect
 	github.com/go-kit/kit v0.9.0
-	github.com/go-logfmt/logfmt v0.4.0 // indirect
 	github.com/golang/mock v1.3.1
 	github.com/golangci/golangci-lint v1.17.1
 	github.com/gomodule/redigo v2.0.0+incompatible // indirect
@@ -53,7 +52,7 @@ require (
 	github.com/shirou/gopsutil v0.0.0-20180801053943-8048a2e9c577
 	github.com/sirupsen/logrus v1.4.2
 	github.com/smartystreets/goconvey v0.0.0-20190630083245-68dc04aab96a // indirect
-	github.com/spf13/viper v1.0.2
+	github.com/spf13/viper v1.4.0
 	github.com/stevvooe/resumable v0.0.0-20180830230917-22b14a53ba50 // indirect
 	github.com/stretchr/testify v1.3.0
 	github.com/stvp/rollbar v0.5.1
