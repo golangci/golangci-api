@@ -67,7 +67,7 @@ require (
 	github.com/yudai/golcs v0.0.0-20170316035057-ecda9a501e82 // indirect
 	github.com/yudai/pp v2.0.1+incompatible // indirect
 	golang.org/x/oauth2 v0.0.0-20190630083822-0f29369cfe45
-	golang.org/x/tools v0.0.0-20190521203540-521d6ed310dd
+	golang.org/x/tools v0.0.0-20190630095024-fb37f6ba8261
 	gopkg.in/boj/redistore.v1 v1.0.0-20160128113310-fc113767cd6b
 	gopkg.in/ini.v1 v1.42.0 // indirect
 	gopkg.in/redsync.v1 v1.0.1
