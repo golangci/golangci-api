@@ -32,7 +32,7 @@ require (
 	github.com/google/go-querystring v1.0.0 // indirect
 	github.com/gopherjs/gopherjs v0.0.0-20190630090204-3e4dfb77656c // indirect
 	github.com/gorilla/mux v1.6.2
-	github.com/gorilla/schema v1.0.2
+	github.com/gorilla/schema v1.1.0
 	github.com/gorilla/securecookie v1.1.1
 	github.com/gorilla/sessions v0.0.0-20180115173807-fe21b6a095cd
 	github.com/imkira/go-interpol v1.1.0 // indirect
