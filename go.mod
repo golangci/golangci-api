@@ -26,7 +26,7 @@ require (
 	github.com/go-kit/kit v0.9.0
 	github.com/go-logfmt/logfmt v0.4.0 // indirect
 	github.com/golang/mock v1.2.0
-	github.com/golangci/golangci-lint v1.17.0
+	github.com/golangci/golangci-lint v1.17.1
 	github.com/gomodule/redigo v2.0.0+incompatible // indirect
 	github.com/google/go-github v0.0.0-20180123235826-b1f138353a62
 	github.com/google/go-querystring v1.0.0 // indirect
@@ -67,7 +67,7 @@ require (
 	github.com/yudai/golcs v0.0.0-20170316035057-ecda9a501e82 // indirect
 	github.com/yudai/pp v2.0.1+incompatible // indirect
 	golang.org/x/oauth2 v0.0.0-20190630083822-0f29369cfe45
-	golang.org/x/tools v0.0.0-20190420000508-685fecacd0a0
+	golang.org/x/tools v0.0.0-20190521203540-521d6ed310dd
 	gopkg.in/boj/redistore.v1 v1.0.0-20160128113310-fc113767cd6b
 	gopkg.in/ini.v1 v1.42.0 // indirect
 	gopkg.in/redsync.v1 v1.0.1
