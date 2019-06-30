@@ -72,6 +72,7 @@ github.com/gavv/monotime v0.0.0-20171021193802-6f8212e8d10d/go.mod h1:vmp8DIyckQ
 github.com/gavv/monotime v0.0.0-20190629144257-30dba4353424/go.mod h1:vmp8DIyckQMXOPl0AQVHt+7n5h7Gb7hS6CUydiV8QeA=
 github.com/getsentry/raven-go v0.0.0-20180801005657-7535a8fa2ace h1:M5ZUuRO+XFqhTa9PlaqyWgfzMNWKSraCWm7z4PzM1GA=
 github.com/getsentry/raven-go v0.0.0-20180801005657-7535a8fa2ace/go.mod h1:KungGk8q33+aIAZUIVWZDr2OfAEBsO49PX4NzFV5kcQ=
+github.com/getsentry/raven-go v0.2.0/go.mod h1:KungGk8q33+aIAZUIVWZDr2OfAEBsO49PX4NzFV5kcQ=
 github.com/go-critic/go-critic v0.0.0-20181204210945-1df300866540/go.mod h1:+sE8vrLDS2M0pZkBk0wy6+nLdKexVDrl/jBqQOTDThA=
 github.com/go-critic/go-critic v0.0.0-20181204210945-c3db6069acc5/go.mod h1:Jc75BZJv2dNy7opKH6bF29VveDQHfGZ6Asn/3phBesg=
 github.com/go-ini/ini v1.39.0 h1:/CyW/jTlZLjuzy52jc1XnhJm6IUKEuunpJFpecywNeI=
