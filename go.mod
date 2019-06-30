@@ -18,7 +18,7 @@ require (
 	github.com/dukex/mixpanel v0.0.0-20190629143319-f8d5594f958e
 	github.com/fatih/color v1.7.0
 	github.com/fatih/structs v1.1.0 // indirect
-	github.com/garyburd/redigo v1.5.0
+	github.com/garyburd/redigo v1.6.0
 	github.com/gavv/httpexpect v0.0.0-20170820080527-c44a6d7bb636
 	github.com/gavv/monotime v0.0.0-20190629144257-30dba4353424 // indirect
 	github.com/getsentry/raven-go v0.0.0-20180801005657-7535a8fa2ace
