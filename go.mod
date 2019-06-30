@@ -45,7 +45,7 @@ require (
 	github.com/markbates/goth v0.0.0-20180113214406-24f8ac10e57e
 	github.com/mattes/migrate v0.0.0-20171208214826-d23f71b03c4a
 	github.com/moul/http2curl v1.0.0 // indirect
-	github.com/pkg/errors v0.8.0
+	github.com/pkg/errors v0.8.1
 	github.com/rs/cors v0.0.0-20170801073201-eabcc6af4bbe
 	github.com/satori/go.uuid v1.2.0
 	github.com/savaki/amplitude-go v0.0.0-20160610055645-f62e3b57c0e4
