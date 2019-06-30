@@ -30,7 +30,7 @@ require (
 	github.com/gomodule/redigo v2.0.0+incompatible // indirect
 	github.com/google/go-github v0.0.0-20180123235826-b1f138353a62
 	github.com/google/go-querystring v1.0.0 // indirect
-	github.com/gopherjs/gopherjs v0.0.0-20181103185306-d547d1d9531e // indirect
+	github.com/gopherjs/gopherjs v0.0.0-20190630090204-3e4dfb77656c // indirect
 	github.com/gorilla/mux v1.6.2
 	github.com/gorilla/schema v1.0.2
 	github.com/gorilla/securecookie v1.1.1
