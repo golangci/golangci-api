@@ -63,6 +63,7 @@ github.com/fsnotify/fsnotify v1.4.7 h1:IXs+QLmnXW2CcXuY+8Mzv/fWEsPGWxqefPtCP5CnV
 github.com/fsnotify/fsnotify v1.4.7/go.mod h1:jwhsz4b93w/PPRr/qN1Yymfu8t87LnFCMoQvtojpjFo=
 github.com/garyburd/redigo v1.5.0 h1:OcZhiwwjKtBe7TO4TlXpj/1E3I2RVg1uLxwMT4VFF5w=
 github.com/garyburd/redigo v1.5.0/go.mod h1:NR3MbYisc3/PwhQ00EMzDiPmrwpPxAn5GI05/YaO1SY=
+github.com/garyburd/redigo v1.6.0/go.mod h1:NR3MbYisc3/PwhQ00EMzDiPmrwpPxAn5GI05/YaO1SY=
 github.com/gavv/httpexpect v0.0.0-20170820080527-c44a6d7bb636 h1:FbWwmG7qBNykpmPppq5767far39ty4P7lOhpPNK8Ik4=
 github.com/gavv/httpexpect v0.0.0-20170820080527-c44a6d7bb636/go.mod h1:x+9tiU1YnrOvnB725RkpoLv1M62hOWzwo5OXotisrKc=
 github.com/gavv/monotime v0.0.0-20171021193802-6f8212e8d10d h1:oYXrtNhqNKL1dVtKdv8XUq5zqdGVFNQ0/4tvccXZOLM=
