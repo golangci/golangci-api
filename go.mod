@@ -16,7 +16,6 @@ require (
 	github.com/docker/go-connections v0.4.0 // indirect
 	github.com/docker/go-units v0.3.3 // indirect
 	github.com/dukex/mixpanel v0.0.0-20190629143319-f8d5594f958e
-	github.com/erikstmartin/go-testdb v0.0.0-20160219214506-8d10e4a1bae5 // indirect
 	github.com/fatih/color v1.7.0
 	github.com/fatih/structs v1.1.0 // indirect
 	github.com/garyburd/redigo v1.5.0
@@ -26,7 +25,6 @@ require (
 	github.com/go-ini/ini v1.39.0 // indirect
 	github.com/go-kit/kit v0.9.0
 	github.com/go-logfmt/logfmt v0.4.0 // indirect
-	github.com/go-sql-driver/mysql v1.4.1 // indirect
 	github.com/golang/mock v1.2.0
 	github.com/golangci/golangci-lint v1.17.0
 	github.com/gomodule/redigo v2.0.0+incompatible // indirect
@@ -38,17 +36,14 @@ require (
 	github.com/gorilla/securecookie v1.1.1
 	github.com/gorilla/sessions v0.0.0-20180115173807-fe21b6a095cd
 	github.com/imkira/go-interpol v1.1.0 // indirect
-	github.com/jinzhu/gorm v1.9.1
-	github.com/jinzhu/inflection v0.0.0-20180308033659-04140366298a // indirect
-	github.com/jinzhu/now v0.0.0-20181116074157-8ec929ed50c3 // indirect
+	github.com/jinzhu/gorm v1.9.10
 	github.com/jmespath/go-jmespath v0.0.0-20180206201540-c2b33e8439af // indirect
 	github.com/joho/godotenv v0.0.0-20180115024921-6bb08516677f
 	github.com/k0kubun/colorstring v0.0.0-20150214042306-9440f1994b88 // indirect
 	github.com/levigross/grequests v0.0.0-20190630082331-37c80f76a0da
-	github.com/lib/pq v0.0.0-20180201184707-88edab080323
+	github.com/lib/pq v1.1.1
 	github.com/markbates/goth v0.0.0-20180113214406-24f8ac10e57e
 	github.com/mattes/migrate v0.0.0-20171208214826-d23f71b03c4a
-	github.com/mattn/go-sqlite3 v1.10.0 // indirect
 	github.com/moul/http2curl v1.0.0 // indirect
 	github.com/pkg/errors v0.8.0
 	github.com/rs/cors v0.0.0-20170801073201-eabcc6af4bbe
