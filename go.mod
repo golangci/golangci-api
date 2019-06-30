@@ -43,7 +43,7 @@ require (
 	github.com/jinzhu/now v0.0.0-20181116074157-8ec929ed50c3 // indirect
 	github.com/jmespath/go-jmespath v0.0.0-20180206201540-c2b33e8439af // indirect
 	github.com/joho/godotenv v0.0.0-20180115024921-6bb08516677f
-	github.com/jtolds/gls v4.2.1+incompatible // indirect
+	github.com/jtolds/gls v4.20.0+incompatible // indirect
 	github.com/k0kubun/colorstring v0.0.0-20150214042306-9440f1994b88 // indirect
 	github.com/levigross/grequests v0.0.0-20190630082331-37c80f76a0da
 	github.com/lib/pq v0.0.0-20180201184707-88edab080323
