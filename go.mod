@@ -55,7 +55,7 @@ require (
 	github.com/smartystreets/goconvey v0.0.0-20190630083245-68dc04aab96a // indirect
 	github.com/spf13/viper v1.0.2
 	github.com/stevvooe/resumable v0.0.0-20180830230917-22b14a53ba50 // indirect
-	github.com/stretchr/testify v1.2.2
+	github.com/stretchr/testify v1.3.0
 	github.com/stvp/rollbar v0.5.1
 	github.com/stvp/tempredis v0.0.0-20181119212430-b82af8480203 // indirect
 	github.com/urfave/negroni v0.0.0-20180105164225-ff85fb036d90
