@@ -84,7 +84,9 @@ psql:
 
 build_docker_images:
 	cp  ~/deploy/golangci-worker/Dockerfile worker.dockerfile
-    docker build -t golangci/golangci-worker -f worker.dockerfile . && docker push golangci/golangci-worker
+	docker build -t golangci/golangci-worker -f worker.dockerfile .
+	docker push golangci/golangci-worker
 
     cp  ~/deploy/golangci-api/Dockerfile api.dockerfile
-    docker build -t golangci/golangci-api -f api.dockerfile . && docker push golangci/golangci-api
+    docker build -t golangci/golangci-api -f api.dockerfile .
+	docker push golangci/golangci-api
