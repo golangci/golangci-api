@@ -4,7 +4,7 @@ module github.com/golangci/golangci-api
 // +heroku install ./cmd/...
 
 require (
-	github.com/Microsoft/go-winio v0.4.11 // indirect
+	github.com/Microsoft/go-winio v0.4.12 // indirect
 	github.com/ajg/form v0.0.0-20160822230020-523a5da1a92f // indirect
 	github.com/aws/aws-lambda-go v1.11.1
 	github.com/aws/aws-sdk-go v0.0.0-20180126231901-00cca3f093a8
