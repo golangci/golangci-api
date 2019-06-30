@@ -51,7 +51,7 @@ require (
 	github.com/savaki/amplitude-go v0.0.0-20160610055645-f62e3b57c0e4
 	github.com/sergi/go-diff v1.0.0 // indirect
 	github.com/shirou/gopsutil v0.0.0-20180801053943-8048a2e9c577
-	github.com/sirupsen/logrus v1.2.0
+	github.com/sirupsen/logrus v1.4.2
 	github.com/smartystreets/goconvey v0.0.0-20190630083245-68dc04aab96a // indirect
 	github.com/spf13/viper v1.0.2
 	github.com/stevvooe/resumable v0.0.0-20180830230917-22b14a53ba50 // indirect
