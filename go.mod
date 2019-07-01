@@ -7,7 +7,7 @@ require (
 	github.com/Microsoft/go-winio v0.4.12 // indirect
 	github.com/ajg/form v1.5.1 // indirect
 	github.com/aws/aws-lambda-go v1.11.1
-	github.com/aws/aws-sdk-go v0.0.0-20180126231901-00cca3f093a8
+	github.com/aws/aws-sdk-go v1.20.12
 	github.com/cenkalti/backoff v2.0.0+incompatible
 	github.com/certifi/gocertifi v0.0.0-20190629135335-d2eda7129713 // indirect
 	github.com/denisenkom/go-mssqldb v0.0.0-20190629141010-eb9f6a1743f3 // indirect
@@ -36,7 +36,6 @@ require (
 	github.com/gorilla/sessions v0.0.0-20180115173807-fe21b6a095cd
 	github.com/imkira/go-interpol v1.1.0 // indirect
 	github.com/jinzhu/gorm v1.9.10
-	github.com/jmespath/go-jmespath v0.0.0-20180206201540-c2b33e8439af // indirect
 	github.com/joho/godotenv v0.0.0-20180115024921-6bb08516677f
 	github.com/k0kubun/colorstring v0.0.0-20150214042306-9440f1994b88 // indirect
 	github.com/levigross/grequests v0.0.0-20190630082331-37c80f76a0da
