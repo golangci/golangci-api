@@ -33,7 +33,7 @@ require (
 	github.com/gorilla/mux v1.7.3
 	github.com/gorilla/schema v1.1.0
 	github.com/gorilla/securecookie v1.1.1
-	github.com/gorilla/sessions v0.0.0-20180115173807-fe21b6a095cd
+	github.com/gorilla/sessions v1.1.3
 	github.com/imkira/go-interpol v1.1.0 // indirect
 	github.com/jinzhu/gorm v1.9.10
 	github.com/joho/godotenv v0.0.0-20180115024921-6bb08516677f
