@@ -7,7 +7,7 @@ require (
 	github.com/Microsoft/go-winio v0.4.12 // indirect
 	github.com/ajg/form v1.5.1 // indirect
 	github.com/aws/aws-lambda-go v1.11.1
-	github.com/aws/aws-sdk-go v1.20.12
+	github.com/aws/aws-sdk-go v1.20.13
 	github.com/cenkalti/backoff v2.0.0+incompatible
 	github.com/certifi/gocertifi v0.0.0-20190629135335-d2eda7129713 // indirect
 	github.com/denisenkom/go-mssqldb v0.0.0-20190629141010-eb9f6a1743f3 // indirect
