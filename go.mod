@@ -22,7 +22,6 @@ require (
 	github.com/gavv/httpexpect v0.0.0-20170820080527-c44a6d7bb636
 	github.com/gavv/monotime v0.0.0-20190629144257-30dba4353424 // indirect
 	github.com/getsentry/raven-go v0.2.0
-	github.com/go-ini/ini v1.42.0 // indirect
 	github.com/go-kit/kit v0.9.0
 	github.com/golang/mock v1.3.1
 	github.com/golangci/golangci-lint v1.17.1
@@ -43,6 +42,7 @@ require (
 	github.com/markbates/goth v0.0.0-20180113214406-24f8ac10e57e
 	github.com/mattes/migrate v0.0.0-20171208214826-d23f71b03c4a
 	github.com/moul/http2curl v1.0.0 // indirect
+	github.com/opencontainers/go-digest v1.0.0-rc1 // indirect
 	github.com/pkg/errors v0.8.1
 	github.com/rs/cors v1.6.0
 	github.com/satori/go.uuid v1.2.0
@@ -52,7 +52,6 @@ require (
 	github.com/sirupsen/logrus v1.4.2
 	github.com/smartystreets/goconvey v0.0.0-20190630083245-68dc04aab96a // indirect
 	github.com/spf13/viper v1.4.0
-	github.com/stevvooe/resumable v0.0.0-20180830230917-22b14a53ba50 // indirect
 	github.com/stretchr/testify v1.3.0
 	github.com/stvp/rollbar v0.5.1
 	github.com/stvp/tempredis v0.0.0-20181119212430-b82af8480203 // indirect
@@ -67,7 +66,6 @@ require (
 	golang.org/x/oauth2 v0.0.0-20190630083822-0f29369cfe45
 	golang.org/x/tools v0.0.0-20190630095024-fb37f6ba8261
 	gopkg.in/boj/redistore.v1 v1.0.0-20160128113310-fc113767cd6b
-	gopkg.in/ini.v1 v1.42.0 // indirect
 	gopkg.in/redsync.v1 v1.0.1
 	gopkg.in/yaml.v2 v2.2.2
 )

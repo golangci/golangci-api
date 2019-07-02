@@ -32,6 +32,10 @@ func (db *sqlDBWithContext) Begin() (*sql.Tx, error) {
 	return db.underlying.BeginTx(db.ctx, nil)
 }
 
+func (db *sqlDBWithContext) BeginTx(ctx context.Context, opts *sql.TxOptions) (*sql.Tx, error) {
+	return db.underlying.BeginTx(ctx, opts)
+}
+
 func FromSQL(ctx context.Context, db *sql.DB) (*gorm.DB, error) {
 	return gorm.Open("postgres", &sqlDBWithContext{ // TODO
 		underlying: db,
