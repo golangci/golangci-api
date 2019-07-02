@@ -137,7 +137,7 @@ func (s BasicService) handleGithubPullRequestWebhook(rc *request.AnonymousContex
 		})
 		if commitErr != nil {
 			if commitErr == provider.ErrUnauthorized || commitErr == provider.ErrNotFound {
-				rc.Log.Warnf("Can't set github commit status to '%s' for repo %s and commit %s, skipping webhook: %s",
+				rc.Log.Infof("Can't set github commit status to '%s' for repo %s and commit %s, skipping webhook: %s",
 					desc, repo.FullNameWithProvider(), ev.Head.CommitSHA, commitErr)
 				return errSkipWehbook
 			}

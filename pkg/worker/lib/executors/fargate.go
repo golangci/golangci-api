@@ -95,11 +95,11 @@ func (f Fargate) runTask(ctx context.Context, req *Requirements) (*ecs.Task, err
 	}
 
 	if len(res.Failures) != 0 {
-		return nil, errors.Wrapf(f.wrapExecutorError(err), "failures during running aws fargate task: %#v", res.Failures)
+		return nil, errors.Wrapf(ErrExecutorFail, "failures during running aws fargate task: %#v", res.Failures)
 	}
 
 	if len(res.Tasks) != 1 {
-		return nil, errors.Wrapf(f.wrapExecutorError(err), "res.Tasks count != 1: %#v", res.Tasks)
+		return nil, errors.Wrapf(ErrExecutorFail, "res.Tasks count != 1: %#v", res.Tasks)
 	}
 
 	return res.Tasks[0], nil
@@ -117,11 +117,11 @@ func (f Fargate) describeTask(ctx context.Context) (*ecs.Task, error) {
 	}
 
 	if len(res.Failures) != 0 {
-		return nil, errors.Wrapf(f.wrapExecutorError(err), "failures during running aws fargate task: %#v", res.Failures)
+		return nil, errors.Wrapf(ErrExecutorFail, "failures during running aws fargate task: %#v", res.Failures)
 	}
 
 	if len(res.Tasks) != 1 {
-		return nil, errors.Wrapf(f.wrapExecutorError(err), "res.Tasks count != 1: %#v", res.Tasks)
+		return nil, errors.Wrapf(ErrExecutorFail, "res.Tasks count != 1: %#v", res.Tasks)
 	}
 
 	return res.Tasks[0], nil
@@ -135,7 +135,7 @@ func (f *Fargate) waitForContainerStart(ctx context.Context) (*ecs.Task, error) 
 		}
 
 		if task.LastStatus == nil {
-			return nil, fmt.Errorf("failed to get task last status")
+			return nil, errors.Wrap(ErrExecutorFail, "failed to get task last status")
 		}
 
 		switch *task.LastStatus {
@@ -146,9 +146,9 @@ func (f *Fargate) waitForContainerStart(ctx context.Context) (*ecs.Task, error) 
 			f.log.Infof("Container started")
 			return task, nil
 		case "DEACTIVATING", "STOPPING", "DEPROVISIONING", "STOPPED":
-			return nil, fmt.Errorf("container is stopped or stopping: %s", *task.LastStatus)
+			return nil, errors.Wrapf(ErrExecutorFail, "container is stopped or stopping: %s", *task.LastStatus)
 		default:
-			return nil, fmt.Errorf("unknown task status %s", *task.LastStatus)
+			return nil, errors.Wrapf(ErrExecutorFail, "unknown task status %s", *task.LastStatus)
 		}
 	}
 }
@@ -159,11 +159,11 @@ func (f *Fargate) describeNetworkInterface(ctx context.Context, networkInterface
 	}
 	res, err := f.ec2.DescribeNetworkInterfacesWithContext(ctx, &input)
 	if err != nil {
-		return nil, errors.Wrapf(err, "failed to describe network interface %s", networkInterfaceID)
+		return nil, errors.Wrapf(f.wrapExecutorError(err), "failed to describe network interface %s", networkInterfaceID)
 	}
 
 	if len(res.NetworkInterfaces) != 1 {
-		return nil, fmt.Errorf("len(res.NetworkInterfaces) != 1: %#v", res.NetworkInterfaces)
+		return nil, errors.Wrapf(ErrExecutorFail, "len(res.NetworkInterfaces) != 1: %#v", res.NetworkInterfaces)
 	}
 
 	return res.NetworkInterfaces[0], nil
@@ -171,7 +171,7 @@ func (f *Fargate) describeNetworkInterface(ctx context.Context, networkInterface
 
 func (f *Fargate) getTaskPublicIP(ctx context.Context, task *ecs.Task) (string, error) {
 	if len(task.Attachments) != 1 {
-		return "", fmt.Errorf("len(task.Attachments) != 1: %#v", task.Attachments)
+		return "", errors.Wrapf(ErrExecutorFail, "len(task.Attachments) != 1: %#v", task.Attachments)
 	}
 
 	attach := task.Attachments[0]
@@ -183,7 +183,7 @@ func (f *Fargate) getTaskPublicIP(ctx context.Context, task *ecs.Task) (string, 
 		}
 	}
 	if networkInterfaceID == "" {
-		return "", fmt.Errorf("no networkInterfaceId in attachment details: %#v", attach)
+		return "", errors.Wrapf(ErrExecutorFail, "no networkInterfaceId in attachment details: %#v", attach)
 	}
 
 	ni, err := f.describeNetworkInterface(ctx, networkInterfaceID)
@@ -192,11 +192,11 @@ func (f *Fargate) getTaskPublicIP(ctx context.Context, task *ecs.Task) (string, 
 	}
 
 	if ni.Association == nil {
-		return "", fmt.Errorf("no association in network interface %#v", ni)
+		return "", errors.Wrapf(ErrExecutorFail, "no association in network interface %#v", ni)
 	}
 
 	if ni.Association.PublicIp == nil {
-		return "", fmt.Errorf("no public ip in network interface %#v", ni)
+		return "", errors.Wrapf(ErrExecutorFail, "no public ip in network interface %#v", ni)
 	}
 
 	return *ni.Association.PublicIp, nil
@@ -218,7 +218,7 @@ func (f *Fargate) Setup(ctx context.Context, req *Requirements) error {
 	}
 
 	if task.TaskArn == nil {
-		return fmt.Errorf("no arn in task %#v", task)
+		return errors.Wrapf(ErrExecutorFail, "no arn in task %#v", task)
 	}
 	f.taskID = *task.TaskArn
 
@@ -248,7 +248,7 @@ func (f Fargate) Run(ctx context.Context, name string, args ...string) (*RunResu
 	}
 	now := time.Now()
 	if deadline.Before(now) {
-		return nil, errors.New("deadline exceeded: it's before now")
+		return nil, errors.Wrap(ErrExecutorFail, "deadline exceeded: it's before now")
 	}
 
 	req := build.Request{
@@ -280,12 +280,13 @@ func (f Fargate) runBuildCommand(ctx context.Context, req *build.Request) (*RunR
 	}
 
 	if buildResp.Error != "" {
-		return nil, f.wrapExecutorError(fmt.Errorf("failed to run build command with req %#v: %s", req, buildResp.Error))
+		return nil, errors.Wrapf(ErrExecutorFail, "failed to run build command with req %#v: %s", req, buildResp.Error)
 	}
 
 	res := RunResult(buildResp.RequestResult)
 
 	if buildResp.CommandError != "" {
+		// no wrapping of ErrExecutorFail
 		return &res, fmt.Errorf("build command for req %#v complete with error: %s",
 			req, buildResp.CommandError)
 	}
@@ -311,6 +312,11 @@ func (f Fargate) CopyFile(ctx context.Context, dst, src string) error {
 }
 
 func (f Fargate) Clean() {
+	if f.taskID == "" {
+		f.log.Infof("No need to stop fargate task: taskID is empty")
+		return
+	}
+
 	_, err := f.ecs.StopTask(&ecs.StopTaskInput{
 		Cluster: aws.String(f.cfg.GetString("FARGATE_CLUSTER")),
 		Task:    aws.String(f.taskID),
