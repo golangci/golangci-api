@@ -119,6 +119,10 @@ func (s BasicService) handleGithubPullRequestWebhook(rc *request.AnonymousContex
 
 	ev, err := p.ParsePullRequestEvent(rc.Ctx, body)
 	if err != nil {
+		if errors.Cause(err) == provider.ErrUnauthorized {
+			rc.Log.Infof("Skip webhook for repo %s: %s", repo.FullName, err)
+			return errSkipWehbook
+		}
 		return errors.Wrap(err, "failed to parse pull request event")
 	}
 
