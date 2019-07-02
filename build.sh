@@ -7,9 +7,11 @@ set -exu
 #     echo exit 1;
 # fi
 
-GO111MODULE=on GOOS=linux CGO_ENABLED=0 GOARCH=amd64 \
-    go build -o golangci-api-dlq-consumer \
-    ./scripts/consume_dlq/main.go
+if [ $1 = "api" ]; then
+    GO111MODULE=on GOOS=linux CGO_ENABLED=0 GOARCH=amd64 \
+        go build -o golangci-api-dlq-consumer \
+        ./scripts/consume_dlq/main.go
+fi
 
 GO111MODULE=on GOOS=linux CGO_ENABLED=0 GOARCH=amd64 \
     go build \
