@@ -18,6 +18,7 @@ type PullContext struct {
 	Ctx          context.Context
 	UserID       int
 	AnalysisGUID string
+	CommitSHA    string
 	ProviderCtx  *github.Context
 	LogCtx       logutil.Context
 	Log          logutil.Log

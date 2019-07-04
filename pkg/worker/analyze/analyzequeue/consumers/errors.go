@@ -18,7 +18,7 @@ func isRecoverableError(err error) bool {
 		return false
 	}
 
-	if err == fetchers.ErrNoBranchOrRepo {
+	if err == fetchers.ErrNoBranchOrRepo || err == fetchers.ErrNoCommit {
 		return false
 	}
 

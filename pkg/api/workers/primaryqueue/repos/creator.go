@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/golangci/golangci-api/pkg/api/workers/primaryqueue/invitations"
+	uuid "github.com/satori/go.uuid"
 
 	"github.com/golangci/golangci-api/internal/shared/config"
 	"github.com/golangci/golangci-api/internal/shared/db/gormdb"
@@ -236,7 +237,7 @@ func (cc CreatorConsumer) createRepoAnalysisStatus(ctx context.Context, r *model
 	}
 
 	if as.HasPendingChanges { // false if empty repo
-		if err := cc.analysisLauncherQueue.Put(r.ID, as.PendingCommitSHA); err != nil {
+		if err := cc.analysisLauncherQueue.Put(r.ID, as.PendingCommitSHA, uuid.NewV4().String()); err != nil {
 			return errors.Wrap(err, "failed to send repo to analyze queue")
 		}
 	}

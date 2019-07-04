@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/golangci/golangci-api/internal/shared/providers"
+	uuid "github.com/satori/go.uuid"
 
 	"github.com/golangci/golangci-api/pkg/worker/analyze/analyzesqueue/repoanalyzesqueue"
 
@@ -18,7 +19,6 @@ import (
 	"github.com/golangci/golangci-api/pkg/api/workers/primaryqueue"
 	"github.com/jinzhu/gorm"
 	"github.com/pkg/errors"
-	uuid "github.com/satori/go.uuid"
 	redsync "gopkg.in/redsync.v1"
 )
 
@@ -26,8 +26,9 @@ const launchQueueID = "repoanalyzes/launch"
 const lintersVersion = "v1.10.1"
 
 type launchMessage struct {
-	RepoID    uint
-	CommitSHA string
+	RepoID       uint
+	CommitSHA    string
+	AnalysisGUID string
 }
 
 func (m launchMessage) LockID() string {
@@ -42,10 +43,11 @@ func (p *LauncherProducer) Register(m *producers.Multiplexer) error {
 	return p.Base.Register(m, launchQueueID)
 }
 
-func (p LauncherProducer) Put(repoID uint, commitSHA string) error {
+func (p LauncherProducer) Put(repoID uint, commitSHA, analysisGUID string) error {
 	return p.Base.Put(launchMessage{
-		RepoID:    repoID,
-		CommitSHA: commitSHA,
+		RepoID:       repoID,
+		CommitSHA:    commitSHA,
+		AnalysisGUID: analysisGUID,
 	})
 }
 
@@ -78,31 +80,56 @@ func (c LauncherConsumer) consumeMessage(ctx context.Context, m *launchMessage) 
 	return c.run(m, gormDB)
 }
 
-func (c LauncherConsumer) run(m *launchMessage, db *gorm.DB) (retErr error) {
+func (c LauncherConsumer) run(m *launchMessage, db *gorm.DB) error {
+	if m.AnalysisGUID == "" { // TODO: remove it, temporary
+		m.AnalysisGUID = uuid.NewV4().String()
+	}
+
 	var as models.RepoAnalysisStatus
 	if err := models.NewRepoAnalysisStatusQuerySet(db).RepoIDEq(m.RepoID).One(&as); err != nil {
 		return errors.Wrapf(err, "failed to fetch repo analysis status for repo %d", m.RepoID)
 	}
 
+	if err := c.createDBEntries(&as, m, db); err != nil {
+		return errors.Wrapf(err, "failed to create db entries")
+	}
+
+	return c.putAnalysisIntoQueue(m, &as, db)
+}
+
+func (c LauncherConsumer) putAnalysisIntoQueue(m *launchMessage, as *models.RepoAnalysisStatus, db *gorm.DB) error {
+	// use Unscoped to fetch deleted repos
+	var repo models.Repo
+	if err := models.NewRepoQuerySet(db.Unscoped()).IDEq(m.RepoID).One(&repo); err != nil {
+		return errors.Wrapf(err, "failed to fetch repo with id %d", m.RepoID)
+	}
+
+	pat, err := c.getAccessToken(db, &repo)
+	if err != nil {
+		return errors.Wrap(err, "failed to get private access token")
+	}
+
+	if err := c.runProducer.Put(repo.FullName, m.AnalysisGUID, as.DefaultBranch, pat, m.CommitSHA); err != nil {
+		return errors.Wrap(err, "failed to enqueue repo analysis for running")
+	}
+
+	return nil
+}
+
+func (c LauncherConsumer) createDBEntries(as *models.RepoAnalysisStatus, m *launchMessage, db *gorm.DB) (retErr error) {
 	tx, finishTx, err := gormdb.StartTx(db)
 	if err != nil {
 		return err
 	}
 	defer finishTx(&retErr)
 
-	if err = c.setPendingChanges(tx, m, &as); err != nil {
+	if err = c.setPendingChanges(tx, m, as); err != nil {
 		return errors.Wrap(err, "failed to set pending changes")
 	}
 
 	// TODO: check lastanalyzedat and reschedule task in queue laster
 
-	// use Unscoped to fetch deleted repos
-	var repo models.Repo
-	if err = models.NewRepoQuerySet(tx.Unscoped()).IDEq(m.RepoID).One(&repo); err != nil {
-		return errors.Wrapf(err, "failed to fetch repo with id %d", m.RepoID)
-	}
-
-	if err = c.launchRepoAnalysis(tx, &as, &repo); err != nil {
+	if err = c.createRepoAnalysis(tx, as, m); err != nil {
 		return errors.Wrap(err, "failed to launch repo analysis")
 	}
 
@@ -133,25 +160,17 @@ func (c LauncherConsumer) setPendingChanges(tx *gorm.DB, m *launchMessage, as *m
 	return nil
 }
 
-func (c LauncherConsumer) launchRepoAnalysis(tx *gorm.DB, as *models.RepoAnalysisStatus, repo *models.Repo) error {
-	needSendToQueue := true
-	nExisting, err := models.NewRepoAnalysisQuerySet(tx).
-		RepoAnalysisStatusIDEq(as.ID).CommitSHAEq(as.PendingCommitSHA).LintersVersionEq(lintersVersion).
-		Count()
+func (c LauncherConsumer) createRepoAnalysis(tx *gorm.DB, as *models.RepoAnalysisStatus, m *launchMessage) error {
+	nExisting, err := models.NewRepoAnalysisQuerySet(tx).AnalysisGUIDEq(m.AnalysisGUID).Count()
 	if err != nil {
 		return errors.Wrap(err, "can't count existing repo analyzes")
 	}
 	if nExisting != 0 {
-		// TODO: just fix version on sending to queue
-		c.log.Warnf("Can't create repo analysis because of "+
-			"race condition with frequent pushes and not fixed commit in worker: %#v", *as)
-		needSendToQueue = false
+		return nil // was already created in DB: it's the repeated run of consumer
 	}
 
-	if needSendToQueue {
-		if err = c.createNewAnalysis(tx, as, repo); err != nil {
-			return errors.Wrap(err, "failed to create new analysis")
-		}
+	if err = c.createNewAnalysis(tx, as, m); err != nil {
+		return errors.Wrap(err, "failed to create new analysis")
 	}
 
 	n, err := models.NewRepoAnalysisStatusQuerySet(tx).
@@ -179,10 +198,10 @@ func (c LauncherConsumer) launchRepoAnalysis(tx *gorm.DB, as *models.RepoAnalysi
 	return nil
 }
 
-func (c LauncherConsumer) createNewAnalysis(tx *gorm.DB, as *models.RepoAnalysisStatus, repo *models.Repo) error {
+func (c LauncherConsumer) createNewAnalysis(tx *gorm.DB, as *models.RepoAnalysisStatus, m *launchMessage) error {
 	a := models.RepoAnalysis{
 		RepoAnalysisStatusID: as.ID,
-		AnalysisGUID:         uuid.NewV4().String(),
+		AnalysisGUID:         m.AnalysisGUID,
 		Status:               "sent_to_queue",
 		CommitSHA:            as.PendingCommitSHA,
 		ResultJSON:           []byte("{}"),
@@ -191,15 +210,6 @@ func (c LauncherConsumer) createNewAnalysis(tx *gorm.DB, as *models.RepoAnalysis
 	}
 	if err := a.Create(tx); err != nil {
 		return errors.Wrap(err, "can't create repo analysis")
-	}
-
-	pat, err := c.getAccessToken(tx, repo)
-	if err != nil {
-		return errors.Wrap(err, "failed to get private access token")
-	}
-
-	if err := c.runProducer.Put(repo.FullName, a.AnalysisGUID, as.DefaultBranch, pat); err != nil {
-		return errors.Wrap(err, "failed to enqueue repo analysis for running")
 	}
 
 	return nil

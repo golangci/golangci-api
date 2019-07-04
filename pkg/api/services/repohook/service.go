@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/golangci/golangci-api/internal/shared/config"
+	uuid "github.com/satori/go.uuid"
 
 	"github.com/golangci/golangci-api/pkg/api/policy"
 
@@ -53,11 +54,17 @@ type BasicService struct {
 	Cfg                   config.Config
 }
 
+//nolint:gocyclo
 func (s BasicService) HandleGithubWebhook(rc *request.AnonymousContext, req *GithubWebhook, body request.Body) error {
 	eventType := req.EventType
 	if eventType == "ping" {
 		rc.Log.Infof("Got ping webhook")
 		return nil
+	}
+
+	if req.DeliveryGUID == "" {
+		req.DeliveryGUID = uuid.NewV4().String()
+		rc.Log.Warnf("Got no delivery guid in github webhook, generated it")
 	}
 
 	var repo models.Repo
@@ -82,7 +89,7 @@ func (s BasicService) HandleGithubWebhook(rc *request.AnonymousContext, req *Git
 		}
 		return nil
 	case "push":
-		if err := s.handleGithubPushWebhook(rc, &repo, body); err != nil {
+		if err := s.handleGithubPushWebhook(rc, &repo, req, body); err != nil {
 			if errors.Cause(err) == errSkipWehbook {
 				return nil
 			}
@@ -203,6 +210,7 @@ func (s BasicService) handleGithubPullRequestWebhook(rc *request.AnonymousContex
 		Context:      githubCtx,
 		UserID:       repo.UserID,
 		AnalysisGUID: analysis.GithubDeliveryGUID,
+		CommitSHA:    analysis.CommitSHA,
 	}
 	if err = s.PullAnalyzeQueue.Put(&msg); err != nil {
 		return errors.Wrap(err, "can't send pull request for analysis into queue")
@@ -267,7 +275,7 @@ func (s BasicService) isNoSubError(err error) bool {
 	return causeErr == policy.ErrNoActiveSubscription || causeErr == policy.ErrNoSeatInSubscription
 }
 
-func (s BasicService) handleGithubPushWebhook(rc *request.AnonymousContext, repo *models.Repo, body request.Body) error {
+func (s BasicService) handleGithubPushWebhook(rc *request.AnonymousContext, repo *models.Repo, req *GithubWebhook, body request.Body) error {
 	var payload gh.PushEvent
 	if err := json.Unmarshal(body, &payload); err != nil {
 		return errors.Wrapf(apierrors.ErrBadRequest, "invalid payload json: %s", err)
@@ -305,7 +313,7 @@ func (s BasicService) handleGithubPushWebhook(rc *request.AnonymousContext, repo
 	}
 
 	// TODO: update default branch if changed
-	if err := s.AnalysisLauncherQueue.Put(repo.ID, payload.GetHeadCommit().GetID()); err != nil {
+	if err := s.AnalysisLauncherQueue.Put(repo.ID, payload.GetHeadCommit().GetID(), req.DeliveryGUID); err != nil {
 		return errors.Wrap(err, "failed to send to analyzes queue")
 	}
 

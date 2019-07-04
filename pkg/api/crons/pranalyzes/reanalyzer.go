@@ -284,6 +284,7 @@ func (r Reanalyzer) restartAnalysis(a *models.PullRequestAnalysis, repo *models.
 		Context:      githubCtx,
 		UserID:       repo.UserID,
 		AnalysisGUID: a.GithubDeliveryGUID,
+		CommitSHA:    a.CommitSHA,
 	})
 	if err != nil {
 		return errors.Wrap(err, "can't send pull request for analysis into queue: %s")

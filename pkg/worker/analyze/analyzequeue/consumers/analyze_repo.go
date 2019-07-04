@@ -39,7 +39,7 @@ func NewAnalyzeRepo(rpf *processors.RepoProcessorFactory, log logutil.Log, errTr
 	}
 }
 
-func (c AnalyzeRepo) Consume(ctx context.Context, repoName, analysisGUID, branch, privateAccessToken string) error {
+func (c AnalyzeRepo) Consume(ctx context.Context, repoName, analysisGUID, branch, privateAccessToken, commitSHA string) error {
 	lctx := logutil.Context{
 		"branch":       branch,
 		"analysisGUID": analysisGUID,
@@ -47,6 +47,7 @@ func (c AnalyzeRepo) Consume(ctx context.Context, repoName, analysisGUID, branch
 		"repoName":     repoName,
 		"analysisType": "repo",
 		"reportURL":    fmt.Sprintf("https://golangci.com/r/github.com/%s", repoName),
+		"commitSHA":    commitSHA,
 	}
 	log := logutil.WrapLogWithContext(c.log, lctx)
 	log = apperrors.WrapLogWithTracker(log, lctx, c.errTracker)
@@ -64,12 +65,12 @@ func (c AnalyzeRepo) Consume(ctx context.Context, repoName, analysisGUID, branch
 		ctx, cancel = context.WithTimeout(ctx, 10*time.Minute+containerStartupTime)
 		defer cancel()
 
-		return c.analyzeRepo(ctx, log, repoName, analysisGUID, branch, privateAccessToken)
+		return c.analyzeRepo(ctx, log, repoName, analysisGUID, branch, privateAccessToken, commitSHA)
 	})
 }
 
 func (c AnalyzeRepo) analyzeRepo(ctx context.Context, log logutil.Log,
-	repoName, analysisGUID, branch, privateAccessToken string) error {
+	repoName, analysisGUID, branch, privateAccessToken, commitSHA string) error {
 
 	parts := strings.Split(repoName, "/")
 	repo := &github.Repo{
@@ -86,6 +87,7 @@ func (c AnalyzeRepo) analyzeRepo(ctx context.Context, log logutil.Log,
 		Branch:             branch,
 		Repo:               repo,
 		PrivateAccessToken: privateAccessToken,
+		CommitSHA:          commitSHA,
 		Log:                log,
 	}
 	p, cleanup, err := c.rpf.BuildProcessor(repoCtx)

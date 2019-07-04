@@ -38,12 +38,12 @@ var fakeChangedIssues = []result.Issue{
 	result.NewIssue("linter3", "F1 issue", "main.go", 10, 11),
 }
 
-var testSHA = "testSHA"
+var testHeadSHA = "testHeadSHA"
 var testBranch = "testBranch"
 var testPR = &gh.PullRequest{
 	Head: &gh.PullRequestBranch{
 		Ref: gh.String(testBranch),
-		SHA: gh.String(testSHA),
+		SHA: gh.String(testHeadSHA),
 	},
 	Base: &gh.PullRequestBranch{
 		Repo: &gh.Repository{
@@ -172,7 +172,7 @@ func getFakeStatusGithubClient(t *testing.T, ctrl *gomock.Controller, status git
 	gc := github.NewMockClient(ctrl)
 	gc.EXPECT().GetPullRequest(testCtxMatcher, c).Return(testPR, nil)
 
-	scsPending := gc.EXPECT().SetCommitStatus(testCtxMatcher, c, testSHA,
+	scsPending := gc.EXPECT().SetCommitStatus(testCtxMatcher, c, testHeadSHA,
 		github.StatusPending, "GolangCI is reviewing your Pull Request...", "").
 		Return(nil)
 
@@ -180,7 +180,7 @@ func getFakeStatusGithubClient(t *testing.T, ctrl *gomock.Controller, status git
 
 	test.Init()
 	url := fmt.Sprintf("%s/r/github.com/%s/%s/pulls/%d", os.Getenv("WEB_ROOT"), c.Repo.Owner, c.Repo.Name, testPR.GetNumber())
-	gc.EXPECT().SetCommitStatus(testCtxMatcher, c, testSHA, status, statusDesc, url).After(scsPending)
+	gc.EXPECT().SetCommitStatus(testCtxMatcher, c, testHeadSHA, status, statusDesc, url).After(scsPending)
 
 	return gc
 }
@@ -192,7 +192,7 @@ func getNopGithubClient(t *testing.T, ctrl *gomock.Controller) github.Client {
 	gc.EXPECT().CreateReview(any, any, any).AnyTimes()
 	gc.EXPECT().GetPullRequest(testCtxMatcher, c).AnyTimes().Return(testPR, nil)
 	gc.EXPECT().GetPullRequestPatch(any, any).AnyTimes().Return(getFakePatch(t))
-	gc.EXPECT().SetCommitStatus(any, any, testSHA, any, any, any).AnyTimes()
+	gc.EXPECT().SetCommitStatus(any, any, testHeadSHA, any, any, any).AnyTimes()
 	return gc
 }
 

@@ -59,6 +59,7 @@ type RepoContext struct {
 	Repo         *github.Repo // TODO: abstract from repo provider
 
 	PrivateAccessToken string
+	CommitSHA          string
 
 	Log logutil.Log
 }
@@ -190,9 +191,10 @@ func buildFetchersRepo(ctx *RepoContext) *fetchers.Repo {
 	}
 
 	return &fetchers.Repo{
-		CloneURL: cloneURL,
-		Ref:      ctx.Branch,
-		FullPath: fmt.Sprintf("github.com/%s/%s", repo.Owner, repo.Name),
+		CloneURL:  cloneURL,
+		Ref:       ctx.Branch,
+		FullPath:  fmt.Sprintf("github.com/%s/%s", repo.Owner, repo.Name),
+		CommitSHA: ctx.CommitSHA,
 	}
 }
 

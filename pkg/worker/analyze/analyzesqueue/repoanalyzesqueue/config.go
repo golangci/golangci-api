@@ -7,6 +7,7 @@ type runMessage struct {
 	AnalysisGUID       string
 	Branch             string
 	PrivateAccessToken string
+	CommitSHA          string
 }
 
 func (m runMessage) LockID() string {
