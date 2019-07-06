@@ -13,6 +13,7 @@ import (
 
 	"github.com/golangci/golangci-api/pkg/worker/analytics"
 	"github.com/golangci/golangci-api/pkg/worker/analyze/processors"
+	"github.com/golangci/golangci-api/pkg/worker/lib/experiments"
 	"github.com/golangci/golangci-api/pkg/worker/lib/github"
 	"github.com/pkg/errors"
 )
@@ -26,11 +27,12 @@ type AnalyzeRepo struct {
 	cfg        config.Config
 }
 
-func NewAnalyzeRepo(rpf *processors.RepoProcessorFactory, log logutil.Log, errTracker apperrors.Tracker, cfg config.Config) *AnalyzeRepo {
+func NewAnalyzeRepo(rpf *processors.RepoProcessorFactory, log logutil.Log, errTracker apperrors.Tracker, cfg config.Config, ec *experiments.Checker) *AnalyzeRepo {
 	return &AnalyzeRepo{
 		baseConsumer: baseConsumer{
 			eventName: analytics.EventRepoAnalyzed,
 			cfg:       cfg,
+			ec:        ec,
 		},
 		rpf:        rpf,
 		log:        log,

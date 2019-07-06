@@ -1,6 +1,11 @@
 package app
 
 import (
+	"fmt"
+	"sync"
+
+	"github.com/golangci/golangci-api/pkg/worker/lib/experiments"
+
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	redigo "github.com/garyburd/redigo/redis"
@@ -25,6 +30,7 @@ type App struct {
 	trackedLog      logutil.Log
 	errTracker      apperrors.Tracker
 	cfg             config.Config
+	ec              *experiments.Checker
 	redisPool       *redigo.Pool
 	distLockFactory *redsync.Redsync
 	awsSess         *session.Session
@@ -73,17 +79,20 @@ func (a *App) buildDeps() {
 	if a.ppf == nil {
 		a.ppf = processors.NewBasicPullProcessorFactory(&processors.BasicPullConfig{})
 	}
+	if a.ec == nil {
+		a.ec = experiments.NewChecker(a.cfg, a.trackedLog)
+	}
 }
 
 func (a App) buildMultiplexer() *consumers.Multiplexer {
 	rpf := processors.NewRepoProcessorFactory(&processors.StaticRepoConfig{})
 
 	// it's important to use a.log, not a.trackedLog
-	repoAnalyzer := analyzesConsumers.NewAnalyzeRepo(rpf, a.log, a.errTracker, a.cfg)
+	repoAnalyzer := analyzesConsumers.NewAnalyzeRepo(rpf, a.log, a.errTracker, a.cfg, a.ec)
 	repoAnalyzesRunner := repoanalyzesqueue.NewConsumer(repoAnalyzer)
 
 	// it's important to use a.log, not a.trackedLog
-	pullAnalyzer := analyzesConsumers.NewAnalyzePR(a.ppf, a.log, a.errTracker, a.cfg)
+	pullAnalyzer := analyzesConsumers.NewAnalyzePR(a.ppf, a.log, a.errTracker, a.cfg, a.ec)
 	pullAnalyzesRunner := pullanalyzesqueue.NewConsumer(pullAnalyzer)
 
 	multiplexer := consumers.NewMultiplexer()
@@ -136,10 +145,26 @@ func (a App) BuildTestDeps() *TestDeps {
 
 func (a App) Run() {
 	consumerMultiplexer := a.buildMultiplexer()
-	analyzesSQS := sqs.NewQueue(a.cfg.GetString("SQS_ANALYZES_QUEUE_URL"),
-		a.awsSess, a.trackedLog, analyzesqueue.VisibilityTimeoutSec)
-	consumer := consumer.NewSQS(a.trackedLog, a.cfg, analyzesSQS,
-		consumerMultiplexer, "analyzes", analyzesqueue.VisibilityTimeoutSec)
 
-	consumer.Run()
+	consumersCount := a.cfg.GetInt("CONSUMERS_COUNT", 1)
+	a.log.Infof("Starting %d consumers...", consumersCount)
+
+	var wg sync.WaitGroup
+	wg.Add(consumersCount)
+	for i := 0; i < consumersCount; i++ {
+		go func(i int) {
+			defer wg.Done()
+
+			trackedLog := a.trackedLog.Child(fmt.Sprintf("consumer #%d", i))
+			analyzesSQS := sqs.NewQueue(a.cfg.GetString("SQS_ANALYZES_QUEUE_URL"),
+				a.awsSess, trackedLog, analyzesqueue.VisibilityTimeoutSec)
+			consumer := consumer.NewSQS(trackedLog, a.cfg, analyzesSQS,
+				consumerMultiplexer, "analyzes", analyzesqueue.VisibilityTimeoutSec)
+
+			consumer.Run()
+		}(i)
+	}
+
+	a.log.Infof("Started %d consumers", consumersCount)
+	wg.Wait()
 }

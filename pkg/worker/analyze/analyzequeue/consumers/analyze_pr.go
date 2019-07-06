@@ -15,6 +15,7 @@ import (
 
 	"github.com/golangci/golangci-api/pkg/worker/analytics"
 	"github.com/golangci/golangci-api/pkg/worker/analyze/processors"
+	"github.com/golangci/golangci-api/pkg/worker/lib/experiments"
 	"github.com/golangci/golangci-api/pkg/worker/lib/github"
 )
 
@@ -26,11 +27,12 @@ type AnalyzePR struct {
 	log        logutil.Log
 }
 
-func NewAnalyzePR(pf processors.PullProcessorFactory, log logutil.Log, errTracker apperrors.Tracker, cfg config.Config) *AnalyzePR {
+func NewAnalyzePR(pf processors.PullProcessorFactory, log logutil.Log, errTracker apperrors.Tracker, cfg config.Config, ec *experiments.Checker) *AnalyzePR {
 	return &AnalyzePR{
 		baseConsumer: baseConsumer{
 			eventName: analytics.EventPRChecked,
 			cfg:       cfg,
+			ec:        ec,
 		},
 		pf:         pf,
 		errTracker: errTracker,

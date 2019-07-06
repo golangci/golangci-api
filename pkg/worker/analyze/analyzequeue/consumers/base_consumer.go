@@ -7,6 +7,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/golangci/golangci-api/pkg/worker/lib/experiments"
+
 	"github.com/golangci/golangci-api/internal/shared/config"
 
 	"github.com/golangci/golangci-api/internal/shared/logutil"
@@ -16,6 +18,7 @@ import (
 type baseConsumer struct {
 	eventName analytics.EventName
 	cfg       config.Config
+	ec        *experiments.Checker
 }
 
 const statusOk = "ok"
@@ -28,22 +31,18 @@ func (c baseConsumer) prepareContext(ctx context.Context, trackingProps map[stri
 }
 
 func (c baseConsumer) getUnrecoverableErrorLogger(log logutil.Log, repoFullName string) logutil.Func {
-	ignoredRepos := c.cfg.GetStringList("LOG_AS_INFO_UNRECOVERABLE_ERRORS_FOR_REPOS")
-	for _, ignoredRepo := range ignoredRepos {
-		if strings.EqualFold(ignoredRepo, repoFullName) {
-			return log.Infof
-		}
+	repoParts := strings.SplitN(repoFullName, "/", 2)
+	if c.ec.IsActiveForRepo("LOG_AS_INFO_UNRECOVERABLE_ERRORS_FOR", repoParts[0], repoParts[1]) {
+		return log.Infof
 	}
 
 	return log.Warnf
 }
 
 func (c baseConsumer) getRecoverableErrorLogger(log logutil.Log, repoFullName string) logutil.Func {
-	ignoredRepos := c.cfg.GetStringList("LOG_AS_INFO_RECOVERABLE_ERRORS_FOR_REPOS")
-	for _, ignoredRepo := range ignoredRepos {
-		if strings.EqualFold(ignoredRepo, repoFullName) {
-			return log.Infof
-		}
+	repoParts := strings.SplitN(repoFullName, "/", 2)
+	if c.ec.IsActiveForRepo("LOG_AS_INFO_RECOVERABLE_ERRORS_FOR", repoParts[0], repoParts[1]) {
+		return log.Infof
 	}
 
 	return log.Errorf
