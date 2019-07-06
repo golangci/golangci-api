@@ -9,6 +9,7 @@ type RunMessage struct {
 	APIRequestID string
 	UserID       uint
 	AnalysisGUID string
+	CommitSHA    string
 }
 
 func (m RunMessage) LockID() string {

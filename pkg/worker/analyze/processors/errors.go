@@ -35,7 +35,7 @@ func transformError(err error) error {
 	}
 
 	causeErr := errors.Cause(err)
-	if causeErr == fetchers.ErrNoBranchOrRepo {
+	if causeErr == fetchers.ErrNoBranchOrRepo || causeErr == fetchers.ErrNoCommit {
 		return errors.Wrap(ErrUnrecoverable, err.Error())
 	}
 
@@ -97,7 +97,7 @@ func errorToStatus(err error) string {
 		return string(StatusError)
 	}
 
-	if err == fetchers.ErrNoBranchOrRepo {
+	if err == fetchers.ErrNoBranchOrRepo || err == fetchers.ErrNoCommit {
 		return StatusNotFound
 	}
 

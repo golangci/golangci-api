@@ -39,8 +39,8 @@ func NewAnalyzePR(pf processors.PullProcessorFactory, log logutil.Log, errTracke
 }
 
 func (c AnalyzePR) Consume(ctx context.Context, repoOwner, repoName string,
-	isPrivateRepo bool, githubAccessToken string,
-	pullRequestNumber int, apiRequestID string, userID uint, analysisGUID string) error {
+	isPrivateRepo bool, githubAccessToken string, pullRequestNumber int,
+	apiRequestID string, userID uint, analysisGUID, commitSHA string) error {
 
 	repo := github.Repo{
 		Owner:     repoOwner,
@@ -57,6 +57,7 @@ func (c AnalyzePR) Consume(ctx context.Context, repoOwner, repoName string,
 		"providerURL":   fmt.Sprintf("https://github.com/%s/pull/%d", repo.FullName(), pullRequestNumber),
 		"reportURL":     fmt.Sprintf("%s/r/github.com/%s/pulls/%d", c.cfg.GetString("WEB_ROOT"), repo.FullName(), pullRequestNumber),
 		"isPrivateRepo": isPrivateRepo,
+		"commitSHA":     commitSHA,
 	}
 	ctx = c.prepareContext(ctx, lctx)
 	log := logutil.WrapLogWithContext(c.log, lctx)
@@ -74,6 +75,7 @@ func (c AnalyzePR) Consume(ctx context.Context, repoOwner, repoName string,
 			Ctx:          ctx,
 			UserID:       int(userID),
 			AnalysisGUID: analysisGUID,
+			CommitSHA:    commitSHA,
 			ProviderCtx: &github.Context{
 				Repo:              repo,
 				GithubAccessToken: githubAccessToken,

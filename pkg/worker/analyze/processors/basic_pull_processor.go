@@ -90,9 +90,10 @@ func storePatch(ctx context.Context, cfg config.Config, patch string, exec execu
 func (p BasicPull) getRepo(ctx *PullContext) *fetchers.Repo {
 	repo := ctx.ProviderCtx.Repo
 	return &fetchers.Repo{
-		CloneURL: ctx.ProviderCtx.GetCloneURL(ctx.pull.GetHead().GetRepo()),
-		Ref:      ctx.pull.GetHead().GetRef(),
-		FullPath: fmt.Sprintf("github.com/%s/%s", repo.Owner, repo.Name),
+		CloneURL:  ctx.ProviderCtx.GetCloneURL(ctx.pull.GetHead().GetRepo()),
+		Ref:       ctx.pull.GetHead().GetRef(),
+		CommitSHA: ctx.CommitSHA,
+		FullPath:  fmt.Sprintf("github.com/%s/%s", repo.Owner, repo.Name),
 	}
 }
 
@@ -199,7 +200,7 @@ func (p *BasicPull) analyze(ctx *PullContext) (*result.Result, error) {
 	}
 	defer lock.Unlock()
 
-	if err = p.Reporter.Report(ctx.Ctx, ctx.buildConfig, ctx.res.buildLog, ctx.pull.GetHead().GetSHA(), issues); err != nil {
+	if err = p.Reporter.Report(ctx.Ctx, ctx.buildConfig, ctx.res.buildLog, ctx.CommitSHA, issues); err != nil {
 		if errors.Cause(err) == github.ErrUserIsBlocked {
 			return nil, &errorutils.InternalError{
 				PublicDesc:  fmt.Sprintf("@%s is blocked in the organization", p.Cfg.GetString("GITHUB_REVIEWER_LOGIN")),
@@ -235,7 +236,7 @@ func (p BasicPull) setCommitStatus(ctx *PullContext, status github.Status, desc 
 			p.Cfg.GetString("WEB_ROOT"), c.Repo.Owner, c.Repo.Name, ctx.pull.GetNumber())
 	}
 
-	err := p.ProviderClient.SetCommitStatus(ctx.Ctx, ctx.ProviderCtx, ctx.pull.GetHead().GetSHA(), status, desc, url)
+	err := p.ProviderClient.SetCommitStatus(ctx.Ctx, ctx.ProviderCtx, ctx.CommitSHA, status, desc, url)
 	if err != nil {
 		ctx.res.publicWarn("github", "Can't set VCS provider commit status") // TODO: write provider name
 		ctx.Log.Warnf("Can't set provider commit status: %s", err)
@@ -353,6 +354,10 @@ func (p BasicPull) processPanicSafe(ctx *PullContext) (retErr error) {
 		sg.AddStep("fetch VCS provider pull request")
 		if err := p.fetchProviderPullRequest(ctx); err != nil {
 			return err
+		}
+
+		if ctx.CommitSHA == "" { // TODO: remove it, it's temporary
+			ctx.CommitSHA = ctx.pull.GetHead().GetSHA()
 		}
 
 		sg.AddStep(stepUpdateStatusToProcessing)

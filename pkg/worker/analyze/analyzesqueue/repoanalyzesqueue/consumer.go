@@ -24,5 +24,5 @@ func (c Consumer) Register(m *consumers.Multiplexer, df *redsync.Redsync) error 
 }
 
 func (c Consumer) consumeMessage(ctx context.Context, m *runMessage) error {
-	return c.subConsumer.Consume(ctx, m.RepoName, m.AnalysisGUID, m.Branch, m.PrivateAccessToken)
+	return c.subConsumer.Consume(ctx, m.RepoName, m.AnalysisGUID, m.Branch, m.PrivateAccessToken, m.CommitSHA)
 }
