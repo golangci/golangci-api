@@ -36,7 +36,8 @@ func (gf Git) clone(ctx context.Context, sg *result.StepGroup, repo *Repo, exec 
 			out = cloneRes.StdOut + cloneRes.StdErr
 		}
 		noBranchOrRepo := strings.Contains(out, "could not read Username for") ||
-			strings.Contains(out, "Could not find remote branch")
+			strings.Contains(out, "Could not find remote branch") ||
+			(strings.Contains(out, "Remote branch") && strings.Contains(out, "not found in upstream"))
 		if noBranchOrRepo {
 			return ErrNoBranchOrRepo
 		}
