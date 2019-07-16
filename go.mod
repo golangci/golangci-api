@@ -38,7 +38,7 @@ require (
 	github.com/joho/godotenv v1.3.0
 	github.com/k0kubun/colorstring v0.0.0-20150214042306-9440f1994b88 // indirect
 	github.com/levigross/grequests v0.0.0-20190630082331-37c80f76a0da
-	github.com/lib/pq v1.1.1
+	github.com/lib/pq v1.2.0
 	github.com/markbates/goth v0.0.0-20180113214406-24f8ac10e57e
 	github.com/mattes/migrate v0.0.0-20171208214826-d23f71b03c4a
 	github.com/moul/http2curl v1.0.0 // indirect

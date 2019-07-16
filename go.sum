@@ -223,6 +223,7 @@ github.com/levigross/grequests v0.0.0-20190630082331-37c80f76a0da h1:jC+NLkq2DxZ
 github.com/levigross/grequests v0.0.0-20190630082331-37c80f76a0da/go.mod h1:uCZIhROSrVmuF/BPYFPwDeiiQ6juSLp0kikFoEcNcEs=
 github.com/lib/pq v1.1.1 h1:sJZmqHoEaY7f+NPP8pgLB/WxulyR3fewgCM2qaSlBb4=
 github.com/lib/pq v1.1.1/go.mod h1:5WUZQaWbwv1U+lTReE5YruASi9Al49XbQIvNi/34Woo=
+github.com/lib/pq v1.2.0/go.mod h1:5WUZQaWbwv1U+lTReE5YruASi9Al49XbQIvNi/34Woo=
 github.com/logrusorgru/aurora v0.0.0-20181002194514-a7b3b318ed4e/go.mod h1:7rIyQOR62GCctdiQpZ/zOJlFyk6y+94wXzv6RNZgaR4=
 github.com/magiconair/properties v1.7.6 h1:U+1DqNen04MdEPgFiIwdOUiqZ8qPa37xgogX/sd3+54=
 github.com/magiconair/properties v1.7.6/go.mod h1:PppfXfuXeibc/6YijjN8zIbojt8czPbwD3XqdrwzmxQ=
