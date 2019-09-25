@@ -9,17 +9,17 @@ require (
 	github.com/aws/aws-lambda-go v1.11.1
 	github.com/aws/aws-sdk-go v1.20.15
 	github.com/cenkalti/backoff v2.2.0+incompatible
-	github.com/certifi/gocertifi v0.0.0-20190629135335-d2eda7129713 // indirect
+	github.com/certifi/gocertifi v0.0.0-20190506164543-d2eda7129713 // indirect
 	github.com/docker/distribution v2.7.1+incompatible // indirect
 	github.com/docker/docker v1.13.1 // indirect
 	github.com/docker/go-connections v0.4.0 // indirect
 	github.com/docker/go-units v0.3.3 // indirect
-	github.com/dukex/mixpanel v0.0.0-20190629143319-f8d5594f958e
+	github.com/dukex/mixpanel v0.0.0-20180925151559-f8d5594f958e
 	github.com/fatih/color v1.7.0
 	github.com/fatih/structs v1.1.0 // indirect
 	github.com/garyburd/redigo v1.6.0
 	github.com/gavv/httpexpect v0.0.0-20170820080527-c44a6d7bb636
-	github.com/gavv/monotime v0.0.0-20190629144257-30dba4353424 // indirect
+	github.com/gavv/monotime v0.0.0-20190418164738-30dba4353424 // indirect
 	github.com/getsentry/raven-go v0.2.0
 	github.com/go-kit/kit v0.9.0
 	github.com/golang/mock v1.3.1
@@ -36,7 +36,7 @@ require (
 	github.com/jinzhu/gorm v1.9.10
 	github.com/joho/godotenv v1.3.0
 	github.com/k0kubun/colorstring v0.0.0-20150214042306-9440f1994b88 // indirect
-	github.com/levigross/grequests v0.0.0-20190630082331-37c80f76a0da
+	github.com/levigross/grequests v0.0.0-20190130132859-37c80f76a0da
 	github.com/lib/pq v1.2.0
 	github.com/markbates/goth v0.0.0-20180113214406-24f8ac10e57e
 	github.com/mattes/migrate v0.0.0-20171208214826-d23f71b03c4a
@@ -62,7 +62,7 @@ require (
 	github.com/yudai/gojsondiff v1.0.0 // indirect
 	github.com/yudai/golcs v0.0.0-20170316035057-ecda9a501e82 // indirect
 	github.com/yudai/pp v2.0.1+incompatible // indirect
-	golang.org/x/oauth2 v0.0.0-20190630083822-0f29369cfe45
+	golang.org/x/oauth2 v0.0.0-20190604053449-0f29369cfe45
 	golang.org/x/tools v0.0.0-20190912215617-3720d1ec3678
 	gopkg.in/boj/redistore.v1 v1.0.0-20160128113310-fc113767cd6b
 	gopkg.in/redsync.v1 v1.0.1
