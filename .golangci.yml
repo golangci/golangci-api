@@ -38,4 +38,4 @@ linters:
 # golangci.com configuration
 # https://github.com/golangci/golangci/wiki/Configuration
 service:
-  golangci-lint-version: 1.19.x # use fixed version to not introduce new linters unexpectedly
+  golangci-lint-version: 1.20.x # use fixed version to not introduce new linters unexpectedly

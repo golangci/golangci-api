@@ -23,7 +23,7 @@ require (
 	github.com/getsentry/raven-go v0.2.0
 	github.com/go-kit/kit v0.9.0
 	github.com/golang/mock v1.3.1
-	github.com/golangci/golangci-lint v1.19.1
+	github.com/golangci/golangci-lint v1.20.0
 	github.com/gomodule/redigo v2.0.0+incompatible // indirect
 	github.com/google/go-github v0.0.0-20180123235826-b1f138353a62
 	github.com/google/go-querystring v1.0.0 // indirect
