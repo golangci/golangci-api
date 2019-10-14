@@ -161,7 +161,7 @@ func (r *Runner) syncDeps(ctx context.Context, repoName string) error {
 
 func (r Runner) checkDeps(ctx context.Context, repoName string) error {
 	r.log.Infof("Checking deps...")
-	out, _ := r.cr.Run(ctx, "golangci-lint", "run", "--no-config", "--disable-all", "-E", "typecheck", "--deadline=5m")
+	out, _ := r.cr.Run(ctx, "golangci-lint", "run", "--no-config", "--disable-all", "-E", "typecheck", "--timeout=5m")
 	lines := strings.Split(out, "\n")
 	for _, line := range lines {
 		line = strings.TrimSpace(strings.ToLower(line))
