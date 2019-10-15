@@ -11,6 +11,9 @@ if [ $1 = "api" ]; then
     GO111MODULE=on GOOS=linux CGO_ENABLED=0 GOARCH=amd64 \
         go build -o golangci-api-dlq-consumer \
         ./scripts/consume_dlq/main.go
+    GO111MODULE=on GOOS=linux CGO_ENABLED=0 GOARCH=amd64 \
+        go build -o golangci-api-pull-analyzes-recover \
+        ./scripts/recover_pull_analyzes/main.go
 fi
 
 GO111MODULE=on GOOS=linux CGO_ENABLED=0 GOARCH=amd64 \
