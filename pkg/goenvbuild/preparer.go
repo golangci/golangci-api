@@ -282,7 +282,7 @@ func parseVersion(v string) (*version, error) {
 
 func (p Preparer) runGolangciLint(ctx context.Context, sg *result.StepGroup, runner *command.StreamingRunner) error {
 	cmd := "golangci-lint"
-	args := []string{"run", "-v", "--timeout=5m"}
+	args := []string{"run", "-v", "--deadline=5m"}
 	sg.AddStepCmd(cmd, args...)
 	_, err := runner.Run(ctx, cmd, args...)
 	return err

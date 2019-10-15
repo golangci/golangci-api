@@ -32,7 +32,7 @@ func (g GolangciLint) Run(ctx context.Context, sg *logresult.StepGroup, exec exe
 		"run",
 		"--out-format=json",
 		"--issues-exit-code=0",
-		"--timeout=5m",
+		"--deadline=5m",
 		"--new=false",
 		"--new-from-rev=",
 		"--new-from-patch=" + g.PatchPath,
