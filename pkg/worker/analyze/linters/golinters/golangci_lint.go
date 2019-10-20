@@ -33,6 +33,7 @@ func (g GolangciLint) Run(ctx context.Context, sg *logresult.StepGroup, exec exe
 
 	analyzedPaths, err := buildConfig.GetValidatedAnalyzedPaths()
 	if err != nil {
+		sg.AddStepCmd("GOLANGCI_COM_RUN=1 golangci-lint", "run")
 		return nil, errors.Wrap(err, "failed to build paths for analysis")
 	}
 
