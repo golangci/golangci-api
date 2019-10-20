@@ -34,6 +34,7 @@ linters:
     - scopelint
     - dupl
     - interfacer
+    - gosimple
 
 # golangci.com configuration
 # https://github.com/golangci/golangci/wiki/Configuration
