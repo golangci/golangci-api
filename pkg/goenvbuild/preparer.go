@@ -282,13 +282,15 @@ func parseVersion(v string) (*version, error) {
 }
 
 func (p Preparer) runGolangciLint(ctx context.Context, sg *result.StepGroup, runner *command.StreamingRunner, cfg *goenvconfig.Service) error {
+	cmd := "golangci-lint"
+
 	analyzedPaths, err := cfg.GetValidatedAnalyzedPaths()
 	if err != nil {
+		sg.AddStepCmd(cmd, "run")
 		return errors.Wrap(err, "failed to build paths for analysis")
 	}
 
 	args := append([]string{"run", "-v", "--deadline=5m"}, analyzedPaths...)
-	cmd := "golangci-lint"
 	sg.AddStepCmd(cmd, args...)
 	_, err = runner.Run(ctx, cmd, args...)
 	return err
