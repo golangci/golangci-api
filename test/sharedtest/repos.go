@@ -70,6 +70,7 @@ func (r *Repo) updateFromResponse(resp *httpexpect.Response) {
 
 func (r *Repo) activateExpectStatus(status int) {
 	np := strings.Split(r.Name, "/")
+	r.u.A.Len(np, 2)
 	r.updateFromResponse(
 		r.u.E.
 			POST("/v1/repos").

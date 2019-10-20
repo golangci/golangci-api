@@ -184,7 +184,7 @@ func (p *BasicPull) analyze(ctx *PullContext) (*result.Result, error) {
 	var err error
 	ctx.res.trackTiming("Analysis", func() {
 		ctx.res.buildLog.RunNewGroupVoid("analyze", func(sg *envbuildresult.StepGroup) {
-			res, err = p.Runner.Run(ctx.Ctx, sg, p.Linters, p.Exec)
+			res, err = p.Runner.Run(ctx.Ctx, sg, p.Linters, p.Exec, ctx.buildConfig)
 		})
 	})
 	if err != nil {

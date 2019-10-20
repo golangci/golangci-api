@@ -91,7 +91,9 @@ func (c AnalyzePR) Consume(ctx context.Context, repoOwner, repoName string,
 		if err != nil {
 			return errors.Wrap(err, "can't build processor")
 		}
-		defer cleanup()
+		if cleanup != nil {
+			defer cleanup()
+		}
 
 		if err = p.Process(pullCtx); err != nil {
 			return errors.Wrap(err, "can't process pull analysis")

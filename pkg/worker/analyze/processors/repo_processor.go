@@ -16,6 +16,7 @@ import (
 	"github.com/golangci/golangci-api/internal/shared/apperrors"
 	"github.com/golangci/golangci-api/internal/shared/config"
 	"github.com/golangci/golangci-api/internal/shared/logutil"
+	envconfig "github.com/golangci/golangci-api/pkg/goenvbuild/config"
 	"github.com/golangci/golangci-api/pkg/goenvbuild/result"
 	"github.com/golangci/golangci-api/pkg/worker/analyze/linters"
 	"github.com/golangci/golangci-api/pkg/worker/analyze/repostate"
@@ -62,6 +63,8 @@ type RepoContext struct {
 	CommitSHA          string
 
 	Log logutil.Log
+
+	BuildConfig *envconfig.Service
 }
 
 func (ctx *RepoContext) secrets() []string {
@@ -157,12 +160,13 @@ func (r *Repo) prepare(ctx *RepoContext, res *analysisResult) error {
 	defer res.addTimingFrom("Prepare", time.Now())
 
 	fr := buildFetchersRepo(ctx)
-	exec, _, err := r.Wi.Setup(ctx.Ctx, res.buildLog, ctx.PrivateAccessToken, fr, "github.com", ctx.Repo.Owner, ctx.Repo.Name)
+	exec, buildConfig, err := r.Wi.Setup(ctx.Ctx, res.buildLog, ctx.PrivateAccessToken, fr, "github.com", ctx.Repo.Owner, ctx.Repo.Name)
 	if err != nil {
 		return errors.Wrap(err, "failed to setup workspace")
 	}
 
 	r.Exec = exec
+	ctx.BuildConfig = buildConfig
 	return nil
 }
 
@@ -170,7 +174,7 @@ func (r Repo) analyze(ctx *RepoContext, res *analysisResult) error {
 	defer res.addTimingFrom("Analysis", time.Now())
 
 	return res.buildLog.RunNewGroup("analyze", func(sg *result.StepGroup) error {
-		lintRes, err := r.Runner.Run(ctx.Ctx, sg, r.Linters, r.Exec)
+		lintRes, err := r.Runner.Run(ctx.Ctx, sg, r.Linters, r.Exec, ctx.BuildConfig)
 		if err != nil {
 			return err
 		}

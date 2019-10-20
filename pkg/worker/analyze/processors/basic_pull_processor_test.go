@@ -112,7 +112,7 @@ func getRealisticTestPullCtx(t *testing.T) *processors.PullContext {
 func getFakeLinters(ctrl *gomock.Controller, issues ...result.Issue) []linters.Linter {
 	a := linters.NewMockLinter(ctrl)
 	a.EXPECT().
-		Run(testCtxMatcher, any, any).
+		Run(testCtxMatcher, any, any, any).
 		Return(&result.Result{
 			Issues: issues,
 		}, nil)

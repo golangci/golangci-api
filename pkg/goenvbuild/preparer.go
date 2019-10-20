@@ -214,7 +214,7 @@ func (p Preparer) run(needStreamToOutput bool) *result.Result {
 	// run golangci-lint
 	err = runStepGroup(res.Log, "run golangci-lint", func(sg *result.StepGroup, log logutil.Log) error {
 		r := runner.WithEnv("GOLANGCI_COM_RUN", "1")
-		return p.runGolangciLint(ctx, sg, r)
+		return p.runGolangciLint(ctx, sg, r, &res.ServiceConfig)
 	})
 	if err != nil {
 		return saveErr(err)
@@ -281,11 +281,16 @@ func parseVersion(v string) (*version, error) {
 	}, nil
 }
 
-func (p Preparer) runGolangciLint(ctx context.Context, sg *result.StepGroup, runner *command.StreamingRunner) error {
+func (p Preparer) runGolangciLint(ctx context.Context, sg *result.StepGroup, runner *command.StreamingRunner, cfg *goenvconfig.Service) error {
+	analyzedPaths, err := cfg.GetValidatedAnalyzedPaths()
+	if err != nil {
+		return errors.Wrap(err, "failed to build paths for analysis")
+	}
+
+	args := append([]string{"run", "-v", "--deadline=5m"}, analyzedPaths...)
 	cmd := "golangci-lint"
-	args := []string{"run", "-v", "--deadline=5m"}
 	sg.AddStepCmd(cmd, args...)
-	_, err := runner.Run(ctx, cmd, args...)
+	_, err = runner.Run(ctx, cmd, args...)
 	return err
 }
 

@@ -7,6 +7,9 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/pkg/errors"
+
+	"github.com/golangci/golangci-api/pkg/goenvbuild/config"
 	logresult "github.com/golangci/golangci-api/pkg/goenvbuild/result"
 	"github.com/golangci/golangci-api/pkg/worker/analytics"
 	"github.com/golangci/golangci-api/pkg/worker/analyze/linters/result"
@@ -25,8 +28,13 @@ func (g GolangciLint) Name() string {
 }
 
 //nolint:gocyclo
-func (g GolangciLint) Run(ctx context.Context, sg *logresult.StepGroup, exec executors.Executor) (*result.Result, error) {
+func (g GolangciLint) Run(ctx context.Context, sg *logresult.StepGroup, exec executors.Executor, buildConfig *config.Service) (*result.Result, error) {
 	exec = exec.WithEnv("GOLANGCI_COM_RUN", "1")
+
+	analyzedPaths, err := buildConfig.GetValidatedAnalyzedPaths()
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to build paths for analysis")
+	}
 
 	args := []string{
 		"run",
@@ -37,6 +45,7 @@ func (g GolangciLint) Run(ctx context.Context, sg *logresult.StepGroup, exec exe
 		"--new-from-rev=",
 		"--new-from-patch=" + g.PatchPath,
 	}
+	args = append(args, analyzedPaths...)
 	step := sg.AddStepCmd("GOLANGCI_COM_RUN=1 golangci-lint", args...)
 
 	runRes, runErr := exec.Run(ctx, g.Name(), args...)

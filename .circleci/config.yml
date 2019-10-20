@@ -2,7 +2,7 @@ version: 2
 jobs:
   build:
     docker:
-      - image: circleci/golang:1.12
+      - image: circleci/golang:1.13
       - image: redis
       - image: circleci/postgres:9.4
         environment:
@@ -12,7 +12,6 @@ jobs:
     working_directory: /go/src/github.com/golangci/golangci-api
     steps:
       - checkout
-      - run: GO111MODULE=on go mod vendor
       - run: go get github.com/golangci/golangci-lint/cmd/golangci-lint
       - run: make prepare_test_env
       - run:
