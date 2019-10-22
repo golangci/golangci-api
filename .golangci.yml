@@ -34,6 +34,10 @@ linters:
     - scopelint
     - dupl
     - interfacer
+    - wsl
+    - godox
+    - funlen
+    - whitespace
 
 # golangci.com configuration
 # https://github.com/golangci/golangci/wiki/Configuration
