@@ -52,7 +52,7 @@ Run golangci-web, golangci-worker and golangci-api. Go to `https://dev.golangci.
 
 ## Subscriptions and Payment Gateway
 
-### Requirments
+### Requirements
 
 To use Subscriptions you will need to configure the env variables for the gateway of your choice.
 
