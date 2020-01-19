@@ -27,7 +27,6 @@ require (
 	github.com/golangci/golangci-lint v1.20.0
 	github.com/gomodule/redigo v2.0.0+incompatible // indirect
 	github.com/google/go-github v0.0.0-20180123235826-b1f138353a62
-	github.com/google/go-querystring v1.0.0 // indirect
 	github.com/gopherjs/gopherjs v0.0.0-20190430165422-3e4dfb77656c // indirect
 	github.com/gorilla/mux v1.7.3
 	github.com/gorilla/schema v1.1.0
@@ -37,7 +36,7 @@ require (
 	github.com/jinzhu/gorm v1.9.12
 	github.com/joho/godotenv v1.3.0
 	github.com/k0kubun/colorstring v0.0.0-20150214042306-9440f1994b88 // indirect
-	github.com/levigross/grequests v0.0.0-20190130132859-37c80f76a0da
+	github.com/levigross/grequests v0.0.0-20190908174114-253788527a1a
 	github.com/lib/pq v1.3.0
 	github.com/markbates/goth v0.0.0-20180113214406-24f8ac10e57e
 	github.com/mattes/migrate v0.0.0-20171208214826-d23f71b03c4a
