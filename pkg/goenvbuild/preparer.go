@@ -40,10 +40,11 @@ var availableGolangciLintVersions = map[int]map[int][]int{
 		20: {0, 1},
 		21: {0},
 		22: {0, 1, 2},
+		23: {0},
 	},
 }
 
-const defaultGolangciLintVersion = "1.22.x"
+const defaultGolangciLintVersion = "1.23.x"
 
 type Preparer struct {
 	cfg config.Config
