@@ -15,7 +15,7 @@ require (
 	github.com/docker/go-connections v0.4.0 // indirect
 	github.com/docker/go-units v0.3.3 // indirect
 	github.com/dukex/mixpanel v0.0.0-20180925151559-f8d5594f958e
-	github.com/fatih/color v1.7.0
+	github.com/fatih/color v1.9.0
 	github.com/fatih/structs v1.1.0 // indirect
 	github.com/garyburd/redigo v1.6.0
 	github.com/gavv/httpexpect v0.0.0-20170820080527-c44a6d7bb636
