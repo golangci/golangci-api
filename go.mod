@@ -42,7 +42,7 @@ require (
 	github.com/mattes/migrate v0.0.0-20171208214826-d23f71b03c4a
 	github.com/moul/http2curl v1.0.0 // indirect
 	github.com/opencontainers/go-digest v1.0.0-rc1 // indirect
-	github.com/pkg/errors v0.8.1
+	github.com/pkg/errors v0.9.1
 	github.com/rs/cors v1.6.0
 	github.com/satori/go.uuid v1.2.0
 	github.com/savaki/amplitude-go v0.0.0-20160610055645-f62e3b57c0e4
