@@ -33,7 +33,7 @@ require (
 	github.com/gorilla/securecookie v1.1.1
 	github.com/gorilla/sessions v1.1.3
 	github.com/imkira/go-interpol v1.1.0 // indirect
-	github.com/jinzhu/gorm v1.9.10
+	github.com/jinzhu/gorm v1.9.12
 	github.com/joho/godotenv v1.3.0
 	github.com/k0kubun/colorstring v0.0.0-20150214042306-9440f1994b88 // indirect
 	github.com/levigross/grequests v0.0.0-20190130132859-37c80f76a0da
