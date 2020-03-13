@@ -8,6 +8,7 @@ jobs:
         environment:
           POSTGRES_USER: postgres
           POSTGRES_DB: api_test
+          POSTGRES_HOST_AUTH_METHOD: trust
 
     working_directory: /go/src/github.com/golangci/golangci-api
     steps:
