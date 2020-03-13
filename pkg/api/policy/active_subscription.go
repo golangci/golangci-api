@@ -4,6 +4,7 @@ import (
 	"context"
 	"strings"
 
+	"github.com/golangci/golangci-api/internal/shared/config"
 	"github.com/golangci/golangci-api/internal/shared/logutil"
 	"github.com/golangci/golangci-api/internal/shared/providers/provider"
 	"github.com/golangci/golangci-api/pkg/api/models"
@@ -14,12 +15,14 @@ import (
 type ActiveSubscription struct {
 	log logutil.Log
 	db  *gorm.DB
+	cfg config.Config
 }
 
-func NewActiveSubscription(log logutil.Log, db *gorm.DB) *ActiveSubscription {
+func NewActiveSubscription(log logutil.Log, db *gorm.DB, cfg config.Config) *ActiveSubscription {
 	return &ActiveSubscription{
 		log: log,
 		db:  db,
+		cfg: cfg,
 	}
 }
 
@@ -48,6 +51,11 @@ func (s ActiveSubscription) checkExistingOrgSubscription(org *models.Org) (*mode
 }
 
 func (s ActiveSubscription) CheckForProviderRepo(p provider.Provider, pr *provider.Repo) error {
+	if !s.cfg.GetBool("NEED_CHECK_ACTIVE_SUBSCRIPTIONS", true) {
+		s.log.Infof("Don't check active subscription by config")
+		return nil
+	}
+
 	_, _, err := s.getActiveSub(p, pr)
 	return err
 }
