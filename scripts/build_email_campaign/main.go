@@ -1,9 +1,8 @@
 package main
 
 import (
-	"io/ioutil"
+	"fmt"
 	"log"
-	"os"
 	"strings"
 
 	"github.com/pkg/errors"
@@ -53,9 +52,6 @@ func buildUsersList() error {
 		lines = append(lines, email)
 	}
 
-	if err = ioutil.WriteFile("users.csv", []byte(strings.Join(lines, "\n")), os.ModePerm); err != nil {
-		return errors.Wrap(err, "failed to write result to file")
-	}
-
+	fmt.Println(strings.Join(lines, "\n"))
 	return nil
 }
