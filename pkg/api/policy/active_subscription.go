@@ -56,6 +56,7 @@ func (s ActiveSubscription) CheckForProviderRepo(p provider.Provider, pr *provid
 		return nil
 	}
 
+	s.log.Infof("Check active subscription by config")
 	_, _, err := s.getActiveSub(p, pr)
 	return err
 }
