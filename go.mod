@@ -18,7 +18,7 @@ require (
 	github.com/fatih/color v1.9.0
 	github.com/fatih/structs v1.1.0 // indirect
 	github.com/garyburd/redigo v1.6.0
-	github.com/gavv/httpexpect v0.0.0-20170820080527-c44a6d7bb636
+	github.com/gavv/httpexpect/v2/v2 v2.0.3
 	github.com/gavv/monotime v0.0.0-20190418164738-30dba4353424 // indirect
 	github.com/getsentry/raven-go v0.2.0
 	github.com/go-kit/kit v0.9.0
