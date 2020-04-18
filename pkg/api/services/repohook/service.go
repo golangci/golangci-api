@@ -67,6 +67,10 @@ func (s BasicService) HandleGithubWebhook(rc *request.AnonymousContext, req *Git
 		rc.Log.Warnf("Got no delivery guid in github webhook, generated it")
 	}
 
+	if s.Cfg.GetBool("SERVICE_IS_DISABLED", false) {
+		return nil
+	}
+
 	var repo models.Repo
 	err := models.NewRepoQuerySet(rc.DB).HookIDEq(req.HookID).One(&repo)
 	if err != nil {
