@@ -21,7 +21,7 @@ require (
 	github.com/gavv/httpexpect v0.0.0-20170820080527-c44a6d7bb636
 	github.com/gavv/monotime v0.0.0-20190418164738-30dba4353424 // indirect
 	github.com/getsentry/raven-go v0.2.0
-	github.com/go-kit/kit v0.9.0
+	github.com/go-kit/kit v0.10.0
 	github.com/golang/mock v1.3.1
 	github.com/golangci/golangci-lint v1.20.0
 	github.com/gomodule/redigo v2.0.0+incompatible // indirect
