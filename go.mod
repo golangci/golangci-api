@@ -37,7 +37,7 @@ require (
 	github.com/k0kubun/colorstring v0.0.0-20150214042306-9440f1994b88 // indirect
 	github.com/levigross/grequests v0.0.0-20190908174114-253788527a1a
 	github.com/lib/pq v1.3.0
-	github.com/markbates/goth v0.0.0-20180113214406-24f8ac10e57e
+	github.com/markbates/goth v1.64.0
 	github.com/mattes/migrate v0.0.0-20171208214826-d23f71b03c4a
 	github.com/moul/http2curl v1.0.0 // indirect
 	github.com/opencontainers/go-digest v1.0.0-rc1 // indirect
