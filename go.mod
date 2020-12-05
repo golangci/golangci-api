@@ -22,7 +22,7 @@ require (
 	github.com/gavv/monotime v0.0.0-20190418164738-30dba4353424 // indirect
 	github.com/getsentry/raven-go v0.2.0
 	github.com/go-kit/kit v0.9.0
-	github.com/golang/mock v1.3.1
+	github.com/golang/mock v1.4.3
 	github.com/golangci/golangci-lint v1.20.0
 	github.com/gomodule/redigo v2.0.0+incompatible // indirect
 	github.com/google/go-github v0.0.0-20180123235826-b1f138353a62
