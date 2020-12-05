@@ -23,7 +23,7 @@ require (
 	github.com/getsentry/raven-go v0.2.0
 	github.com/go-kit/kit v0.9.0
 	github.com/golang/mock v1.3.1
-	github.com/golangci/golangci-lint v1.20.0
+	github.com/golangci/golangci-lint v1.25.1
 	github.com/gomodule/redigo v2.0.0+incompatible // indirect
 	github.com/google/go-github v0.0.0-20180123235826-b1f138353a62
 	github.com/gopherjs/gopherjs v0.0.0-20190430165422-3e4dfb77656c // indirect
@@ -49,7 +49,7 @@ require (
 	github.com/shirou/gopsutil v0.0.0-20190901111213-e4ec7b275ada
 	github.com/sirupsen/logrus v1.4.2
 	github.com/spf13/viper v1.6.2
-	github.com/stretchr/testify v1.4.0
+	github.com/stretchr/testify v1.5.1
 	github.com/stvp/rollbar v0.5.1
 	github.com/stvp/tempredis v0.0.0-20181119212430-b82af8480203 // indirect
 	github.com/urfave/negroni v1.0.0
@@ -61,10 +61,10 @@ require (
 	github.com/yudai/golcs v0.0.0-20170316035057-ecda9a501e82 // indirect
 	github.com/yudai/pp v2.0.1+incompatible // indirect
 	golang.org/x/oauth2 v0.0.0-20200107190931-bf48bf16ab8d
-	golang.org/x/tools v0.0.0-20190930201159-7c411dea38b0
+	golang.org/x/tools v0.0.0-20200422022333-3d57cf2e726e
 	gopkg.in/boj/redistore.v1 v1.0.0-20160128113310-fc113767cd6b
 	gopkg.in/redsync.v1 v1.0.1
-	gopkg.in/yaml.v2 v2.2.4
+	gopkg.in/yaml.v2 v2.2.8
 )
 
 go 1.14
