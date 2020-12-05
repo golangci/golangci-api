@@ -6,7 +6,7 @@ module github.com/golangci/golangci-api
 require (
 	github.com/Microsoft/go-winio v0.4.12 // indirect
 	github.com/ajg/form v1.5.1 // indirect
-	github.com/aws/aws-lambda-go v1.11.1
+	github.com/aws/aws-lambda-go v1.16.0
 	github.com/aws/aws-sdk-go v1.28.5
 	github.com/cenkalti/backoff v2.2.1+incompatible
 	github.com/certifi/gocertifi v0.0.0-20190506164543-d2eda7129713 // indirect
