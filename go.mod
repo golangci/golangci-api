@@ -63,7 +63,7 @@ require (
 	golang.org/x/oauth2 v0.0.0-20200107190931-bf48bf16ab8d
 	golang.org/x/tools v0.0.0-20190930201159-7c411dea38b0
 	gopkg.in/boj/redistore.v1 v1.0.0-20160128113310-fc113767cd6b
-	gopkg.in/redsync.v1 v1.0.1
+	gopkg.in/redsync.v1 v1.4.2
 	gopkg.in/yaml.v2 v2.2.4
 )
 
