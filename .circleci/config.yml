@@ -4,7 +4,7 @@ jobs:
     docker:
       - image: circleci/golang:1.13
       - image: redis
-      - image: circleci/postgres:9.4
+      - image: circleci/postgres:9.6
         environment:
           POSTGRES_USER: postgres
           POSTGRES_DB: api_test
