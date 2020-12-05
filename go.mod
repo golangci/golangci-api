@@ -46,7 +46,7 @@ require (
 	github.com/satori/go.uuid v1.2.0
 	github.com/savaki/amplitude-go v0.0.0-20160610055645-f62e3b57c0e4
 	github.com/sergi/go-diff v1.0.0 // indirect
-	github.com/shirou/gopsutil v0.0.0-20190901111213-e4ec7b275ada
+	github.com/shirou/gopsutil/v2/v2 v2.20.3
 	github.com/sirupsen/logrus v1.4.2
 	github.com/spf13/viper v1.6.2
 	github.com/stretchr/testify v1.4.0
